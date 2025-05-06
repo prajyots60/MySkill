@@ -45,6 +45,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useYouTubeStore } from "@/lib/store/youtube-store"
 import { updateCreatorProfile } from "@/app/creators/[creatorId]/actions/get-creator"
+import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker"
 
 // Define the available theme colors for creator profiles
 const themeColors = [
@@ -491,6 +492,9 @@ export default function CreatorSettingsPage() {
           <p className="text-muted-foreground mt-1">Manage your profile and preferences</p>
         </div>
       </div>
+
+      {/* Minimalist Profile Completion Tracker */}
+      <ProfileCompletionTracker profile={profileForm} className="mb-6" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

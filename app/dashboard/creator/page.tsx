@@ -35,6 +35,9 @@ import { useYouTubeStore } from "@/lib/store/youtube-store"
 import Link from "next/link"
 import Image from "next/image"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
+import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 // Memoized components for better performance
 const StatCard = memo(function StatCard({
@@ -299,12 +302,96 @@ export default function CreatorDashboardPage() {
   // Use Zustand store for YouTube connection status
   const { connected: youtubeConnected, checkConnectionStatus } = useYouTubeStore()
 
+  // State for creator profile
+  const [creatorProfile, setCreatorProfile] = useState<Record<string, any> | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+
+  // Fetch creator profile
+  useEffect(() => {
+    const fetchCreatorProfile = async () => {
+      if (session?.user?.id) {
+        try {
+          setProfileLoading(true)
+          const response = await fetch(`/api/creators/${session.user.id}/profile`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.creator) {
+              setCreatorProfile(data.creator)
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching creator profile:", error)
+        } finally {
+          setProfileLoading(false)
+        }
+      }
+    }
+    
+    if (status === "authenticated") {
+      fetchCreatorProfile()
+    }
+  }, [session?.user?.id, status])
+
   // Check YouTube connection on mount
   useEffect(() => {
     if (status === "authenticated") {
       checkConnectionStatus()
     }
   }, [status, checkConnectionStatus])
+
+  // Function to check if profile is complete
+  const isProfileComplete = (profile: Record<string, any> | null) => {
+    if (!profile) return false;
+    
+    // Check required fields
+    const hasName = !!profile.name && profile.name.trim() !== '';
+    const hasBio = !!profile.bio && profile.bio.trim() !== '';
+    const hasExpertise = Array.isArray(profile.expertise) && profile.expertise.length > 0;
+    const hasTagline = !!profile.tagline && profile.tagline.trim() !== '';
+    const hasCoverImage = Array.isArray(profile.coverImages) && !!profile.coverImages[0];
+    const hasYearsTeaching = !!profile.yearsTeaching && profile.yearsTeaching.trim() !== '';
+    const hasCategories = Array.isArray(profile.categories) && profile.categories.length > 0;
+    
+    return hasName && hasBio && hasExpertise && hasTagline && hasCoverImage && hasYearsTeaching && hasCategories;
+  };
+
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = (profile: Record<string, any> | null) => {
+    if (!profile) return 0;
+    
+    // Count completed required fields
+    let completedFields = 0;
+    
+    if (profile.name && profile.name.trim() !== '') completedFields++;
+    if (profile.bio && profile.bio.trim() !== '') completedFields++;
+    if (Array.isArray(profile.expertise) && profile.expertise.length > 0) completedFields++;
+    if (profile.tagline && profile.tagline.trim() !== '') completedFields++;
+    if (Array.isArray(profile.coverImages) && profile.coverImages[0]) completedFields++;
+    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== '') completedFields++;
+    if (Array.isArray(profile.categories) && profile.categories.length > 0) completedFields++;
+    
+    // Calculate percentage (7 total required fields)
+    return Math.round((completedFields / 7) * 100);
+  };
+
+  // Count remaining required fields
+  const getRequiredFieldsRemaining = (profile: Record<string, any> | null) => {
+    if (!profile) return 7;
+    
+    // Count completed required fields
+    let completedFields = 0;
+    
+    if (profile.name && profile.name.trim() !== '') completedFields++;
+    if (profile.bio && profile.bio.trim() !== '') completedFields++;
+    if (Array.isArray(profile.expertise) && profile.expertise.length > 0) completedFields++;
+    if (profile.tagline && profile.tagline.trim() !== '') completedFields++;
+    if (Array.isArray(profile.coverImages) && profile.coverImages[0]) completedFields++;
+    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== '') completedFields++;
+    if (Array.isArray(profile.categories) && profile.categories.length > 0) completedFields++;
+    
+    // Return remaining fields count
+    return 7 - completedFields;
+  };
 
   // Memoize stats to prevent unnecessary re-renders
   const stats = useMemo(() => {
@@ -360,20 +447,65 @@ export default function CreatorDashboardPage() {
         Creator Dashboard
       </h1>
 
-      {/* Public profile link */}
-      <Alert className="mb-6 border-primary/20 bg-primary/5">
-        <ExternalLink className="h-4 w-4 text-primary" />
-        <AlertTitle className="font-medium">Your Public Creator Profile</AlertTitle>
-        <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span>View and share your public profile with students and followers.</span>
-          <Button asChild variant="outline" size="sm" className="sm:ml-auto">
-            <Link href={`/creators/${session?.user?.id}`} target="_blank">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Public Profile
-            </Link>
-          </Button>
-        </AlertDescription>
-      </Alert>
+      {/* Public Creator Profile Section - With Profile Completion Status */}
+      <div className="mb-6 rounded-md bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-950/30 overflow-hidden">
+        <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-white dark:bg-slate-900 p-2 rounded-full">
+              <ExternalLink className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-medium">Your Public Creator Profile</h2>
+              <p className="text-sm text-muted-foreground mt-1">View and share your public profile with students and followers.</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 w-full sm:w-auto">
+            {!isProfileComplete(creatorProfile) && (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                  {creatorProfile ? getRequiredFieldsRemaining(creatorProfile) : '7'} required fields remaining
+                </span>
+                <Button asChild variant="outline" size="sm" className="ml-auto sm:ml-0">
+                  <Link href="/dashboard/creator/settings">
+                    Complete Profile
+                  </Link>
+                </Button>
+              </div>
+            )}
+            
+            <Button 
+              asChild={isProfileComplete(creatorProfile)}
+              variant="default" 
+              size="sm" 
+              className="w-full sm:w-auto"
+              disabled={!isProfileComplete(creatorProfile)}
+            >
+              {isProfileComplete(creatorProfile) ? (
+                <Link href={`/creators/${session?.user?.id}`} target="_blank" className="flex items-center gap-2">
+                  View Public Profile
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              ) : (
+                <span className="flex items-center gap-2">
+                  View Public Profile
+                  <ExternalLink className="h-4 w-4" />
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+        
+        {/* Simple Progress Bar */}
+        {!isProfileComplete(creatorProfile) && (
+          <div className="h-1.5 bg-purple-200 dark:bg-purple-900/30 w-full">
+            <div 
+              className="h-full bg-purple-600 dark:bg-purple-500" 
+              style={{ width: `${creatorProfile ? calculateProfileCompletion(creatorProfile) : 0}%` }}
+            />
+          </div>
+        )}
+      </div>
 
       {!youtubeConnected && (
         <Alert className="mb-6 border-primary/50 bg-primary/5">
