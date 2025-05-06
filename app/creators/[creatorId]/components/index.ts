@@ -1,0 +1,13 @@
+// Export all components from the creators/[creatorId]/components directory
+export { default as CourseCard } from './CourseCard';
+export { default as CreatorHero } from './CreatorHero';
+export { default as CreatorTabs } from './CreatorTabs';
+export { default as SocialLinks } from './SocialLinks';
+export { default as CreatorBadges } from './CreatorBadges';
+export { default as LiveSessions } from './LiveSessions';
+export { default as QuestionsList } from './QuestionsList';
+export { default as CreatorMilestones } from './CreatorMilestones';
+export { default as CreatorResources } from './CreatorResources';
+export { default as Testimonials } from './Testimonials';
+export { default as CustomSections } from './CustomSections';
+export { default as CreatorFooter } from './CreatorFooter';

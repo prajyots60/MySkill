@@ -1,0 +1,527 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Add pgBouncer support
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Add the following directive to make Prisma compatible with PgBouncer
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Custom Models
+enum UserRole {
+  STUDENT
+  CREATOR
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(STUDENT)
+  bio           String?   @db.Text
+  youtubeConnected  Boolean  @default(false)
+  youtubeChannelId  String?
+  youtubeChannelName String?
+  youtubeThumbnailUrl String?
+  youtubeConnectedAt DateTime?
+  gdriveConnected  Boolean  @default(false)
+  gdriveEmail      String?
+  gdriveName       String?
+  gdriveProfileImage String?
+  gdriveConnectedAt DateTime?
+  socialLinks   Json?
+  onboarded     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Add relation to creator profile
+  creatorProfile CreatorProfile?
+
+  accounts    Account[]
+  sessions    Session[]
+  contents    Content[]
+  enrollments Enrollment[]
+  progress    Progress[]
+  comments    Comment[]
+  documents   Document[]
+  bookmarks   Bookmark[]
+  followers   UserFollow[] @relation("UserFollowers")
+  following   UserFollow[] @relation("UserFollowing")
+  eventReminders EventReminder[]
+  studentExamResponses StudentExamResponse[] 
+  createdExams Exam[] 
+
+  @@index([email])
+}
+
+// Creator Profile Model - to store additional creator information
+model CreatorProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  coverImages          String[] // Changed from coverImage to coverImages array
+  tagline              String?  // Short professional description that appears under name
+  customTitle          String?  // Custom title for creator's page
+  expertise            String[]
+  location             String?
+  website              String?
+  education            String?  @db.Text
+  achievements         String?  @db.Text
+  yearsTeaching        String?
+  languages            String[]
+  categories           String[] // Teaching categories/subjects
+  institutionName      String?
+  institutionDescription String? @db.Text
+  institutionWebsite   String?
+  themeColor           String?  @default("default")
+  
+  // Store rich content as JSON
+  milestones          Json?    // Array of important creator milestones
+  badges              Json?    // Creator badges and awards
+  testimonials        Json?    // Student testimonials
+  resourcesDescription String? // Description for free resources section
+  resources           Json?    // Free educational resources
+  customSections      Json?    // Custom content sections for creator profile
+  
+  // Stats and verification
+  verified            Boolean  @default(false)
+  showResources       Boolean  @default(false)
+  
+  // Social media links (separate from user.socialLinks to keep specific to creator profile)
+  socialLinks         Json?    // Various social media links
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model UserFollow {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  followerId String
+  followingId String
+
+  follower   User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following  User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+enum ContentType {
+  COURSE
+  EVENT
+  SHOW
+  PODCAST
+  PERFORMANCE
+}
+
+model Content {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  thumbnail   String?
+  type        ContentType @default(COURSE)
+  price       Float?      @default(0)
+  isPublished Boolean     @default(false)
+  tags        String[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  creatorId   String
+
+  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  sections    Section[]
+  enrollments Enrollment[]
+  comments    Comment[]
+  documents   Document[]
+  bookmarks   Bookmark[]
+  resources   Resource[]   // Add relation to resources
+  exams       Exam[]       // Add relation to exams
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([isPublished])
+}
+
+model Section {
+  id          String  @id @default(cuid())
+  title       String
+  description String? @db.Text
+  order       Int
+  contentId   String
+
+  content   Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lectures  Lecture[]
+  documents Document[]
+  resources Resource[] // Add relation to resources
+  exams     Exam[]     // Add relation to exams
+
+  @@index([contentId])
+}
+
+enum LectureType {
+  VIDEO
+  LIVE
+  DOCUMENT
+}
+
+enum LiveStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+model Lecture {
+  id          String      @id @default(cuid())
+  title       String
+  description String?     @db.Text
+  order       Int
+  type        LectureType @default(VIDEO)
+  videoId     String?
+  duration    Int?
+  isPreview   Boolean     @default(false)
+  liveStatus  LiveStatus?
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  streamData  Json?       // Store live stream metadata
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sectionId   String
+
+  section   Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress  Progress[]
+  comments  Comment[]
+  documents Document[]
+  resources Resource[]  // Add relation to resources
+  eventReminders EventReminder[] // Add relation to event reminders
+  exams     Exam[]      // Add relation to exams
+
+  @@index([sectionId])
+  @@index([type])
+  @@index([isPreview])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  enrolledAt DateTime @default(now())
+  userId     String
+  contentId  String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+}
+
+model Progress {
+  id               String   @id @default(cuid())
+  percentage       Int      @default(0)
+  isComplete       Boolean  @default(false)
+  timeSpentSeconds Int      @default(0) // Add this line
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  userId           String
+  lectureId        String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lecture          Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+  @@index([userId])
+  @@index([lectureId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  contentId String?
+  lectureId String?
+  parentId  String?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content  Content?  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lecture  Lecture?  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentToComment")
+
+  @@index([userId])
+  @@index([contentId])
+  @@index([lectureId])
+  @@index([parentId])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  url         String
+  type        String
+  size        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  contentId   String?
+  sectionId   String?
+  lectureId   String?
+  creatorId   String
+
+  content Content? @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  section Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lecture Lecture? @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  creator User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([contentId])
+  @@index([sectionId])
+  @@index([lectureId])
+  @@index([creatorId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  contentId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+}
+
+// Resource model for Google Drive file attachments
+model Resource {
+  id          String   @id @default(cuid())
+  fileId      String   // Google Drive file ID
+  fileName    String
+  fileType    String
+  fileSize    Int
+  fileUrl     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  courseId    String
+  sectionId   String?
+  lectureId   String?
+
+  course      Content  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lecture     Lecture? @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([sectionId])
+  @@index([lectureId])
+}
+
+// Event Reminders for upcoming lectures
+model EventReminder {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  userId      String
+  lectureId   String
+  reminderSent Boolean  @default(false)
+  sentAt      DateTime?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lecture     Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+  @@index([userId])
+  @@index([lectureId])
+  @@index([reminderSent])
+}
+
+// Exam models for Google Forms integration
+enum ExamType {
+  QUIZ
+  MCQ
+  ASSIGNMENT
+  FINAL
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+model Exam {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?    @db.Text
+  instructions    String?    @db.Text
+  type            ExamType   @default(QUIZ)
+  status          ExamStatus @default(DRAFT)
+  passingScore    Int?       // Minimum score to pass (percentage)
+  timeLimit       Int?       // Time limit in minutes (null means no limit)
+  startDate       DateTime?  // When the exam becomes available
+  endDate         DateTime?  // When the exam closes
+  allowReview     Boolean    @default(true)
+  randomizeQuestions Boolean @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  creatorId       String
+  contentId       String?
+  sectionId       String?
+  lectureId       String?
+  formId          String?    @unique // Unique identifier for the exam used in URLs
+  
+  // Relations
+  creator         User       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  content         Content?   @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  section         Section?   @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  lecture         Lecture?   @relation(fields: [lectureId], references: [id], onDelete: SetNull)
+  questions        Question[]
+  studentResponses StudentExamResponse[]
+  
+  @@index([creatorId])
+  @@index([contentId])
+  @@index([sectionId])
+  @@index([lectureId])
+  @@index([status])
+}
+
+// Question types and models
+enum QuestionType {
+  MULTIPLE_CHOICE
+  CHECKBOX
+  SHORT_ANSWER
+  PARAGRAPH
+}
+
+model Question {
+  id              String       @id @default(cuid())
+  text            String       @db.Text
+  type            QuestionType
+  required        Boolean      @default(true)
+  order           Int
+  points          Int          @default(1)      // Default points value
+  negativeMarking Float?                        // Negative points for wrong answers
+  examId          String
+  
+  // Google Forms specific fields
+  questionId      String       // Google Forms question ID
+  
+  // Relations
+  exam            Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  responses       QuestionResponse[]
+  
+  @@index([examId])
+}
+
+model QuestionOption {
+  id          String   @id @default(cuid())
+  text        String   @db.Text
+  isCorrect   Boolean  @default(false)
+  order       Int
+  questionId  String
+  
+  // Google Forms specific fields
+  optionId    String   // Google Forms option ID
+  
+  // Relations
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  @@index([questionId])
+}
+
+// Student responses and scoring
+model StudentExamResponse {
+  id          String   @id @default(cuid())
+  startTime   DateTime @default(now())
+  submitTime  DateTime?
+  score       Int?     // Final score (null if not yet graded)
+  maxScore    Int?     // Maximum possible score
+  passed      Boolean? // Whether student passed (based on passing score)
+  examId      String
+  studentId   String
+  
+  // Google Forms specific fields
+  responseId  String?  // Google Forms response ID
+  
+  // Relations
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  responses   QuestionResponse[]
+  
+  @@unique([examId, studentId]) // One response per student per exam
+  @@index([examId])
+  @@index([studentId])
+}
+
+model QuestionResponse {
+  id                  String              @id @default(cuid())
+  studentExamResponseId String
+  questionId          String
+  
+  // The answer can be either a selected option ID or a text response
+  selectedOptionIds   String[]            // For multiple choice/checkbox
+  textResponse        String?             @db.Text // For short answer/paragraph
+  
+  isCorrect           Boolean?            // null if not yet graded (like for free text)
+  pointsAwarded       Float?              // Points awarded for this question
+  
+  // Relations
+  studentExamResponse StudentExamResponse @relation(fields: [studentExamResponseId], references: [id], onDelete: Cascade)
+  question            Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  @@index([studentExamResponseId])
+  @@index([questionId])
+}

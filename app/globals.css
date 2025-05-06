@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 252 87% 67%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 252 87% 67%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 252 87% 67%;
+    --radius: 0.5rem;
+
+    /* Sidebar theme */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 252 87% 67%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 252 87% 67%;
+
+    /* Chart colors */
+    --chart-1: 252 87% 67%;
+    --chart-2: 271 91% 65%;
+    --chart-3: 292 84% 65%;
+    --chart-4: 199 95% 74%;
+    --chart-5: 142.1 70.6% 45.3%;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 252 87% 67%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 252 87% 96%;
+    --accent-foreground: 252 87% 40%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 252 87% 67%;
+
+    /* Sidebar theme */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 252 87% 67%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 252 87% 67%;
+
+    /* Chart colors */
+    --chart-1: 252 87% 67%;
+    --chart-2: 271 91% 65%;
+    --chart-3: 292 84% 65%;
+    --chart-4: 199 95% 74%;
+    --chart-5: 142.1 76.2% 36.3%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Modern Sidebar Styles */
+.sidebar-modern {
+  box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+}
+
+.sidebar-modern [data-sidebar="sidebar"] {
+  @apply bg-gradient-to-b from-sidebar/95 to-sidebar;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+}
+
+.sidebar-modern [data-sidebar="menu-button"][data-active="true"] {
+  @apply bg-primary/15 text-primary;
+  position: relative;
+}
+
+.sidebar-modern [data-sidebar="menu-button"][data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 60%;
+  width: 3px;
+  @apply bg-primary;
+  transform: translateY(-50%);
+  border-radius: 0 4px 4px 0;
+}
+
+.sidebar-modern [data-sidebar="menu-button"] {
+  border-radius: 8px;
+}
+
+.sidebar-modern [data-sidebar="menu-button"]:hover {
+  @apply bg-sidebar-accent/30;
+}
+
+.sidebar-modern [data-sidebar="footer"] {
+  border-top: 1px solid hsl(var(--sidebar-border)/0.3);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.sidebar-modern [data-sidebar="header"] {
+  border-bottom: none;
+}
+
+.sidebar-modern [data-sidebar="group-label"] {
+  @apply text-muted-foreground font-medium tracking-wide uppercase text-[10px];
+  padding-left: 12px;
+}
+
+/* CLEAN COLLAPSED SIDEBAR STYLING - SINGLE DEFINITIVE SET OF RULES */
+
+/* Basic collapsed sidebar container */
+[data-state="collapsed"] [data-sidebar="sidebar"] {
+  --sidebar-width-icon: 3.5rem;
+  width: var(--sidebar-width-icon) !important;
+  background-color: white !important;
+  border-right: 1px solid #eaeaea !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* Content area */
+[data-collapsible="icon"] [data-sidebar="content"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  gap: 0 !important;
+}
+
+/* Group styling */
+[data-collapsible="icon"] [data-sidebar="group"] {
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* Menu container */
+[data-collapsible="icon"] [data-sidebar="menu"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+/* Menu item */
+[data-collapsible="icon"] [data-sidebar="menu-item"] {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 5px 0 !important; /* Consistent vertical spacing */
+}
+
+/* Menu button */
+[data-collapsible="icon"] [data-sidebar="menu-button"] {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+/* Icon in menu button */
+[data-collapsible="icon"] [data-sidebar="menu-button"] svg {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  color: #555 !important;
+}
+
+/* Active state styling */
+[data-collapsible="icon"] [data-sidebar="menu-button"][data-active="true"] {
+  background-color: rgba(147, 51, 234, 0.1) !important;
+}
+
+[data-collapsible="icon"] [data-sidebar="menu-button"][data-active="true"] svg {
+  color: rgb(147, 51, 234) !important;
+}
+
+/* Left indicator for active item */
+[data-collapsible="icon"] [data-active="true"] {
+  position: relative !important;
+}
+
+[data-collapsible="icon"] [data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  height: 24px;
+  width: 4px;
+  background-color: rgb(147, 51, 234);
+  transform: translateY(-50%);
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* Hover effect */
+[data-collapsible="icon"] [data-sidebar="menu-button"]:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Separator */
+[data-collapsible="icon"] [data-sidebar="separator"] {
+  margin: 8px 0 !important;
+  width: 80% !important;
+  background-color: #eaeaea !important;
+  height: 1px !important;
+}
+
+/* Footer area */
+[data-collapsible="icon"] [data-sidebar="footer"] {
+  width: 100% !important;
+  padding: 0 !important;
+  padding-top: 8px !important;
+  margin-top: auto !important;
+  border-top: 1px solid #eaeaea !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* Footer buttons - exact same styling as menu buttons */
+[data-collapsible="icon"] [data-sidebar="footer"] button,
+[data-collapsible="icon"] [data-sidebar="footer"] a {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 !important;
+  margin: 5px auto !important; /* Consistent vertical spacing */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+}
+
+/* Footer icons */
+[data-collapsible="icon"] [data-sidebar="footer"] svg {
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  color: #555 !important;
+}
