@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ExternalLink, AlertCircle, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSession } from "next-auth/react"
 
 // Fields required for public profile view
 const REQUIRED_FIELDS = [
@@ -28,6 +29,9 @@ export function ProfileCompletionTracker({
   className,
   forDashboard = false
 }: ProfileCompletionTrackerProps) {
+  // Get user session to access the user ID
+  const { data: session } = useSession();
+  
   // Calculate the profile completion metrics
   const {
     completionPercentage,
@@ -164,7 +168,7 @@ export function ProfileCompletionTracker({
           className="gap-1.5"
         >
           {isComplete ? (
-            <Link href="/creators/profile" className="flex items-center gap-1.5">
+            <Link href={`/creators/${session?.user?.id}`} className="flex items-center gap-1.5">
               View Public Profile
               <ExternalLink className="h-4 w-4" />
             </Link>
