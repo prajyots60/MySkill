@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast"
 import { AlertCircle, CheckCircle, ExternalLink, Loader2, Youtube, Database, HardDrive } from "lucide-react"
 import { useYouTubeStore } from "@/lib/store/youtube-store"
 import { useGDriveStore } from "@/lib/store/gdrive-store"
-import { useGFormsStore } from "@/lib/store/gforms-store"
 import { formatDate, formatBytes } from "@/lib/utils/format"
 
 export default function ServiceConnectionsPage() {
@@ -36,23 +35,13 @@ export default function ServiceConnectionsPage() {
     checkConnectionStatus: checkGDriveStatus 
   } = useGDriveStore()
 
-  // Add Google Forms state hooks
-  const { 
-    connected: gformsConnected, 
-    details: gformsDetails, 
-    loading: gformsLoading, 
-    error: gformsError, 
-    checkConnectionStatus: checkGFormsStatus 
-  } = useGFormsStore()
-
   // Check connection status on page load
   useEffect(() => {
     if (status === "authenticated") {
       checkYouTubeStatus()
       checkGDriveStatus()
-      checkGFormsStatus()
     }
-  }, [status, checkYouTubeStatus, checkGDriveStatus, checkGFormsStatus])
+  }, [status, checkYouTubeStatus, checkGDriveStatus])
 
   // Handle connect to YouTube
   const handleYouTubeConnect = () => {
@@ -62,11 +51,6 @@ export default function ServiceConnectionsPage() {
   // Handle connect to Google Drive
   const handleGDriveConnect = () => {
     window.location.href = "/api/gdrive/connect"
-  }
-
-  // Handle connect to Google Forms
-  const handleGFormsConnect = () => {
-    window.location.href = "/api/googleforms/connect"
   }
 
   // Handle refresh YouTube connection status
@@ -84,15 +68,6 @@ export default function ServiceConnectionsPage() {
     toast({
       title: "Success",
       description: "Google Drive connection status refreshed",
-    })
-  }
-
-  // Handle refresh Google Forms connection status
-  const handleGFormsRefresh = async () => {
-    await checkGFormsStatus()
-    toast({
-      title: "Success",
-      description: "Google Forms connection status refreshed",
     })
   }
 
@@ -421,159 +396,6 @@ export default function ServiceConnectionsPage() {
                 <Button onClick={handleGDriveConnect} disabled={gdriveLoading}>
                   {gdriveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDrive className="mr-2 h-4 w-4" />}
                   Connect to Google Drive
-                </Button>
-              </>
-            )}
-          </CardFooter>
-        </Card>
-
-        {/* Google Forms Connection Card */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <svg 
-                className="h-5 w-5 text-green-600" 
-                width="24" 
-                height="24" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M7 10V14H10V21H14V14H17L18 10H14V8C14 7.73478 14.1054 7.48043 14.2929 7.29289C14.4804 7.10536 14.7348 7 15 7H18V3H15C13.6739 3 12.4021 3.52678 11.4645 4.46447C10.5268 5.40215 10 6.67392 10 8V10H7Z" 
-                      fill="currentColor"/>
-              </svg>
-              Google Forms Connection
-            </CardTitle>
-            <CardDescription>Connect your Google account to create and manage exams through Google Forms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {gformsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : gformsError ? (
-              <div className="bg-destructive/10 p-4 rounded-lg flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                <div>
-                  <h3 className="font-medium text-destructive">Error checking connection status</h3>
-                  <p className="text-sm text-muted-foreground">{gformsError}</p>
-                </div>
-              </div>
-            ) : gformsConnected ? (
-              <div className="space-y-6">
-                <div className="bg-success/10 p-4 rounded-lg flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-success mt-0.5" />
-                  <div>
-                    <h3 className="font-medium text-success">Connected to Google Forms</h3>
-                    <p className="text-sm text-muted-foreground">Your account is successfully connected to Google Forms</p>
-                  </div>
-                </div>
-
-                {/* Google Forms Connection Details */}
-                {gformsDetails && (
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-center gap-4">
-                      {gformsDetails.profileImage && (
-                        <img
-                          src={gformsDetails.profileImage || "/placeholder.svg"}
-                          alt="Profile"
-                          className="w-16 h-16 rounded-full"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-medium text-lg">{gformsDetails.name}</h3>
-                        <p className="text-sm text-muted-foreground">{gformsDetails.email}</p>
-                        {gformsDetails.connectedAt && (
-                          <p className="text-sm text-muted-foreground">
-                            Connected since: {formatDate(new Date(gformsDetails.connectedAt))}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">What you can do:</h3>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                    <li>Create quizzes and exams using Google Forms</li>
-                    <li>Set custom scoring rules with negative marking</li>
-                    <li>Collect and evaluate student responses automatically</li>
-                    <li>Use your own branded UI while leveraging Google Forms in the backend</li>
-                  </ul>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-muted p-4 rounded-lg">
-                  <h3 className="font-medium mb-2">Not connected to Google Forms</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Connect your Google account to create and manage exams through Google Forms.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">Benefits of connecting:</h3>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                    <li>Create quizzes and assessments with multiple question types</li>
-                    <li>Automatically grade multiple-choice questions</li>
-                    <li>Track student performance with detailed analytics</li>
-                    <li>Leverage Google Forms reliability while using your platform's UI</li>
-                  </ul>
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <h3 className="font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Important
-                  </h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    You will need a Google account with access to Google Forms and Google Sheets. This integration lets you create and manage exams using Google's reliable infrastructure.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            {gformsConnected ? (
-              <>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleGFormsRefresh} disabled={gformsLoading}>
-                    {gformsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Refresh Status
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => window.location.href = "/api/googleforms/reconnect"}
-                  >
-                    Reconnect Google Forms
-                  </Button>
-                </div>
-                <Button asChild>
-                  <a href="https://docs.google.com/forms" target="_blank" rel="noopener noreferrer">
-                    Open Google Forms <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={handleGFormsRefresh} disabled={gformsLoading}>
-                  {gformsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Refresh Status
-                </Button>
-                <Button onClick={handleGFormsConnect} disabled={gformsLoading}>
-                  {gformsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
-                    <svg 
-                      className="h-4 w-4 mr-2 text-green-600" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M7 10V14H10V21H14V14H17L18 10H14V8C14 7.73478 14.1054 7.48043 14.2929 7.29289C14.4804 7.10536 14.7348 7 15 7H18V3H15C13.6739 3 12.4021 3.52678 11.4645 4.46447C10.5268 5.40215 10 6.67392 10 8V10H7Z" 
-                          fill="currentColor"/>
-                    </svg>
-                  )}
-                  Connect to Google Forms
                 </Button>
               </>
             )}
