@@ -280,6 +280,8 @@ export default function ExplorePage() {
                       description={course.description}
                       thumbnailUrl={course.thumbnail || ""}
                       authorName={course.creatorName || ""}
+                      authorImage={course.creatorImage || ""}
+                      authorId={course.creatorId || ""}
                       enrollmentCount={course.enrollmentCount || 0}
                       updatedAt={new Date(course.updatedAt)}
                       lectureCount={course.lectureCount || 0}
@@ -322,6 +324,8 @@ export default function ExplorePage() {
                         description={course.description}
                         thumbnailUrl={course.thumbnail || ""}
                         authorName={course.creatorName || ""}
+                        authorImage={course.creatorImage || ""}
+                        authorId={course.creatorId || ""}
                         enrollmentCount={course.enrollmentCount || 0}
                         updatedAt={new Date(course.updatedAt)}
                         lectureCount={course.lectureCount || 0}
@@ -349,6 +353,8 @@ export default function ExplorePage() {
                         description={course.description}
                         thumbnailUrl={course.thumbnail || ""}
                         authorName={course.creatorName || ""}
+                        authorImage={course.creatorImage || ""}
+                        authorId={course.creatorId || ""}
                         enrollmentCount={course.enrollmentCount || 0}
                         updatedAt={new Date(course.updatedAt)}
                         lectureCount={course.lectureCount || 0}
@@ -376,6 +382,8 @@ export default function ExplorePage() {
                         description={course.description}
                         thumbnailUrl={course.thumbnail || ""}
                         authorName={course.creatorName || ""}
+                        authorImage={course.creatorImage || ""}
+                        authorId={course.creatorId || ""}
                         enrollmentCount={course.enrollmentCount || 0}
                         updatedAt={new Date(course.updatedAt)}
                         lectureCount={course.lectureCount || 0}

@@ -12,6 +12,7 @@ interface OptimizedCourseCardProps {
   thumbnailUrl: string
   authorName?: string
   authorImage?: string
+  authorId?: string // Added authorId parameter
   enrollmentCount?: number
   updatedAt: Date
   lectureCount?: number
@@ -22,6 +23,7 @@ interface OptimizedCourseCardProps {
   tags?: string[]
   price?: number
   isEnrolled?: boolean
+  creator?: { id: string } // Add this to handle the nested creator object
 }
 
 export function OptimizedCourseCard({
@@ -31,6 +33,7 @@ export function OptimizedCourseCard({
   thumbnailUrl,
   authorName,
   authorImage,
+  authorId, // This might be coming in different formats
   enrollmentCount = 0,
   updatedAt,
   lectureCount = 0,
@@ -41,8 +44,12 @@ export function OptimizedCourseCard({
   tags = [],
   price,
   isEnrolled = false,
+  creator, // Add this to handle the nested creator object
 }: OptimizedCourseCardProps) {
   const formattedDate = new Date(updatedAt).toLocaleDateString()
+  
+  // Determine the actual creator ID to use (may come from authorId or creator.id)
+  const creatorId = authorId || (creator && creator.id) || null;
 
   return (
     <Card className="overflow-hidden flex flex-col group hover:shadow-lg transition-all duration-200 border-none shadow-md">
@@ -80,11 +87,23 @@ export function OptimizedCourseCard({
           </div>
         </div>
         <CardDescription className="flex items-center gap-2">
-          <Avatar className="h-5 w-5">
-            <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
-            <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
-          </Avatar>
-          <span>{authorName || "Instructor"}</span>
+          {creatorId ? (
+            <Link href={`/creators/${creatorId}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
+                <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
+              </Avatar>
+              <span>{authorName || "Instructor"}</span>
+            </Link>
+          ) : (
+            <>
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
+                <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
+              </Avatar>
+              <span>{authorName || "Instructor"}</span>
+            </>
+          )}
         </CardDescription>
       </CardHeader>
 
@@ -124,7 +143,7 @@ export function OptimizedCourseCard({
           ) : price === 0 ? (
             <div className="text-sm font-medium text-green-600">Free</div>
           ) : (
-            <div className="text-sm font-medium">${price}</div>
+            <div className="text-sm font-medium">{price} ₹</div>
           )}
           {price !== undefined && price !== null && price > 0 && (
             <Badge variant="outline" className="text-xs">

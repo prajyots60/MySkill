@@ -13,6 +13,7 @@ export interface Course {
   lectureCount: number
   creatorName: string | null
   creatorImage: string | null
+  creatorId: string | null
   isTrending?: boolean
   totalDuration?: string
 }
