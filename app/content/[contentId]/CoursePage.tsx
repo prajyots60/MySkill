@@ -41,6 +41,7 @@ import { Suspense } from "react"
 import Image from "next/image"
 import { useLocalStorageWithExpiry } from "@/hooks/use-local-storage"
 import { useFollowData } from "@/hooks/use-follow-data"
+import CourseReviews from "@/components/course-reviews"
 
 interface CoursePageProps {
   contentId: string
@@ -101,10 +102,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
+  const [userReview, setUserReview] = useState<Review | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [isBookmarking, setIsBookmarking] = useState(false)
+  const [stats, setStats] = useState<ReviewStats | null>(null)
   const [cachedFollowerData, setCachedFollowerData] = useLocalStorageWithExpiry(
     `creator-followers-${course?.creatorId || "unknown"}`,
     { followerCount: 0 },
@@ -247,9 +250,10 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     const fetchCourseData = async () => {
       try {
         setLoading(true)
-        const [courseResponse, enrollmentResponse] = await Promise.all([
+        const [courseResponse, enrollmentResponse, reviewsResponse] = await Promise.all([
           fetch(`/api/courses/${contentId}`),
           fetch(`/api/courses/${contentId}/enrollment`),
+          fetch(`/api/courses/${contentId}/reviews`)
         ])
 
         if (!courseResponse.ok) {
@@ -263,6 +267,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         if (enrollmentResponse.ok) {
           const enrollmentData = await enrollmentResponse.json()
           setIsEnrolled(enrollmentData.isEnrolled)
+        }
+
+        // Process reviews data
+        if (reviewsResponse.ok) {
+          const reviewsData = await reviewsResponse.json()
+          if (reviewsData.success) {
+            setStats(reviewsData.stats)
+            setUserReview(reviewsData.userReview)
+          }
         }
 
         // Only fetch related courses if user is a student
@@ -455,9 +468,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
               <div className="flex flex-wrap items-center gap-4 mt-2 bg-background/40 backdrop-blur-sm p-3 rounded-lg border border-border/30">
                 <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">
                   <Star className="h-4 w-4 fill-current" />
-                  <span className="font-medium">{course.rating || "4.8"}</span>
+                  <span className="font-medium">{stats?.averageRating?.toFixed(1) || course.rating?.toFixed(1) || "0.0"}</span>
                   <span className="text-sm text-muted-foreground ml-1">
-                    ({course._count?.enrollments || 0} reviews)
+                    ({stats?.totalReviews || course.reviewCount || 0} reviews)
                   </span>
                 </div>
 
@@ -932,52 +945,16 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </CardTitle>
                         <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">
                           <Star className="h-4 w-4 fill-current" />
-                          <span className="font-medium">{course.rating || "4.8"}</span>
+                          <span className="font-medium">{stats?.averageRating.toFixed(1) || "0.0"}</span>
                           <span className="text-sm text-muted-foreground ml-1">
-                            ({course._count?.enrollments || 24} reviews)
+                            ({stats?.totalReviews || 0} reviews)
                           </span>
                         </div>
                       </div>
                       <CardDescription>See what students are saying about this course</CardDescription>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-medium">Rating Breakdown</h3>
-                          <Button variant="outline" size="sm">Write a Review</Button>
-                        </div>
-                        <div className="space-y-2 max-w-md">
-                          {[5, 4, 3, 2, 1].map((rating) => (
-                            <div key={rating} className="flex items-center gap-3">
-                              <div className="w-12 text-sm">{rating} stars</div>
-                              <div className="h-2 bg-muted rounded-full flex-1 overflow-hidden">
-                                <div 
-                                  className="h-full bg-amber-500 rounded-full" 
-                                  style={{ 
-                                    width: 
-                                      rating === 5 ? "70%" :
-                                      rating === 4 ? "20%" :
-                                      rating === 3 ? "5%" :
-                                      rating === 2 ? "3%" : "2%" 
-                                  }}
-                                ></div>
-                              </div>
-                              <div className="w-8 text-sm text-right text-muted-foreground">
-                                {
-                                  rating === 5 ? "70%" :
-                                  rating === 4 ? "20%" :
-                                  rating === 3 ? "5%" :
-                                  rating === 2 ? "3%" : "2%"
-                                }
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>Detailed reviews coming soon</p>
-                      </div>
+                      <CourseReviews courseId={contentId} isEnrolled={isEnrolled} />
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -1012,7 +989,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                   <div className="flex items-center justify-center gap-3 mb-4 text-sm">
                     <div className="flex items-center">
                       <Star className="h-4 w-4 text-amber-500 fill-current mr-1" />
-                      <span className="font-medium">4.8</span>
+                      <span className="font-medium">{stats?.averageRating.toFixed(1) || "0.0"}</span>
                     </div>
                     <div className="flex items-center">
                       <BookOpen className="h-4 w-4 text-muted-foreground mr-1" />

@@ -24,6 +24,7 @@ interface OptimizedCourseCardProps {
   price?: number
   isEnrolled?: boolean
   creator?: { id: string } // Add this to handle the nested creator object
+  rating?: number // Add rating to the props
 }
 
 export function OptimizedCourseCard({
@@ -45,6 +46,7 @@ export function OptimizedCourseCard({
   price,
   isEnrolled = false,
   creator, // Add this to handle the nested creator object
+  rating = 0, // Add rating to the props
 }: OptimizedCourseCardProps) {
   const formattedDate = new Date(updatedAt).toLocaleDateString()
   
@@ -83,18 +85,22 @@ export function OptimizedCourseCard({
           <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">{title}</CardTitle>
           <div className="flex items-center gap-1 text-amber-500">
             <Star className="h-4 w-4 fill-current" />
-            <span className="text-sm font-medium">4.8</span>
+            <span className="text-sm font-medium">{rating?.toFixed(1) || "0.0"}</span>
           </div>
         </div>
         <CardDescription className="flex items-center gap-2">
           {creatorId ? (
-            <Link href={`/creators/${creatorId}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-              <Avatar className="h-5 w-5">
-                <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
-                <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
-              </Avatar>
-              <span>{authorName || "Instructor"}</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href={`/creators/${creatorId}`} className="hover:opacity-80 transition-opacity">
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
+                  <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <Link href={`/creators/${creatorId}`} className="hover:text-primary transition-colors">
+                <span>{authorName || "Instructor"}</span>
+              </Link>
+            </div>
           ) : (
             <>
               <Avatar className="h-5 w-5">

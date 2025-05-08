@@ -82,12 +82,28 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       return NextResponse.json({ message: "Course not found" }, { status: 404 })
     }
 
-    // Cache the course data
-    await redis.set(cacheKey, JSON.stringify(course), {
+    // Get course rating data
+    const ratingData = await prisma.$queryRaw`
+      SELECT 
+        AVG(rating)::float as averageRating,
+        COUNT(*) as totalReviews
+      FROM "Review"
+      WHERE "contentId" = ${courseId}
+    `;
+
+    // Add rating data to course object
+    const courseWithRating = {
+      ...course,
+      rating: parseFloat(ratingData[0]?.averageRating?.toFixed(1) || "0"),
+      reviewCount: parseInt(ratingData[0]?.totalReviews || "0")
+    };
+
+    // Cache the course data with rating
+    await redis.set(cacheKey, JSON.stringify(courseWithRating), {
       ex: CACHE_DURATION,
     })
 
-    return NextResponse.json({ course }, { headers })
+    return NextResponse.json({ course: courseWithRating }, { headers })
   } catch (error) {
     console.error("Error fetching course:", error)
     return NextResponse.json({ message: "Failed to fetch course" }, { status: 500 })

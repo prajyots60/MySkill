@@ -291,6 +291,7 @@ export default function ExplorePage() {
                       isTrending={course.isTrending || false}
                       tags={course.tags || []}
                       price={course.price || 0}
+                      rating={course.rating || 0}
                     />
                   ))
                 ) : (
@@ -335,6 +336,7 @@ export default function ExplorePage() {
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}
+                        rating={course.rating || 0}
                       />
                     ))}
               </div>
@@ -364,6 +366,7 @@ export default function ExplorePage() {
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}
+                        rating={course.rating || 0}
                       />
                     ))}
               </div>
@@ -393,6 +396,7 @@ export default function ExplorePage() {
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}
+                        rating={course.rating || 0}
                       />
                     ))}
               </div>

@@ -307,3 +307,37 @@ export interface CreatorProfile {
   createdAt?: Date
   updatedAt?: Date
 }
+
+// Review types
+export interface Review {
+  id: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  contentId: string;
+  user?: {
+    id: string;
+    name: string;
+    image: string;
+  };
+}
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  distribution: {
+    [key: number]: {
+      count: number;
+      percentage: number;
+    };
+  };
+}
+
+export interface ReviewsResponse {
+  success: boolean;
+  reviews: Review[];
+  stats: ReviewStats;
+  userReview: Review | null;
+}

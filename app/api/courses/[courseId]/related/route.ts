@@ -54,6 +54,11 @@ export async function GET(request: Request, { params }: { params: { courseId: st
             image: true,
           },
         },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
       },
       take: 4, // Limit to 4 related courses
       orderBy: {
@@ -63,7 +68,23 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       },
     })
 
-    return NextResponse.json({ courses: relatedCourses })
+    // Add rating data to each course
+    const coursesWithRatings = relatedCourses.map(course => {
+      // Calculate average rating
+      const ratings = course.reviews.map(review => review.rating);
+      const avgRating = ratings.length > 0 
+        ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+        : 0;
+        
+      return {
+        ...course,
+        rating: parseFloat(avgRating.toFixed(1)),
+        reviewCount: course.reviews.length,
+        reviews: undefined, // Remove the raw reviews data
+      };
+    });
+
+    return NextResponse.json({ courses: coursesWithRatings })
   } catch (error) {
     console.error("[RELATED_COURSES]", error)
     return new NextResponse("Internal error", { status: 500 })

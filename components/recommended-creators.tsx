@@ -31,51 +31,95 @@ export function RecommendedCreators() {
     const fetchCreators = async () => {
       try {
         setLoading(true)
-        // Fetch from the existing student/recommended-instructors endpoint
-        const response = await fetch("/api/student/recommended-instructors", {
+        
+        // First, fetch the instructors the user is already following
+        const followingResponse = await fetch("/api/student/followed-instructors", {
           method: "GET",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-        })
+        }).catch((err) => {
+          console.error("Error fetching followed instructors:", err);
+          return null;
+        });
+        
+        // Get IDs of instructors already being followed
+        let followingIds: string[] = [];
+        if (followingResponse?.ok) {
+          const followingData = await followingResponse.json();
+          console.log("Followed instructors data:", followingData);
+          
+          // Extract instructor IDs based on the response structure
+          if (followingData.success && Array.isArray(followingData.instructors)) {
+            followingIds = followingData.instructors.map((instructor: any) => instructor.id);
+          }
+        }
+        
+        console.log("Already following instructor IDs:", followingIds);
+        
+        // Fetch recommended instructors
+        const response = await fetch("/api/student/recommended-instructors?limit=10", {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch recommended creators")
+          throw new Error("Failed to fetch recommended instructors");
         }
 
-        const data = await response.json()
+        const data = await response.json();
+        // console.log("All recommended instructors data:", data);
         
         if (data.success && Array.isArray(data.instructors) && data.instructors.length > 0) {
-          // Map the response data to match our Creator interface
-          const mappedCreators = data.instructors.map((instructor: any) => ({
-            id: instructor.id,
-            name: instructor.name,
-            role: instructor.bio?.split('\n')[0] || "Instructor",
-            avatar: instructor.image || "/placeholder-user.jpg",
-            studentCount: instructor.followers || 0,
-            courseCount: instructor.courseCount || 0,
-            categories: [],
-            verified: true,
-            rating: 4.5, // Default rating as it's not in the API response
-          }));
+          // console.log("Raw recommended instructors:", data.instructors.map((i: any) => ({ id: i.id, name: i.name })));
           
-          setCreators(mappedCreators)
+          // Map the response data to match our Creator interface
+          let mappedCreators = data.instructors
+            // Only include instructors the user is NOT already following
+            .filter((instructor: any) => !followingIds.includes(instructor.id))
+            .map((instructor: any) => ({
+              id: instructor.id,
+              name: instructor.name,
+              role: instructor.bio?.split('\n')[0] || "Instructor",
+              avatar: instructor.image || "/placeholder-user.jpg",
+              studentCount: instructor.followers || 0,
+              courseCount: instructor.courseCount || 0,
+              categories: [],
+              verified: true,
+              rating: 4.5, // Default rating as it's not in the API response
+            }));
+            
+            // Define interface for the logged creator summary
+            interface CreatorSummary {
+            id: string;
+            name: string;
+            }
+            
+            // console.log("Filtered instructors (not following):", mappedCreators.map((c: Creator): CreatorSummary => ({ id: c.id, name: c.name })));
+          
+          // Limit to at most 2 recommended creators
+          mappedCreators = mappedCreators.slice(0, 2);
+            console.log("Final recommended instructors (limited to 2):", mappedCreators.map((c: Creator): CreatorSummary => ({ id: c.id, name: c.name })));
+          
+          setCreators(mappedCreators);
         } else {
           // Fallback if API doesn't return expected data structure
-          throw new Error("Invalid data returned from API")
+          console.log("No instructors returned from API or unexpected data structure");
+          setCreators([]);
         }
       } catch (error) {
-        console.error("Error fetching recommended creators:", error)
-        
-        // Set empty array when fetch fails
-        setCreators([])
+        console.error("Error fetching recommended creators:", error);
+        setCreators([]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchCreators()
+    fetchCreators();
   }, [toast])
 
   // Helper function to truncate bio text

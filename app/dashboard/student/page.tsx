@@ -74,8 +74,11 @@ export default function StudentDashboard() {
           ...data.stats,
         }))
 
+        // Get a list of enrolled course IDs to filter out from recommendations
+        const enrolledCourseIds = data.inProgressCourses?.map((course: any) => course.id) || [];
+
         // Fetch recommended courses
-        const recommendedResponse = await fetch("/api/courses?limit=4", {
+        const recommendedResponse = await fetch("/api/courses?limit=10", {
           method: "GET",
           credentials: "include",
           headers: {
@@ -85,7 +88,12 @@ export default function StudentDashboard() {
 
         const recommendedData = await recommendedResponse.json()
         if (recommendedResponse.ok && recommendedData.success) {
-          setRecommendedCourses(recommendedData.courses || [])
+          // Filter out already enrolled courses and limit to max 2 courses
+          const filteredRecommendations = recommendedData.courses
+            .filter((course: any) => !enrolledCourseIds.includes(course.id))
+            .slice(0, 2); // Show at most 2 recommendations
+            
+          setRecommendedCourses(filteredRecommendations);
         }
       } catch (error) {
         console.error("Error fetching enrolled courses:", error)

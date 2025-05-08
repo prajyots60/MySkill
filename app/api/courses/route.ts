@@ -33,6 +33,7 @@ interface DatabaseCourse {
     image: string | null;
   };
   enrollments?: { id: string }[];
+  reviews?: { rating: number }[];
 }
 
 interface ProcessedCourse {
@@ -52,10 +53,13 @@ interface ProcessedCourse {
     name: string;
     image: string | null;
   };
+  creatorId: string;
   creatorName: string;
   creatorImage: string;
   isEnrolled: boolean;
   isTrending?: boolean;
+  rating: number;
+  reviewCount: number;
 }
 
 // Shorter cache duration for more frequent updates
@@ -222,6 +226,11 @@ async function fetchAndCacheCourses(
             take: 1,
           }
         : undefined,
+      reviews: {
+        select: {
+          rating: true,
+        }
+      }
     },
     skip: offset,
     take: limit,
@@ -236,10 +245,13 @@ async function fetchAndCacheCourses(
   const [courses, totalCount] = await batch.execute()
 
   // Process courses to format data
-  // Interfaces for typing the course data
-  
-
-    const processedCourses: ProcessedCourse[] = courses.map((course: DatabaseCourse) => ({
+  const processedCourses: ProcessedCourse[] = courses.map((course: DatabaseCourse) => {
+    // Calculate average rating if reviews exist
+    const averageRating = course.reviews && course.reviews.length > 0
+      ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / course.reviews.length
+      : 0;
+      
+    return {
       id: course.id,
       title: course.title,
       description: course.description,
@@ -252,11 +264,15 @@ async function fetchAndCacheCourses(
       enrollmentCount: course._count.enrollments,
       lectureCount: course.sections.reduce((total, section) => total + section._count.lectures, 0),
       creator: course.creator,
-      creatorName: course.creator?.name || "", // Add explicit creatorName property
-      creatorImage: course.creator?.image || "", // Add explicit creatorImage property
+      creatorId: course.creator?.id || "", // Add explicit creatorId property
+      creatorName: course.creator?.name || "",
+      creatorImage: course.creator?.image || "",
       isEnrolled: course.enrollments && course.enrollments.length > 0,
       isTrending: course.isTrending,
-    }))
+      rating: parseFloat(averageRating.toFixed(1)),
+      reviewCount: course.reviews?.length || 0
+    }
+  })
 
   // Cache the results
   await Promise.all([

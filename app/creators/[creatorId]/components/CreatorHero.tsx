@@ -207,7 +207,7 @@ const CreatorHero: React.FC<CreatorHeroProps> = ({ creator, themeColor }) => {
               </div>
               <div className={`text-center ${images.length > 0 ? 'text-white' : ''}`}>
                 <div className="text-3xl font-bold flex items-center justify-center">
-                  4.8
+                  {creator.averageRating?.toFixed(1) || "0.0"}
                   <Star className="h-4 w-4 ml-1 text-yellow-400 fill-yellow-400" />
                 </div>
                 <div className={`text-sm ${images.length > 0 ? 'text-white/80' : 'text-muted-foreground'}`}>Rating</div>

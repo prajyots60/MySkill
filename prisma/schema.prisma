@@ -98,6 +98,7 @@ model User {
   eventReminders EventReminder[]
   studentExamResponses StudentExamResponse[] 
   createdExams Exam[] 
+  reviews     Review[]    // Add this line for reviews relation
 
   @@index([email])
 }
@@ -188,6 +189,7 @@ model Content {
   bookmarks   Bookmark[]
   resources   Resource[]   // Add relation to resources
   exams       Exam[]       // Add relation to exams
+  reviews     Review[]     // Add relation to reviews
 
   @@index([creatorId])
   @@index([type])
@@ -524,4 +526,24 @@ model QuestionResponse {
   
   @@index([studentExamResponseId])
   @@index([questionId])
+}
+
+// Course Review model
+model Review {
+  id          String   @id @default(cuid())
+  rating      Int      // Rating from 1-5 stars
+  comment     String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  contentId   String
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, contentId]) // One review per user per course
+  @@index([userId])
+  @@index([contentId])
+  @@index([rating])
 }

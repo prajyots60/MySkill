@@ -25,6 +25,8 @@ interface RelatedCourse {
     name: string | null
     image: string | null
   }
+  rating?: number
+  reviewCount?: number
 }
 
 export default function RelatedCourses({ courseId }: RelatedCoursesProps) {
@@ -99,7 +101,7 @@ export default function RelatedCourses({ courseId }: RelatedCoursesProps) {
                     <p className="text-sm text-muted-foreground">{course.creator.name || "Anonymous Instructor"}</p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3 w-3 text-amber-500 fill-current" />
-                      <span className="text-xs">4.8</span>
+                      <span className="text-xs">{course.rating?.toFixed(1) || "0.0"}</span>
                       <span className="text-xs text-muted-foreground ml-2">
                         {course.price ? `$${course.price.toFixed(2)}` : "Free"}
                       </span>
