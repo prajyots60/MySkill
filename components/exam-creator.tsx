@@ -51,6 +51,7 @@ interface ExamCreatorProps {
   timeLimit?: number
   formId?: string
   onExamCreated?: (examId: string, formId: string, formUrl: string) => void
+  requireCourse?: boolean
 }
 
 // Main component for creating and editing exams
@@ -65,6 +66,7 @@ export default function ExamCreator({
   timeLimit,
   formId,
   onExamCreated,
+  requireCourse = false,
 }: ExamCreatorProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
@@ -177,6 +179,17 @@ export default function ExamCreator({
     setIsLoading(true)
     
     try {
+      // If course selection is required but not provided, show an error
+      if (requireCourse && !contentId) {
+        toast({
+          title: "Course required",
+          description: "Please select a course for this exam.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+      
       const response = await fetch("/api/exams", {
         method: "POST",
         headers: {

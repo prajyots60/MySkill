@@ -228,6 +228,20 @@ export function AppSidebar() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive("/dashboard/student/exams")}
+                      tooltip="Exams"
+                      className="group-data-[collapsible=icon]:justify-center"
+                    >
+                      <Link href="/dashboard/student/exams">
+                        <FileQuestion className="h-4 w-4" />
+                        <span className="text-[13px]">Exams</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

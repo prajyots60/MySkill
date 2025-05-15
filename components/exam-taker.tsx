@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Card,
@@ -51,6 +51,20 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
   const [hasCompletionBadge, setHasCompletionBadge] = useState(false)
   const [showIterateDialog, setShowIterateDialog] = useState(false)
   const [iterating, setIterating] = useState(false)
+  const [tabChangeCount, setTabChangeCount] = useState(0)
+  const [showTabWarning, setShowTabWarning] = useState(false)
+  const [localStorageTimerId, setLocalStorageTimerId] = useState<NodeJS.Timeout | null>(null)
+  const [warningMessage, setWarningMessage] = useState<string>("")
+
+  const timeLeftRef = useRef(timeLeft)
+  const examCompletedRef = useRef(examCompleted)
+
+  useEffect(() => {
+    timeLeftRef.current = timeLeft
+  }, [timeLeft])
+  useEffect(() => {
+    examCompletedRef.current = examCompleted
+  }, [examCompleted])
 
   // Load saved state from localStorage when component mounts
   useEffect(() => {
@@ -64,22 +78,31 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
           setResponses(JSON.parse(savedResponses));
         }
         
-        // Load saved timer state
+        // Load saved timer state with improved accuracy
         const savedTimeLeft = localStorage.getItem(`exam_timeLeft_${formId}`);
-        const savedStartTime = localStorage.getItem(`exam_startTime_${formId}`);
+        const savedExamEndTime = localStorage.getItem(`exam_endTime_${formId}`);
         
-        if (savedTimeLeft && savedStartTime) {
-          const parsedStartTime = new Date(savedStartTime);
-          const parsedTimeLeft = parseInt(savedTimeLeft);
-          
-          // Calculate time elapsed since last save
+        if (savedTimeLeft && savedExamEndTime) {
+          const parsedExamEndTime = new Date(savedExamEndTime);
           const now = new Date();
-          const timeElapsedInSeconds = Math.floor((now.getTime() - parsedStartTime.getTime()) / 1000);
           
-          // Update time left
-          const updatedTimeLeft = Math.max(0, parsedTimeLeft - timeElapsedInSeconds);
-          setTimeLeft(updatedTimeLeft);
-          setStartTime(now);
+          // Calculate time remaining based on the end time
+          const remainingTimeInSeconds = Math.max(0, Math.floor((parsedExamEndTime.getTime() - now.getTime()) / 1000));
+          console.log("Calculated remaining time:", remainingTimeInSeconds, "seconds");
+          
+          // If there's still time left, set it
+          if (remainingTimeInSeconds > 0) {
+            setTimeLeft(remainingTimeInSeconds);
+            setStartTime(now);
+          } else if (remainingTimeInSeconds === 0) {
+            // Time has expired while away, trigger auto-submission
+            setTimeLeft(0);
+            setTimeout(() => {
+              if (!examCompleted) {
+                handleSubmit();
+              }
+            }, 1000);
+          }
         }
         
         // Load current question index
@@ -87,13 +110,97 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         if (savedQuestionIndex) {
           setCurrentQuestionIndex(parseInt(savedQuestionIndex));
         }
+        
+        // Load tab change count
+        const savedTabChangeCount = localStorage.getItem(`exam_tabChangeCount_${formId}`);
+        if (savedTabChangeCount) {
+          setTabChangeCount(parseInt(savedTabChangeCount));
+        }
       } catch (error) {
         console.error("Error loading saved exam state:", error);
       }
     };
     
     loadSavedState();
+    
+    // Set up tab change detection
+    const handleVisibilityChange = () => {
+      if (!examCompletedRef.current && timeLeftRef.current !== null) {
+        if (document.visibilityState === 'hidden') {
+          setTabChangeCount(prevCount => {
+            const newCount = prevCount + 1;
+            localStorage.setItem(`exam_tabChangeCount_${formId}`, newCount.toString());
+            if (newCount >= 3) {
+              setTimeout(() => {
+                if (!examCompletedRef.current) {
+                  handleSubmit();
+                }
+              }, 1000);
+            }
+            return newCount;
+          });
+        } else if (document.visibilityState === 'visible') {
+          const storedTabChangeCount = localStorage.getItem(`exam_tabChangeCount_${formId}`);
+          const currentCount = storedTabChangeCount ? parseInt(storedTabChangeCount) : tabChangeCount;
+          if (currentCount > 0) {
+            setTabChangeCount(currentCount); // This will trigger the effect below
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [formId]);
+
+  // Show toast when tabChangeCount changes
+  useEffect(() => {
+    if (tabChangeCount > 0) {
+      let message = "";
+      if (tabChangeCount === 1) {
+        message = "First warning: Please stay on the exam page.";
+      } else if (tabChangeCount === 2) {
+        message = "Second warning: This is your last chance. Next tab change will auto-submit your exam.";
+      } else if (tabChangeCount >= 3) {
+        message = "Final warning: Your exam will be auto-submitted due to multiple tab changes.";
+      }
+      if (message) {
+        toast({
+          title: "Tab Change Detected!",
+          description: `${message} Tab changes remaining: ${Math.max(0, 3 - tabChangeCount)}`,
+          variant: tabChangeCount >= 3 ? "destructive" : "default",
+          duration: 7000,
+        });
+      }
+    }
+  }, [tabChangeCount]);
+
+  // Timer effect
+  useEffect(() => {
+    if (!exam || !startTime || examCompleted) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prevTime => {
+        if (prevTime === null || prevTime <= 0) {
+          clearInterval(timer);
+          if (!examCompleted) {
+            handleSubmit();
+          }
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+
+    setLocalStorageTimerId(timer);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [exam, startTime, examCompleted]);
 
   // Save state to localStorage when it changes
   useEffect(() => {
@@ -104,9 +211,14 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         // Save responses
         localStorage.setItem(`exam_responses_${formId}`, JSON.stringify(responses));
         
-        // Save time left
+        // Save time left and calculate end time for better persistence
         if (timeLeft !== null) {
           localStorage.setItem(`exam_timeLeft_${formId}`, timeLeft.toString());
+          
+          // Calculate and save the exact end time of the exam
+          const now = new Date();
+          const endTime = new Date(now.getTime() + (timeLeft * 1000));
+          localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
         }
         
         // Save start time
@@ -116,13 +228,24 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         
         // Save current question index
         localStorage.setItem(`exam_questionIndex_${formId}`, currentQuestionIndex.toString());
+        
+        // Save tab change count
+        localStorage.setItem(`exam_tabChangeCount_${formId}`, tabChangeCount.toString());
       } catch (error) {
         console.error("Error saving exam state:", error);
       }
     };
     
+    // Save state immediately
     saveState();
-  }, [responses, timeLeft, startTime, currentQuestionIndex, formId, exam, examCompleted]);
+    
+    // Set up regular saving to localStorage every 5 seconds
+    const saveInterval = setInterval(saveState, 5000);
+    
+    return () => {
+      clearInterval(saveInterval);
+    };
+  }, [exam, responses, timeLeft, startTime, currentQuestionIndex, tabChangeCount, examCompleted, formId]);
 
   // Load the exam on component mount
   useEffect(() => {
@@ -159,11 +282,20 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
             setExamResult(data.completionStatus)
           }
           
-          // If this is the first load and we have a duration, set the timer
-          if (!startTime && data.durationInMinutes) {
+          // If this is the first load and we have a timeLimit, set the timer
+          if (!startTime && data.timeLimit) {
             const newStartTime = new Date()
             setStartTime(newStartTime)
-            setTimeLeft(data.durationInMinutes * 60)
+            
+            // Make sure timeLeft is properly set
+            const durationInSeconds = data.timeLimit * 60;
+            setTimeLeft(durationInSeconds)
+            console.log("Setting initial timer:", { timeLimit: data.timeLimit, durationInSeconds })
+            
+            // Also save to localStorage immediately
+            localStorage.setItem(`exam_timeLeft_${formId}`, durationInSeconds.toString());
+            const endTime = new Date(newStartTime.getTime() + (durationInSeconds * 1000));
+            localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
           }
         } else {
           // Handle the case where user has already completed the exam
@@ -185,7 +317,9 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
               localStorage.removeItem(`exam_responses_${formId}`);
               localStorage.removeItem(`exam_timeLeft_${formId}`);
               localStorage.removeItem(`exam_startTime_${formId}`);
+              localStorage.removeItem(`exam_endTime_${formId}`);
               localStorage.removeItem(`exam_questionIndex_${formId}`);
+              localStorage.removeItem(`exam_tabChangeCount_${formId}`);
             }
           } else {
             toast({
@@ -209,29 +343,6 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     fetchExam()
   }, [formId, startTime, router])
 
-  // Timer for time-limited exams
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null
-    
-    if (timeLeft !== null && timeLeft > 0 && !examCompleted) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev !== null && prev <= 1) {
-            // Time's up, auto-submit the exam
-            clearInterval(timer as NodeJS.Timeout)
-            handleSubmit()
-            return 0
-          }
-          return prev !== null ? prev - 1 : null
-        })
-      }, 1000)
-    }
-    
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [timeLeft, examCompleted])
-
   // Format the time left into MM:SS
   const formatTimeLeft = () => {
     if (timeLeft === null) return "No time limit"
@@ -241,6 +352,23 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
   }
+
+  // Debug functions to log state
+  useEffect(() => {
+    console.log("Current timer state:", { 
+      timeLeft, 
+      formattedTime: formatTimeLeft(),
+      startTime: startTime ? startTime.toISOString() : null,
+      endTimeFromStorage: localStorage.getItem(`exam_endTime_${formId}`)
+    });
+    
+    console.log("Tab change state:", {
+      tabChangeCount,
+      showTabWarning,
+      storedCount: localStorage.getItem(`exam_tabChangeCount_${formId}`),
+      docVisibility: document.visibilityState
+    });
+  }, [timeLeft, startTime, formId, tabChangeCount, showTabWarning]);
 
   // Handle radio selection for multiple choice questions
   const handleRadioChange = (questionId: string, optionId: string) => {
@@ -302,7 +430,27 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
 
   // Handle exam submission
   const handleSubmit = async () => {
-    if (isSubmitting) return
+    if (isSubmitting || !exam?.questions) return
+    
+    // Log submission reason for debugging
+    const isAutoSubmit = tabChangeCount >= 3 || timeLeft === 0;
+    console.log("Exam submission initiated", { 
+      tabChangeCount, 
+      timeLeft,
+      autoSubmit: isAutoSubmit,
+      autoSubmitReason: tabChangeCount >= 3 ? "tab changes" : timeLeft === 0 ? "time expired" : "manual submission"
+    });
+    
+    // Show a toast message if this is an auto-submission
+    if (isAutoSubmit) {
+      toast({
+        title: "Exam Auto-Submitted",
+        description: tabChangeCount >= 3 
+          ? "Your exam has been auto-submitted because you changed tabs 3 times." 
+          : "Your exam has been auto-submitted because the time limit has expired.",
+        variant: "destructive",
+      });
+    }
     
     // Validation for required questions
     const unansweredRequiredQuestions = exam.questions
@@ -318,7 +466,10 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         }
       })
     
-    if (unansweredRequiredQuestions.length > 0) {
+    // If tab change count is 3 or time is up, bypass the required question check
+    const bypassValidation = tabChangeCount >= 3 || timeLeft === 0;
+    
+    if (unansweredRequiredQuestions.length > 0 && !bypassValidation) {
       // If there are unanswered required questions, show warning and navigate to the first one
       toast({
         title: "Required questions unanswered",
@@ -370,7 +521,9 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         localStorage.removeItem(`exam_responses_${formId}`);
         localStorage.removeItem(`exam_timeLeft_${formId}`);
         localStorage.removeItem(`exam_startTime_${formId}`);
+        localStorage.removeItem(`exam_endTime_${formId}`);
         localStorage.removeItem(`exam_questionIndex_${formId}`);
+        localStorage.removeItem(`exam_tabChangeCount_${formId}`);
       }
       
       toast({
@@ -397,12 +550,19 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     setExamResult(null)
     setResponses({})
     setCurrentQuestionIndex(0)
+    setTabChangeCount(0) // Reset tab change count
+    setShowTabWarning(false) // Hide any warnings
     
     // Reset timer if exam has a time limit
-    if (exam.durationInMinutes) {
+    if (exam.timeLimit) {
       const newStartTime = new Date()
       setStartTime(newStartTime)
-      setTimeLeft(exam.durationInMinutes * 60)
+      setTimeLeft(exam.timeLimit * 60)
+      
+      // Calculate and save end time
+      const durationInSeconds = exam.timeLimit * 60;
+      const endTime = new Date(newStartTime.getTime() + (durationInSeconds * 1000));
+      console.log("Setting up new iteration timer with end time:", endTime.toISOString());
     }
     
     // Clear localStorage data for this exam
@@ -410,7 +570,9 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
       localStorage.removeItem(`exam_responses_${formId}`)
       localStorage.removeItem(`exam_timeLeft_${formId}`)
       localStorage.removeItem(`exam_startTime_${formId}`)
+      localStorage.removeItem(`exam_endTime_${formId}`)
       localStorage.removeItem(`exam_questionIndex_${formId}`)
+      localStorage.removeItem(`exam_tabChangeCount_${formId}`)
     }
     
     setShowIterateDialog(false)
@@ -432,6 +594,7 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     setIterating(true)
     setResponses({})
     setCurrentQuestionIndex(0)
+    setTabChangeCount(0) // Reset tab change count
     
     // Reset the form state for iteration
     if (exam && exam.questions) {
@@ -440,10 +603,15 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     }
     
     // If there's a time limit, reset the timer for the iteration
-    if (exam?.durationInMinutes) {
+    if (exam?.timeLimit) {
       const newStartTime = new Date()
       setStartTime(newStartTime)
-      setTimeLeft(exam.durationInMinutes * 60)
+      setTimeLeft(exam.timeLimit * 60)
+      
+      // Also save to localStorage immediately with the new endTime calculation
+      localStorage.setItem(`exam_timeLeft_${formId}`, (exam.timeLimit * 60).toString());
+      const endTime = new Date(newStartTime.getTime() + (exam.timeLimit * 60 * 1000));
+      localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
     }
     
     toast({
@@ -479,6 +647,22 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     
   // Get current question
   const currentQuestion = exam?.questions?.[currentQuestionIndex] || {};
+
+  // Make sure renderTimer is defined before return
+  const renderTimer = () => {
+    if (!timeLeft) return null;
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const isLowTime = timeLeft <= 300; // 5 minutes or less
+    return (
+      <div className={`flex items-center gap-2 ${isLowTime ? 'text-red-500' : ''}`}>
+        <Clock className="h-4 w-4" />
+        <span className="font-medium">
+          {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+        </span>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -736,13 +920,7 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
                 Question {currentQuestionIndex + 1} of {exam.questions.length}
               </CardDescription>
             </div>
-            
-            {timeLeft !== null && (
-              <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono">{formatTimeLeft()}</span>
-              </div>
-            )}
+            {renderTimer()}
           </CardHeader>
           
           <CardContent className="space-y-6">

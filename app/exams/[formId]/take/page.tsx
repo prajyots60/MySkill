@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import ExamTaker from "@/components/exam-taker"
 import { prisma } from "@/lib/db"
+import { isStudentEnrolledForExam } from "@/lib/server/student-exams"
 
 interface ExamPageProps {
   params: {
@@ -36,23 +37,21 @@ export default async function ExamPage({ params }: ExamPageProps) {
   }
   
   // If user is not a creator/admin, verify they're enrolled in the course
-  if (session.user.role === "STUDENT" && exam.content) {
-    // The content IS the course, so we use contentId
-    const contentId = exam.contentId;
+  if (session.user.role === "STUDENT" && exam.contentId) {
+    // Check if the student is enrolled in the course using our utility
+    const isEnrolled = await isStudentEnrolledForExam(session.user.id, exam.id)
     
-    if (contentId) {
-      const enrollment = await prisma.enrollment.findFirst({
-        where: {
-          userId: session.user.id,
-          contentId: contentId,
-        }
-      })
-      
-      // If not enrolled, redirect to dashboard with error
-      if (!enrollment) {
-        redirect("/dashboard?error=not-enrolled")
-      }
+    // If not enrolled, redirect to dashboard with error
+    if (!isEnrolled) {
+      redirect(`/dashboard/student?error=not-enrolled&course=${exam.contentId}`)
     }
+  }
+  
+  // For creators, check if they created this exam
+  if (session.user.role === "CREATOR" && exam.creatorId !== session.user.id) {
+    // Optional: You can restrict creators to only their own exams
+    // Uncomment the following line to enforce this restriction
+    // redirect("/dashboard/creator?error=not-authorized")
   }
   
   return (

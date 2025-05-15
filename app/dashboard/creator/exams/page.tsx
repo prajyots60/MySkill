@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ExamCreator from "@/components/exam-creator"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils/format"
@@ -124,6 +125,29 @@ export default function CreatorExamsPage() {
     
     fetchExams()
   }, [toast])
+  
+  // Fetch courses for exam creation
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch("/api/creator/courses")
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch courses")
+        }
+        
+        const data = await response.json()
+        
+        if (data.success && data.courses) {
+          setCourses(data.courses)
+        }
+      } catch (error) {
+        console.error("Error fetching courses:", error)
+      }
+    }
+    
+    fetchCourses()
+  }, [])
   
   // Handle search and filtering
   useEffect(() => {
@@ -465,6 +489,51 @@ export default function CreatorExamsPage() {
           </Button>
         </div>
         
+        {/* Course/Section Selection Form */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Select Course</CardTitle>
+            <CardDescription>Choose a course for this exam. Students enrolled in this course will have access to the exam.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="courseId" className="block text-sm font-medium mb-1">
+                    Course <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    value={newExam.courseId}
+                    onValueChange={(value) => {
+                      setNewExam({
+                        ...newExam,
+                        courseId: value,
+                        sectionId: "" // Reset section when course changes
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.length === 0 ? (
+                        <SelectItem value="none" disabled>No courses available</SelectItem>
+                      ) : (
+                        courses.map(course => (
+                          <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {newExam.courseId === "" && (
+                    <p className="text-sm text-muted-foreground mt-1">Required for exams that should be visible to students in a specific course</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
         <ExamCreator 
           contentId={newExam.courseId !== "" ? newExam.courseId : undefined} 
           sectionId={newExam.sectionId !== "" ? newExam.sectionId : undefined}
@@ -474,6 +543,7 @@ export default function CreatorExamsPage() {
           passingScore={parseInt(newExam.passingScore) || 70}
           timeLimit={parseInt(newExam.timeLimit) || 30}
           onExamCreated={handleExamCreated}
+          requireCourse={true}
         />
       </div>
     )
