@@ -58,6 +58,7 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
 
   const timeLeftRef = useRef(timeLeft)
   const examCompletedRef = useRef(examCompleted)
+  const endTimeRef = useRef<Date | null>(null);
 
   useEffect(() => {
     timeLeftRef.current = timeLeft
@@ -79,26 +80,28 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         }
         
         // Load saved timer state with improved accuracy
-        const savedTimeLeft = localStorage.getItem(`exam_timeLeft_${formId}`);
         const savedExamEndTime = localStorage.getItem(`exam_endTime_${formId}`);
         
-        if (savedTimeLeft && savedExamEndTime) {
+        if (savedExamEndTime) {
           const parsedExamEndTime = new Date(savedExamEndTime);
           const now = new Date();
           
+          // Set the end time ref for future calculations
+          endTimeRef.current = parsedExamEndTime;
+          
           // Calculate time remaining based on the end time
           const remainingTimeInSeconds = Math.max(0, Math.floor((parsedExamEndTime.getTime() - now.getTime()) / 1000));
-          console.log("Calculated remaining time:", remainingTimeInSeconds, "seconds");
+          console.log("Loaded persistent timer - remaining time:", remainingTimeInSeconds, "seconds");
           
           // If there's still time left, set it
           if (remainingTimeInSeconds > 0) {
             setTimeLeft(remainingTimeInSeconds);
-            setStartTime(now);
-          } else if (remainingTimeInSeconds === 0) {
+            setStartTime(new Date(parsedExamEndTime.getTime() - (exam?.timeLimit || 0) * 60 * 1000));
+          } else if (remainingTimeInSeconds <= 0) {
             // Time has expired while away, trigger auto-submission
             setTimeLeft(0);
             setTimeout(() => {
-              if (!examCompleted) {
+              if (!examCompletedRef.current) {
                 handleSubmit();
               }
             }, 1000);
@@ -127,6 +130,7 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
     const handleVisibilityChange = () => {
       if (!examCompletedRef.current && timeLeftRef.current !== null) {
         if (document.visibilityState === 'hidden') {
+          // When tab is hidden, just update the tab change count
           setTabChangeCount(prevCount => {
             const newCount = prevCount + 1;
             localStorage.setItem(`exam_tabChangeCount_${formId}`, newCount.toString());
@@ -140,10 +144,28 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
             return newCount;
           });
         } else if (document.visibilityState === 'visible') {
+          // When tab becomes visible again, recalculate the time left from the end time
+          const storedEndTime = localStorage.getItem(`exam_endTime_${formId}`);
+          if (storedEndTime) {
+            const parsedEndTime = new Date(storedEndTime);
+            const now = new Date();
+            const newTimeLeft = Math.max(0, Math.floor((parsedEndTime.getTime() - now.getTime()) / 1000));
+            
+            // Update the time left state with the accurate value
+            setTimeLeft(newTimeLeft);
+            console.log("Tab visible: Recalculated time left:", newTimeLeft);
+            
+            // If time expired while away, trigger submission
+            if (newTimeLeft <= 0 && !examCompletedRef.current) {
+              setTimeout(() => handleSubmit(), 1000);
+            }
+          }
+          
+          // Also update tab change count from localStorage for consistency
           const storedTabChangeCount = localStorage.getItem(`exam_tabChangeCount_${formId}`);
           const currentCount = storedTabChangeCount ? parseInt(storedTabChangeCount) : tabChangeCount;
           if (currentCount > 0) {
-            setTabChangeCount(currentCount); // This will trigger the effect below
+            setTabChangeCount(currentCount);
           }
         }
       }
@@ -182,17 +204,43 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
   useEffect(() => {
     if (!exam || !startTime || examCompleted) return;
 
+    // Make sure we have an end time reference
+    if (!endTimeRef.current && startTime && exam.timeLimit) {
+      const durationInSeconds = exam.timeLimit * 60;
+      endTimeRef.current = new Date(startTime.getTime() + durationInSeconds * 1000);
+      console.log("Setting end time reference:", endTimeRef.current.toISOString());
+    }
+
     const timer = setInterval(() => {
-      setTimeLeft(prevTime => {
-        if (prevTime === null || prevTime <= 0) {
-          clearInterval(timer);
-          if (!examCompleted) {
-            handleSubmit();
+      // Calculate based on the absolute end time for accuracy
+      if (endTimeRef.current) {
+        const now = new Date();
+        const newTimeLeft = Math.max(0, Math.floor((endTimeRef.current.getTime() - now.getTime()) / 1000));
+        
+        setTimeLeft(prevTime => {
+          // If time's up, clear interval and submit
+          if (newTimeLeft <= 0) {
+            clearInterval(timer);
+            if (!examCompleted) {
+              handleSubmit();
+            }
+            return 0;
           }
-          return 0;
-        }
-        return prevTime - 1;
-      });
+          return newTimeLeft;
+        });
+      } else {
+        // Fallback to the old countdown method if no end time is available
+        setTimeLeft(prevTime => {
+          if (prevTime === null || prevTime <= 0) {
+            clearInterval(timer);
+            if (!examCompleted) {
+              handleSubmit();
+            }
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }
     }, 1000);
 
     setLocalStorageTimerId(timer);
@@ -208,6 +256,17 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
       if (typeof window === 'undefined' || !exam || examCompleted) return;
       
       try {
+        // Create a consolidated state object for consistency
+        const examState = {
+          responses: responses,
+          timeLeft: timeLeft,
+          startTime: startTime ? startTime.toISOString() : null,
+          endTime: endTimeRef.current ? endTimeRef.current.toISOString() : null,
+          questionIndex: currentQuestionIndex,
+          tabChangeCount: tabChangeCount,
+          examId: formId
+        };
+        
         // Save responses
         localStorage.setItem(`exam_responses_${formId}`, JSON.stringify(responses));
         
@@ -215,10 +274,17 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         if (timeLeft !== null) {
           localStorage.setItem(`exam_timeLeft_${formId}`, timeLeft.toString());
           
-          // Calculate and save the exact end time of the exam
-          const now = new Date();
-          const endTime = new Date(now.getTime() + (timeLeft * 1000));
-          localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
+          // If we already have an end time reference, use that
+          if (endTimeRef.current) {
+            localStorage.setItem(`exam_endTime_${formId}`, endTimeRef.current.toISOString());
+          } 
+          // Otherwise calculate a new end time
+          else if (startTime) {
+            const now = new Date();
+            const endTime = new Date(now.getTime() + (timeLeft * 1000));
+            endTimeRef.current = endTime;
+            localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
+          }
         }
         
         // Save start time
@@ -231,6 +297,13 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
         
         // Save tab change count
         localStorage.setItem(`exam_tabChangeCount_${formId}`, tabChangeCount.toString());
+        
+        // Additionally, save to sessionStorage as a backup
+        try {
+          sessionStorage.setItem(`exam_state_${formId}`, JSON.stringify(examState));
+        } catch (e) {
+          console.error("Could not save to sessionStorage:", e);
+        }
       } catch (error) {
         console.error("Error saving exam state:", error);
       }
@@ -284,18 +357,43 @@ export default function ExamTaker({ formId }: ExamTakerProps) {
           
           // If this is the first load and we have a timeLimit, set the timer
           if (!startTime && data.timeLimit) {
-            const newStartTime = new Date()
-            setStartTime(newStartTime)
-            
-            // Make sure timeLeft is properly set
-            const durationInSeconds = data.timeLimit * 60;
-            setTimeLeft(durationInSeconds)
-            console.log("Setting initial timer:", { timeLimit: data.timeLimit, durationInSeconds })
-            
-            // Also save to localStorage immediately
-            localStorage.setItem(`exam_timeLeft_${formId}`, durationInSeconds.toString());
-            const endTime = new Date(newStartTime.getTime() + (durationInSeconds * 1000));
-            localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
+            const savedEndTime = localStorage.getItem(`exam_endTime_${formId}`);
+  
+            // If there's a saved end time, use it to calculate the remaining time
+            if (savedEndTime) {
+              const parsedEndTime = new Date(savedEndTime);
+              const now = new Date();
+              const remainingTimeInSeconds = Math.max(0, Math.floor((parsedEndTime.getTime() - now.getTime()) / 1000));
+              
+              endTimeRef.current = parsedEndTime;
+              setTimeLeft(remainingTimeInSeconds);
+              
+              // Calculate what the startTime would have been
+              const originalDurationSeconds = data.timeLimit * 60;
+              const elapsedSeconds = originalDurationSeconds - remainingTimeInSeconds;
+              const calculatedStartTime = new Date(now.getTime() - elapsedSeconds * 1000);
+              setStartTime(calculatedStartTime);
+              
+              console.log("Resuming exam with saved end time:", parsedEndTime.toISOString(), "remaining:", remainingTimeInSeconds);
+            } else {
+              // Otherwise set a new timer
+              const newStartTime = new Date();
+              setStartTime(newStartTime);
+              
+              // Make sure timeLeft is properly set
+              const durationInSeconds = data.timeLimit * 60;
+              setTimeLeft(durationInSeconds);
+              
+              // Set the absolute end time for persistence
+              const endTime = new Date(newStartTime.getTime() + (durationInSeconds * 1000));
+              endTimeRef.current = endTime;
+              
+              // Also save to localStorage immediately
+              localStorage.setItem(`exam_timeLeft_${formId}`, durationInSeconds.toString());
+              localStorage.setItem(`exam_endTime_${formId}`, endTime.toISOString());
+              
+              console.log("Setting initial timer:", { timeLimit: data.timeLimit, endTime: endTime.toISOString() });
+            }
           }
         } else {
           // Handle the case where user has already completed the exam
