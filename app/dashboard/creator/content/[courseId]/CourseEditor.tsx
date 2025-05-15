@@ -21,10 +21,49 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
-import { AlertCircle, ArrowLeft, Edit, Loader2, Plus, Save, Trash, Upload } from "lucide-react"
+import { 
+  AlertCircle, 
+  ArrowLeft, 
+  Edit, 
+  Loader2, 
+  Plus, 
+  Save, 
+  Trash, 
+  Upload, 
+  X, 
+  Check, 
+  ChevronsUpDown,
+  BookOpen,
+  VideoIcon,
+  Clock,
+  Eye,
+  Share
+} from "lucide-react"
 import { SectionLectures } from "@/components/section-lectures"
 import { useCourseStore } from "@/lib/store/course-store"
+import { Badge } from "@/components/ui/badge"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import type { Lecture } from "@/lib/types"
+
+// Define a constant array of available languages
+const LANGUAGES = [
+  { value: "English", label: "English" },
+  { value: "Hindi", label: "Hindi" },
+  { value: "Tamil", label: "Tamil" },
+  { value: "Telugu", label: "Telugu" },
+  { value: "Marathi", label: "Marathi" },
+  { value: "Bengali", label: "Bengali" },
+  { value: "Gujarati", label: "Gujarati" },
+  { value: "Kannada", label: "Kannada" },
+  { value: "Malayalam", label: "Malayalam" },
+  { value: "Punjabi", label: "Punjabi" },
+  { value: "Urdu", label: "Urdu" },
+  { value: "Odia", label: "Odia" },
+  { value: "Assamese", label: "Assamese" },
+  { value: "Sanskrit", label: "Sanskrit" },
+]
 
 interface CourseEditorProps {
   courseId: string
@@ -33,60 +72,137 @@ interface CourseEditorProps {
 // Memoized components
 const CoursePreview = memo(function CoursePreview({ course }: { course: any }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Course Preview</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="aspect-video rounded-md overflow-hidden bg-muted">
+    <Card className="overflow-hidden border-2 border-primary/10 shadow-md">
+      <div className="relative">
+        {/* Thumbnail with status badge overlay */}
+        <div className="aspect-video w-full overflow-hidden bg-muted">
           {course.thumbnail ? (
             <img
               src={course.thumbnail || "/placeholder.svg"}
               alt={course.title}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               loading="lazy"
               onError={(e) => {
                 console.error("Failed to load thumbnail:", course.thumbnail)
-                // If thumbnail URL is broken, show placeholder
                 e.currentTarget.src = "/placeholder.svg?height=400&width=600"
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/5 to-primary/20">
               <img
                 src="/placeholder.svg?height=400&width=600"
                 alt="Course thumbnail placeholder"
-                className="w-full h-full object-cover opacity-50"
+                className="h-full w-full object-cover opacity-50"
               />
             </div>
           )}
         </div>
-
-        <div>
-          <h3 className="font-medium">{course.title}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {course.tags?.map((tag: string) => (
-            <span key={tag} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between text-sm">
-          <span>{course.price && course.price > 0 ? `${course.price.toFixed(2)}` : "Free"}</span>
-          <span className={course.isPublished ? "text-green-500" : "text-yellow-500"}>
+        
+        {/* Status badge */}
+        {course.courseStatus && (
+          <div className="absolute right-3 top-3">
+            <Badge className="bg-primary/90 text-xs font-medium uppercase tracking-wider text-primary-foreground">
+              {course.courseStatus === "UPCOMING" ? "Upcoming" : 
+               course.courseStatus === "ONGOING" ? "Ongoing" : "Completed"}
+            </Badge>
+          </div>
+        )}
+        
+        {/* Published status badge */}
+        <div className="absolute left-3 top-3">
+          <Badge 
+            variant={course.isPublished ? "default" : "outline"} 
+            className={`text-xs font-medium ${course.isPublished ? "bg-green-500/90 text-white" : "border-yellow-500 text-yellow-500"}`}
+          >
             {course.isPublished ? "Published" : "Draft"}
-          </span>
+          </Badge>
+        </div>
+      </div>
+
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="line-clamp-1 text-xl">{course.title}</CardTitle>
+        <CardDescription className="line-clamp-2 mt-1 text-sm text-muted-foreground">
+          {course.description}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4 pb-0">
+        {/* Course tags */}
+        {course.tags && course.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {course.tags.map((tag: string) => (
+              <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+        
+        {/* Course details grid */}
+        <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/50 p-3 text-sm">
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-muted-foreground">Price</p>
+            <p className="font-semibold">
+              {course.price && course.price > 0 ? `₹${course.price.toFixed(2)}` : "Free"}
+            </p>
+          </div>
+          
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-muted-foreground">Delivery Mode</p>
+            <p className="font-semibold">
+              {course.deliveryMode === "VIDEO" ? "Video" : 
+               course.deliveryMode === "LIVE" ? "Live" : "Hybrid"}
+            </p>
+          </div>
+          
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-muted-foreground">Access Period</p>
+            <p className="font-semibold">{course.accessDuration || 12} Months</p>
+          </div>
+          
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-muted-foreground">Content Type</p>
+            <p className="capitalize font-semibold">{course.type?.toLowerCase()}</p>
+          </div>
+        </div>
+        
+        {/* Languages */}
+        {course.languages && course.languages.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Available in</p>
+            <div className="flex flex-wrap gap-1.5">
+              {course.languages.map((language: string) => (
+                <Badge key={language} variant="secondary" className="text-xs">
+                  {language}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Stats summary */}
+        <div className="flex items-center justify-between border-t py-3 text-sm">
+          <div className="flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <span>{course.sections?.length || 0} Sections</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <VideoIcon className="h-4 w-4 text-muted-foreground" />
+            <span>
+              {course.sections?.reduce((acc: number, section: any) => acc + (section.lectures?.length || 0), 0) || 0} Lectures
+            </span>
+          </div>
         </div>
       </CardContent>
-      <CardFooter>
+
+      <CardFooter className="grid grid-cols-2 gap-2 pt-4">
         <Button variant="outline" className="w-full" asChild>
           <a href={`/content/${course.id}`} target="_blank" rel="noopener noreferrer">
-            View Public Page
+            <Eye className="mr-2 h-4 w-4" /> Preview
           </a>
+        </Button>
+        <Button className="w-full" disabled={!course.isPublished}>
+          <Share className="mr-2 h-4 w-4" /> Share
         </Button>
       </CardFooter>
     </Card>
@@ -191,6 +307,60 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
   const [editLectureTitle, setEditLectureTitle] = useState("")
   const [editLectureDescription, setEditLectureDescription] = useState("")
   const [editLectureIsPreview, setEditLectureIsPreview] = useState(false)
+
+  // State for custom duration selection
+  const [customDuration, setCustomDuration] = useState(false)
+
+  useEffect(() => {
+    // Check if the accessDuration is one of the predefined options or custom
+    if (courseForm.accessDuration && !["3", "6", "12"].includes(courseForm.accessDuration)) {
+      setCustomDuration(true)
+    }
+  }, [courseForm.accessDuration])
+
+  // Handler for select changes
+  const handleSelectChange = (name: string, value: string) => {
+    if (name === "accessDuration" && value === "custom") {
+      setCustomDuration(true)
+      return
+    }
+    
+    if (name === "accessDuration") {
+      setCustomDuration(false)
+    }
+    
+    setCourseForm({ ...courseForm, [name]: value })
+  }
+  
+  // Function to toggle language selection
+  const toggleLanguage = (value: string) => {
+    if (!courseForm.languages) {
+      setCourseForm({ ...courseForm, languages: [value] })
+      return
+    }
+    
+    if (courseForm.languages.includes(value)) {
+      setCourseForm({ 
+        ...courseForm, 
+        languages: courseForm.languages.filter(lang => lang !== value)
+      })
+    } else {
+      setCourseForm({ 
+        ...courseForm, 
+        languages: [...courseForm.languages, value]
+      })
+    }
+  }
+  
+  // Function to remove a language
+  const removeLanguage = (value: string) => {
+    if (!courseForm.languages) return
+    
+    setCourseForm({
+      ...courseForm,
+      languages: courseForm.languages.filter(lang => lang !== value)
+    })
+  }
 
   // Fetch course data on mount
   useEffect(() => {
@@ -509,18 +679,156 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="price">Price (USD)</Label>
+                      <Label htmlFor="price">Price (Rs.)</Label>
                       <Input
                         id="price"
                         name="price"
                         type="number"
                         min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                        step="1"
+                        placeholder="0"
                         value={courseForm.price}
                         onChange={handleCourseFormChange}
                       />
                       <p className="text-xs text-muted-foreground">Set to 0 for free content</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="courseStatus">Course Status</Label>
+                      <Select 
+                        value={courseForm.courseStatus} 
+                        onValueChange={(value) => handleSelectChange("courseStatus", value)}
+                      >
+                        <SelectTrigger id="courseStatus">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UPCOMING">Upcoming</SelectItem>
+                          <SelectItem value="ONGOING">Ongoing</SelectItem>
+                          <SelectItem value="COMPLETED">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="deliveryMode">Mode of Delivery</Label>
+                      <Select 
+                        value={courseForm.deliveryMode} 
+                        onValueChange={(value) => handleSelectChange("deliveryMode", value)}
+                      >
+                        <SelectTrigger id="deliveryMode">
+                          <SelectValue placeholder="Select delivery mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VIDEO">Video</SelectItem>
+                          <SelectItem value="LIVE">Live</SelectItem>
+                          <SelectItem value="HYBRID">Hybrid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="languages">Course Languages</Label>
+                      <div className="w-full">
+                        {/* Display selected languages as badges */}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {courseForm.languages?.map(language => (
+                            <Badge key={language} variant="secondary" className="px-2 py-1">
+                              {language}
+                              <button
+                                type="button"
+                                className="ml-1 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                onClick={() => removeLanguage(language)}
+                              >
+                                <X className="h-3 w-3" />
+                                <span className="sr-only">Remove {language}</span>
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        {/* Language selector dropdown */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
+                            >
+                              Add Languages
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search language..." />
+                              <CommandEmpty>No language found.</CommandEmpty>
+                              <CommandGroup className="max-h-64 overflow-auto">
+                                {LANGUAGES.map(language => (
+                                  <CommandItem
+                                    key={language.value}
+                                    value={language.value}
+                                    onSelect={() => toggleLanguage(language.value)}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        courseForm.languages?.includes(language.value) ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {language.label}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-xs text-muted-foreground mt-1">Select all languages available for this course</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="accessDuration">
+                        Access Duration <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select 
+                          value={customDuration ? "custom" : courseForm.accessDuration} 
+                          onValueChange={(value) => handleSelectChange("accessDuration", value)}
+                        >
+                          <SelectTrigger id="accessDuration">
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="3">3 Months</SelectItem>
+                            <SelectItem value="6">6 Months</SelectItem>
+                            <SelectItem value="12">12 Months</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        {customDuration && (
+                          <div className="flex items-center">
+                            <Input
+                              id="customDuration"
+                              name="accessDuration"
+                              type="number"
+                              min="1"
+                              placeholder="Enter months"
+                              value={courseForm.accessDuration}
+                              onChange={handleCourseFormChange}
+                              className="w-full"
+                              required
+                            />
+                            <span className="ml-2 text-sm">months</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">How long students can access this course after enrollment</p>
                     </div>
                   </div>
 
@@ -530,7 +838,7 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                       checked={courseForm.isPublished}
                       onCheckedChange={handleCoursePublishedToggle}
                     />
-                    <Label htmlFor="isPublished">Publish course</Label>
+                    <Label htmlFor="isPublished">Publish immediately</Label>
                   </div>
                 </CardContent>
                 <CardFooter>

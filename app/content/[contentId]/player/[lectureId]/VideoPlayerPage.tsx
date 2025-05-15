@@ -99,8 +99,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   // Progress tracking state
   const [completedLectures, setCompletedLectures] = useState<Record<string, boolean>>({})
   const [currentProgress, setCurrentProgress] = useState(0)
-  const [lastWatchedTimestamp, setLastWatchedTimestamp] = useState(0)
-  const [watchTimePercentage, setWatchTimePercentage] = useState(0)
+
   
   // UI state
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -320,7 +319,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
           
           // Set last watched position if available
           if (data.progress.lastWatchedPosition) {
-            setLastWatchedTimestamp(data.progress.lastWatchedPosition)
+            
           }
         } 
       }
@@ -511,7 +510,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   }
 
   const handleVideoProgress = (progress: number) => {
-    setWatchTimePercentage(progress);
+
     
     // Save progress every 10 seconds (this would be throttled in production)
     if (currentLecture) {
@@ -794,6 +793,23 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
 
   return (
     <div className="bg-background min-h-screen">
+      <style jsx global>{`
+        /* Ensure video player takes full width and controls position correctly */
+        .video-wrapper {
+          width: 100% !important;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        :fullscreen .plyr__controls {
+          position: fixed !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          z-index: 99999 !important;
+        }
+      `}</style>
       <div className="flex flex-col lg:flex-row relative">
         {/* Main Content */}
         <div className={`transition-all duration-300 ${sidebarVisible ? 'lg:w-3/4 xl:w-4/5' : 'lg:w-full xl:w-full'}`}>
@@ -809,10 +825,10 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
           </div>
 
           {/* Fixed Video Player with proper positioning - Completely redesigned container */}
-          <div className="w-full bg-black">
+          <div className="w-full bg-black flex items-center justify-center">
             {hasAccess ? (
               <div className="w-full" style={{ position: 'relative' }}>
-                <div className="video-wrapper w-full h-auto">
+                <div className="video-wrapper w-full h-full">
                   <VideoPlayer
                     courseId={contentId}
                     lectureId={currentLecture.id}
@@ -821,17 +837,9 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                     onComplete={handleVideoComplete}
                     onProgress={handleVideoProgress}
                     isCompleted={completedLectures[currentLecture.id] || false}
-                    startPosition={lastWatchedTimestamp}
                   />
                 </div>
                 
-                {/* Video Progress Bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted z-10">
-                  <div 
-                    className="h-full bg-primary" 
-                    style={{ width: `${watchTimePercentage}%` }}
-                  ></div>
-                </div>
               </div>
             ) : (
               <div className="aspect-video w-full flex flex-col items-center justify-center bg-black">
@@ -871,13 +879,6 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                     <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Completed
-                    </Badge>
-                  )}
-                  {currentLecture.duration && (
-                    <Badge variant="outline">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {Math.floor(currentLecture.duration / 60)}:
-                      {(currentLecture.duration % 60).toString().padStart(2, "0")}
                     </Badge>
                   )}
                 </div>
@@ -1271,13 +1272,6 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                             >
                               <p className="text-sm font-medium truncate">{lecture.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {lecture.duration && (
-                                  <span className="flex items-center">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {Math.floor(lecture.duration / 60)}:
-                                    {(lecture.duration % 60).toString().padStart(2, "0")}
-                                  </span>
-                                )}
                                 {lecture.isPreview && (
                                   <Badge variant="outline" className="text-[10px] h-4">
                                     Preview

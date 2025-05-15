@@ -29,6 +29,13 @@ import {
   UserPlus,
   FileText,
   Gift,
+  Lock,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Phone,
+  Mail,
+  Copy,
 } from "lucide-react"
 import Link from "next/link"
 import { SectionLectures } from "@/components/section-lectures"
@@ -42,6 +49,8 @@ import Image from "next/image"
 import { useLocalStorageWithExpiry } from "@/hooks/use-local-storage"
 import { useFollowData } from "@/hooks/use-follow-data"
 import CourseReviews from "@/components/course-reviews"
+import { CourseOverview } from "@/components/course-overview"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface CoursePageProps {
   contentId: string
@@ -347,6 +356,84 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
   }
+  
+  // Handle sharing functionality
+  const handleShare = (platform: string) => {
+    if (!course) return
+    
+    // Get the current URL for sharing
+    const currentUrl = typeof window !== 'undefined' 
+      ? window.location.href 
+      : `${process.env.NEXT_PUBLIC_APP_URL || ''}/content/${contentId}`;
+      
+    const courseTitle = encodeURIComponent(course.title);
+    const courseDesc = encodeURIComponent(course.description || "Check out this course!");
+    
+    switch (platform) {
+      case "facebook":
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "twitter":
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${courseTitle}`, "_blank");
+        break;
+      case "linkedin":
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "whatsapp":
+        window.open(`https://api.whatsapp.com/send?text=${courseTitle}%20-%20${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "gmail":
+        window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=&su=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(currentUrl)}&tf=1`, "_blank");
+        break;
+      case "email":
+        window.open(`mailto:?subject=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "copy":
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(currentUrl)
+            .then(() => {
+              toast({
+                title: "Link Copied!",
+                description: "Course link has been copied to your clipboard",
+                variant: "default",
+              });
+            })
+            .catch((err) => {
+              console.error("Failed to copy: ", err);
+              toast({
+                title: "Copy Failed",
+                description: "Could not copy the link. Please try again.",
+                variant: "destructive",
+              });
+            });
+        } else {
+          // Fallback for browsers without clipboard API
+          const textArea = document.createElement("textarea");
+          textArea.value = currentUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            toast({
+              title: "Link Copied!",
+              description: "Course link has been copied to your clipboard",
+              variant: "default",
+            });
+          } catch (err) {
+            console.error("Fallback: Failed to copy: ", err);
+            toast({
+              title: "Copy Failed",
+              description: "Could not copy the link. Please try again.",
+              variant: "destructive",
+            });
+          }
+          document.body.removeChild(textArea);
+        }
+        break;
+      default:
+        break;
+    }
+  };
 
   if (loading) {
     return (
@@ -453,9 +540,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     {tag}
                   </Badge>
                 ))}
-                <Badge variant="outline" className="bg-black/10 backdrop-blur-sm border-none">
-                  {course.level || "Beginner"}
-                </Badge>
+        
               </div>
               
               {/* Course title and description */}
@@ -480,21 +565,10 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </div>
 
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{getTotalDuration()} total length</span>
-                </div>
-
-                <div className="flex items-center gap-1 text-muted-foreground">
                   <BookOpen className="h-4 w-4" />
                   <span>{getTotalLectures()} lectures</span>
                 </div>
 
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    Last updated: {course.updatedAt ? new Date(course.updatedAt).toLocaleDateString() : "N/A"}
-                  </span>
-                </div>
               </div>
               
               {/* Instructor section */}
@@ -615,19 +689,59 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           )}
                         </Button>
                       </div>
-                      <p className="text-sm text-muted-foreground">Full lifetime access</p>
+                      
                     </div>
 
                     {/* Course features */}
                     <div className="space-y-4 text-sm mb-6">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {course.courseStatus && (
+                          <Badge variant="outline" className={cn(
+                            "px-2 py-0.5",
+                            course.courseStatus === "UPCOMING" && "bg-blue-500/10 text-blue-500 border-blue-200",
+                            course.courseStatus === "ONGOING" && "bg-green-500/10 text-green-500 border-green-200",
+                            course.courseStatus === "COMPLETED" && "bg-amber-500/10 text-amber-500 border-amber-200"
+                          )}>
+                            <Calendar className="h-3.5 w-3.5 mr-1" />
+                            {course.courseStatus.charAt(0) + course.courseStatus.slice(1).toLowerCase()}
+                          </Badge>
+                        )}
+                        
+                        {course.deliveryMode && (
+                          <Badge variant="outline" className={cn(
+                            "px-2 py-0.5",
+                            course.deliveryMode === "VIDEO" && "bg-blue-500/10 text-blue-500 border-blue-200",
+                            course.deliveryMode === "LIVE" && "bg-red-500/10 text-red-500 border-red-200",
+                            course.deliveryMode === "HYBRID" && "bg-purple-500/10 text-purple-500 border-purple-200"
+                          )}>
+                            {course.deliveryMode === "VIDEO" && "Pre-recorded"}
+                            {course.deliveryMode === "LIVE" && "Live Sessions"}
+                            {course.deliveryMode === "HYBRID" && "Hybrid Format"}
+                          </Badge>
+                        )}
+                      </div>
+                      
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 text-primary" />
                         <span>Available on web and mobile</span>
                       </div>
+                      
                       <div className="flex items-center gap-2">
                         <Languages className="h-4 w-4 text-primary" />
-                        <span>English</span>
+                        <span>
+                          {course.languages && course.languages.length > 0 
+                            ? course.languages.join(', ') 
+                            : "English"}
+                        </span>
                       </div>
+                      
+                      {course.accessDuration && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span>Access for {course.accessDuration} {course.accessDuration === 1 ? "month" : "months"}</span>
+                        </div>
+                      )}
+                      
                       {course.certificateOfCompletion && (
                         <div className="flex items-center gap-2">
                           <GraduationCap className="h-4 w-4 text-primary" />
@@ -661,53 +775,85 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       )}
                     </Button>
 
-                    {/* Money-back guarantee */}
-                    {course.price && course.price > 0 && (
-                      <div className="text-center text-sm text-muted-foreground mb-4">
-                        30-Day Money-Back Guarantee
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" className="w-full gap-2">
-                              <Share2 className="h-4 w-4" />
-                              <span className="hidden sm:inline">Share</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Share this course</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" className="w-full gap-2">
-                              <MessageSquare className="h-4 w-4" />
-                              <span className="hidden sm:inline">Contact</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Contact instructor</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    {/* Action buttons - Share only */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full gap-2">
+                          <Share2 className="h-4 w-4" />
+                          <span>Share</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="w-56">
+                        <DropdownMenuLabel>Share this course</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("facebook")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-blue-600 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Facebook className="h-3 w-3 text-white" />
+                          </div>
+                          <span>Facebook</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("twitter")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-sky-500 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Twitter className="h-3 w-3 text-white" />
+                          </div>
+                          <span>Twitter</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("linkedin")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-blue-700 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Linkedin className="h-3 w-3 text-white" />
+                          </div>
+                          <span>LinkedIn</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("whatsapp")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-green-500 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Phone className="h-3 w-3 text-white" />
+                          </div>
+                          <span>WhatsApp</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("gmail")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-red-500 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Mail className="h-3 w-3 text-white" />
+                          </div>
+                          <span>Gmail</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("email")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-gray-500 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Mail className="h-3 w-3 text-white" />
+                          </div>
+                          <span>Email</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleShare("copy")}
+                          className="cursor-pointer"
+                        >
+                          <div className="bg-primary/10 rounded-full h-5 w-5 flex items-center justify-center mr-2">
+                            <Copy className="h-3 w-3 text-primary" />
+                          </div>
+                          <span>Copy Link</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </CardContent>
                 </Card>
-
-                {/* Gift this course */}
-                <div className="mt-4 text-center">
-                  <Button variant="link" className="text-sm">
-                    <Gift className="h-4 w-4 mr-2" />
-                    Gift this course
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
@@ -728,9 +874,18 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="resources" className="rounded-sm data-[state=active]:bg-background">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Resources
+                  <TabsTrigger 
+                    value="resources" 
+                    className="rounded-sm data-[state=active]:bg-background"
+                    disabled={course.price > 0 && !hasAccess}
+                  >
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Resources
+                      {course.price > 0 && !hasAccess && (
+                        <Lock className="h-3 w-3 ml-2 text-muted-foreground" />
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger value="reviews" className="rounded-sm data-[state=active]:bg-background">
                     <Star className="h-4 w-4 mr-2" />
@@ -749,9 +904,6 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full">
                           <BookOpen className="h-4 w-4" />
                           <span>{getTotalLectures()} lectures</span>
-                          <span className="mx-2">•</span>
-                          <Clock className="h-4 w-4" />
-                          <span>{getTotalDuration()}</span>
                         </div>
                       </div>
                       <CardDescription>
@@ -809,130 +961,76 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </TabsContent>
 
                 <TabsContent value="overview">
-                  <Card className="border-none shadow-md">
-                    <CardHeader className="bg-muted/30">
-                      <CardTitle className="flex items-center">
-                        <BarChart3 className="h-5 w-5 mr-2 text-primary" />
-                        Course Overview
-                      </CardTitle>
-                      <CardDescription>What you'll learn in this course</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-8">
-                      <div className="bg-muted/10 p-5 rounded-lg border border-border/50">
-                        <h3 className="text-xl font-medium mb-4 flex items-center">
-                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                          What You'll Learn
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {[
-                            "Understand the fundamentals of HTML, CSS, and JavaScript",
-                            "Build responsive websites from scratch",
-                            "Create interactive web pages with JavaScript",
-                            "Implement modern CSS layouts using Flexbox and Grid",
-                            "Deploy your websites to the internet",
-                            "Optimize your site for search engines",
-                            "Create accessible web content",
-                            "Debug common web development issues",
-                          ].map((item, i) => (
-                            <div key={i} className="flex items-start gap-2 bg-background/50 p-3 rounded border border-border/30">
-                              <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                              <span>{item}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h3 className="text-xl font-medium mb-4 flex items-center">
-                          <FileText className="h-5 w-5 text-primary mr-2" />
-                          Course Description
-                        </h3>
-                        <div className="prose max-w-none text-muted-foreground">
-                          <p className="mb-4">{course.description}</p>
-                          <p>
-                            This comprehensive course is designed to take you from beginner to proficient in web development. 
-                            Starting with the very basics, you will progress through carefully structured lessons that build 
-                            upon each other, ensuring a solid foundation in essential skills.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div>
-                          <h3 className="text-lg font-medium mb-3 flex items-center">
-                            <Users className="h-5 w-5 text-primary mr-2" />
-                            Who This Course is For
-                          </h3>
-                          <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                            <li>Beginners with no prior web development experience</li>
-                            <li>Anyone looking to build their own websites</li>
-                            <li>Students interested in learning front-end development</li>
-                            <li>Professionals looking to expand their skill set</li>
-                            <li>Those preparing for a career in web development</li>
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h3 className="text-lg font-medium mb-3 flex items-center">
-                            <CheckCircle className="h-5 w-5 text-primary mr-2" />
-                            Requirements
-                          </h3>
-                          <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                            <li>Basic computer skills</li>
-                            <li>No prior programming experience required</li>
-                            <li>A computer with internet access</li>
-                            <li>Any operating system (Windows, Mac, or Linux)</li>
-                            <li>Enthusiasm to learn!</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <CourseOverview 
+                    courseId={contentId}
+                    isCreator={isCreator}
+                  />
                 </TabsContent>
 
                 <TabsContent value="resources" className="space-y-6">
-                  <Card className="border-none shadow-md">
-                    <CardHeader className="bg-muted/30">
-                      <CardTitle className="flex items-center">
-                        <FileText className="h-5 w-5 mr-2 text-primary" />
-                        Course Resources
-                      </CardTitle>
-                      <CardDescription>
-                        {isCreator 
-                          ? "Manage downloadable resources for this course" 
-                          : "Download materials provided by the instructor"}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6">
-                      <CourseResources 
-                        courseId={contentId} 
-                        isCreator={isCreator} 
-                        title="Course Resources" 
-                        description="General materials for the entire course"
-                      />
-                      
-                      {sections.length > 0 && (
-                        <div className="space-y-4 mt-8">
-                          <h3 className="text-xl font-semibold flex items-center">
-                            <FileText className="h-5 w-5 text-primary mr-2" />
-                            Section Resources
-                          </h3>
-                          <div className="grid gap-6 md:grid-cols-2">
-                            {sections.map((section) => (
-                              <CourseResources
-                                key={section.id}
-                                courseId={contentId}
-                                sectionId={section.id}
-                                isCreator={isCreator}
-                                title={`Section: ${section.title}`}
-                                description="Materials specific to this section"
-                              />
-                            ))}
-                          </div>
+                  {course.price > 0 && !hasAccess ? (
+                    <Card className="border-none shadow-md">
+                      <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+                        <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                          <Lock className="h-8 w-8 text-primary" />
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        <h3 className="text-xl font-semibold">Resources Locked</h3>
+                        <p className="text-muted-foreground max-w-md">
+                          Course resources are only available to enrolled students. Enroll in this course to access downloadable materials, code samples, and other resources.
+                        </p>
+                        <Button 
+                          className="mt-2 gap-2"
+                          onClick={course.price === 0 ? handleEnroll : () => router.push("/paid")}
+                        >
+                          <BookOpen className="h-4 w-4" />
+                          Enroll Now • {formatPrice(course.price)}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-none shadow-md">
+                      <CardHeader className="bg-muted/30">
+                        <CardTitle className="flex items-center">
+                          <FileText className="h-5 w-5 mr-2 text-primary" />
+                          Course Resources
+                        </CardTitle>
+                        <CardDescription>
+                          {isCreator 
+                            ? "Manage downloadable resources for this course" 
+                            : "Download materials provided by the instructor"}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <CourseResources 
+                          courseId={contentId} 
+                          isCreator={isCreator} 
+                          title="Course Resources" 
+                          description="General materials for the entire course"
+                        />
+                        
+                        {sections.length > 0 && (
+                          <div className="space-y-4 mt-8">
+                            <h3 className="text-xl font-semibold flex items-center">
+                              <FileText className="h-5 w-5 text-primary mr-2" />
+                              Section Resources
+                            </h3>
+                            <div className="grid gap-6 md:grid-cols-2">
+                              {sections.map((section) => (
+                                <CourseResources
+                                  key={section.id}
+                                  courseId={contentId}
+                                  sectionId={section.id}
+                                  isCreator={isCreator}
+                                  title={`Section: ${section.title}`}
+                                  description="Materials specific to this section"
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="reviews">
@@ -1061,18 +1159,6 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <p className="text-sm text-muted-foreground">Learn on any device - desktop, tablet, or mobile</p>
                     </div>
                   </li>
-                  
-                  {course.price !== 0 && course.price !== null && (
-                    <li className="flex gap-3">
-                      <div className="bg-primary/10 rounded-full p-1 h-7 w-7 flex items-center justify-center shrink-0">
-                        <CheckCircle className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium">30-Day Money Back</h4>
-                        <p className="text-sm text-muted-foreground">Not satisfied? Get a full refund within 30 days</p>
-                      </div>
-                    </li>
-                  )}
                 </ul>
               </CardContent>
             </Card>
@@ -1164,10 +1250,12 @@ function FollowButton({ creatorId, onFollowChange }: FollowButtonProps) {
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
-      ) : isFollowing ? (
-        <UserCheck className="h-4 w-4" />
       ) : (
-        <UserPlus className="h-4 w-4" />
+        isFollowing ? (
+          <UserCheck className="h-4 w-4" />
+        ) : (
+          <UserPlus className="h-4 w-4" />
+        )
       )}
       {isFollowing ? "Following" : "Follow"}
     </Button>
