@@ -33,7 +33,6 @@ const categories = [
   "Personal Development",
 ]
 
-const levels = ["All Levels", "Beginner", "Intermediate", "Advanced"]
 
 export default function ExplorePage() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -41,7 +40,6 @@ export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [selectedLevel, setSelectedLevel] = useState("All Levels")
   const searchParams = useSearchParams()
 
   // Debounce search query
@@ -106,9 +104,8 @@ export default function ExplorePage() {
       selectedCategory === "All Categories" ||
       (course.tags && course.tags.some((tag) => tag.includes(selectedCategory)))
 
-    const matchesLevel = selectedLevel === "All Levels" || course.level === selectedLevel
-
-    return matchesSearch && matchesCategory && matchesLevel
+    
+    return matchesSearch && matchesCategory
   })
 
   return (
@@ -162,31 +159,6 @@ export default function ExplorePage() {
                           className={selectedCategory === category ? "bg-muted" : ""}
                         >
                           {category}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-12 rounded-l-none rounded-r-full border-l-0 gap-2">
-                      <GraduationCap className="h-4 w-4" />
-                      {selectedLevel}
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
-                    <DropdownMenuLabel>Difficulty Level</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      {levels.map((level) => (
-                        <DropdownMenuItem
-                          key={level}
-                          onClick={() => setSelectedLevel(level)}
-                          className={selectedLevel === level ? "bg-muted" : ""}
-                        >
-                          {level}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>
@@ -287,7 +259,6 @@ export default function ExplorePage() {
                       lectureCount={course.lectureCount || 0}
                       duration={course.totalDuration || ""}
                       isPublished={course.isPublished}
-                      level={course.level || "Beginner"}
                       isTrending={course.isTrending || false}
                       tags={course.tags || []}
                       price={course.price || 0}
@@ -302,7 +273,6 @@ export default function ExplorePage() {
                       onClick={() => {
                         setSearchQuery("")
                         setSelectedCategory("All Categories")
-                        setSelectedLevel("All Levels")
                       }}
                     >
                       Clear Filters
@@ -332,7 +302,6 @@ export default function ExplorePage() {
                         lectureCount={course.lectureCount || 0}
                         duration={course.totalDuration || ""}
                         isPublished={course.isPublished}
-                        level={course.level || "Beginner"}
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}
@@ -362,7 +331,6 @@ export default function ExplorePage() {
                         lectureCount={course.lectureCount || 0}
                         duration={course.totalDuration || ""}
                         isPublished={course.isPublished}
-                        level={course.level || "Beginner"}
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}
@@ -392,7 +360,6 @@ export default function ExplorePage() {
                         lectureCount={course.lectureCount || 0}
                         duration={course.totalDuration || ""}
                         isPublished={course.isPublished}
-                        level={course.level || "Beginner"}
                         isTrending={course.isTrending || false}
                         tags={course.tags || []}
                         price={course.price || 0}

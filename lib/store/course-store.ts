@@ -14,6 +14,10 @@ interface CourseFormState {
   price: string
   isPublished: boolean
   tags: string
+  courseStatus?: string
+  deliveryMode?: string
+  accessDuration?: string
+  languages?: string[]
 }
 
 interface CourseStore {
@@ -114,6 +118,10 @@ interface CourseStore {
   updateUploadProgress: (id: string, progress: number) => void
   updateUploadStatus: (id: string, status: "uploading" | "processing" | "completed" | "failed", error?: string) => void
   removeUpload: (id: string) => void
+
+  // New functions for language handling
+  handleLanguagesChange: (languages: string[]) => void
+  toggleLanguage: (language: string) => void
 }
 
 export const useCourseStore = create<CourseStore>()(
@@ -266,6 +274,10 @@ export const useCourseStore = create<CourseStore>()(
                 price: data.course.price?.toString() || "0",
                 isPublished: data.course.isPublished || false,
                 tags: data.course.tags?.join(", ") || "",
+                courseStatus: data.course.courseStatus || "UPCOMING",
+                deliveryMode: data.course.deliveryMode || "VIDEO",
+                accessDuration: data.course.accessDuration?.toString() || "12",
+                languages: data.course.languages || ["English"],
               }
             })
             return true
@@ -292,14 +304,21 @@ export const useCourseStore = create<CourseStore>()(
             case "description":
             case "price":
             case "tags":
+            case "accessDuration":
               state.courseForm[name] = value
-              break
+              break;
             case "type":
               state.courseForm.type = value as ContentType
-              break
+              break;
             case "isPublished":
               state.courseForm.isPublished = value === "true"
-              break
+              break;
+            case "courseStatus":
+              state.courseForm.courseStatus = value
+              break;
+            case "deliveryMode":
+              state.courseForm.deliveryMode = value
+              break;
           }
         })
       },
@@ -339,6 +358,10 @@ export const useCourseStore = create<CourseStore>()(
                 .split(",")
                 .map((tag) => tag.trim())
                 .filter(Boolean),
+              courseStatus: courseForm.courseStatus,
+              deliveryMode: courseForm.deliveryMode,
+              accessDuration: Number.parseInt(courseForm.accessDuration || "12"),
+              languages: courseForm.languages,
             }),
           })
 
@@ -892,6 +915,27 @@ export const useCourseStore = create<CourseStore>()(
       removeUpload: (id) => {
         set((state) => {
           state.activeUploads = state.activeUploads.filter((upload) => upload.id !== id)
+        })
+      },
+
+      handleLanguagesChange: (languages) => {
+        set((state) => {
+          state.courseForm.languages = languages;
+        })
+      },
+      
+      toggleLanguage: (language) => {
+        set((state) => {
+          if (!state.courseForm.languages) {
+            state.courseForm.languages = [language];
+            return;
+          }
+          
+          if (state.courseForm.languages.includes(language)) {
+            state.courseForm.languages = state.courseForm.languages.filter(lang => lang !== language);
+          } else {
+            state.courseForm.languages = [...state.courseForm.languages, language];
+          }
         })
       },
     })),

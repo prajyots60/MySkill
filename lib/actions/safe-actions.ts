@@ -124,8 +124,9 @@ export async function fetchGDriveConnectionStatus() {
   }
 }
 
-// Function to fetch Google Forms connection status
-export async function fetchGFormsConnectionStatus() {
+
+// Function to fetch Dailymotion connection status
+export async function fetchDailymotionConnectionStatus() {
   try {
     const session = await getServerSession(authOptions)
 
@@ -135,7 +136,7 @@ export async function fetchGFormsConnectionStatus() {
 
     try {
       // Try to get from Redis cache first to reduce database load
-      const cacheKey = `gforms:connection:${session.user.id}`
+      const cacheKey = `dailymotion:connection:${session.user.id}`
       const cachedData = await redis.get(cacheKey)
       
       if (cachedData) {
@@ -145,29 +146,37 @@ export async function fetchGFormsConnectionStatus() {
           return parsed
         } catch (parseError) {
           // If parsing fails, continue to database query
-          console.error("Error parsing cached Google Forms connection data:", parseError)
+          console.error("Error parsing cached Dailymotion connection data:", parseError)
         }
       }
       
-      // Check if the user has a Google account with Forms API scope
-      const account = await prisma.account.findFirst({
-        where: {
-          userId: session.user.id,
-          provider: "google",
-          scope: {
-            contains: "forms.body"
-          }
-        },
+      // Check the user's dailymotionConnected flag directly
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+          dailymotionInfo: true
+        }
       })
-
-      // Prepare result
+      
+      // Determine connection status based on the user's flag
+      const isConnected = !!user?.dailymotionConnected
+      
+      // Get dailymotion info if available
+      const dailymotionInfo = user?.dailymotionInfo
+      
+      console.log("🔍 Dailymotion Connection Check - User connected:", isConnected)
+      console.log("🔍 Dailymotion Connection Check - User info available:", !!dailymotionInfo)
+      
+      // Prepare result with information from dailymotionInfo if available
       const result = {
-        connected: !!account,
+        connected: isConnected,
         error: null,
-        details: account ? {
-          email: account.email || undefined,
-          name: account.name || undefined,
-          connectedAt: new Date().toISOString(),
+        details: isConnected ? {
+          connected: true,
+          userId: dailymotionInfo?.dailymotionUserId || 'api-user',
+          username: dailymotionInfo?.username || 'Dailymotion API',
+          profilePictureUrl: dailymotionInfo?.profilePictureUrl,
+          connectedAt: dailymotionInfo?.connectedAt?.toISOString() || new Date().toISOString(),
         } : null
       }
       
@@ -176,11 +185,11 @@ export async function fetchGFormsConnectionStatus() {
       
       return result
     } catch (dbError) {
-      console.error("Database error fetching Google Forms connection:", dbError)
+      console.error("Database error fetching Dailymotion connection:", dbError)
       return { connected: false, error: "Database error", details: null }
     }
   } catch (error) {
-    console.error("Error fetching Google Forms connection status:", error)
+    console.error("Error fetching Dailymotion connection status:", error)
     return { connected: false, error: "Failed to check connection", details: null }
   }
 }

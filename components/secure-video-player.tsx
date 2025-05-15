@@ -59,7 +59,7 @@ export function SecureVideoPlayer({
   ]
 
   const playerOptions = {
-    controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen"],
+    controls: ["play-large", "play", "progress", "current-time", "mute", "volume"],
     youtube: {
       enableLowLatency: true,
       autoplay: 1,
@@ -389,6 +389,7 @@ export function SecureVideoPlayer({
           allowFullScreen
           title={title}
           onError={handleIframeError}
+          style={{ width: '100%' }}
         />
       )}
       {(debugInfo || debugMessage) && process.env.NODE_ENV === "development" && (

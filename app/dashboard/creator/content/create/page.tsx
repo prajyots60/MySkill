@@ -14,7 +14,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Save, Upload } from "lucide-react"
-import type { ContentType } from "@/lib/types"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import type { ContentType, CourseStatus, DeliveryMode } from "@/lib/types"
+import { Badge } from "@/components/ui/badge"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Check, ChevronsUpDown, X } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+// Define a constant array of available languages
+const LANGUAGES = [
+  { value: "English", label: "English" },
+  { value: "Hindi", label: "Hindi" },
+  { value: "Tamil", label: "Tamil" },
+  { value: "Telugu", label: "Telugu" },
+  { value: "Marathi", label: "Marathi" },
+  { value: "Bengali", label: "Bengali" },
+  { value: "Gujarati", label: "Gujarati" },
+  { value: "Kannada", label: "Kannada" },
+  { value: "Malayalam", label: "Malayalam" },
+  { value: "Punjabi", label: "Punjabi" },
+  { value: "Urdu", label: "Urdu" },
+  { value: "Odia", label: "Odia" },
+  { value: "Assamese", label: "Assamese" },
+  { value: "Sanskrit", label: "Sanskrit" },
+]
 
 export default function CreateCourse() {
   const router = useRouter()
@@ -28,11 +53,16 @@ export default function CreateCourse() {
     price: "0",
     isPublished: false,
     tags: "",
+    courseStatus: "UPCOMING" as CourseStatus,
+    deliveryMode: "VIDEO" as DeliveryMode,
+    accessDuration: "12", // Default 12 months
+    languages: ["English"], // Changed from single language to multiple languages array
   })
 
   const [thumbnail, setThumbnail] = useState<File | null>(null)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [customDuration, setCustomDuration] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -40,6 +70,15 @@ export default function CreateCourse() {
   }
 
   const handleSelectChange = (name: string, value: string) => {
+    if (name === "accessDuration" && value === "custom") {
+      setCustomDuration(true)
+      return
+    }
+    
+    if (name === "accessDuration") {
+      setCustomDuration(false)
+    }
+    
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -61,10 +100,33 @@ export default function CreateCourse() {
     }
   }
 
+  // Function to handle adding and removing languages
+  const toggleLanguage = (value: string) => {
+    setFormData(prev => {
+      const { languages } = prev;
+      
+      if (languages.includes(value)) {
+        // Remove the language if it already exists
+        return { ...prev, languages: languages.filter(lang => lang !== value) };
+      } else {
+        // Add the language if it doesn't exist
+        return { ...prev, languages: [...languages, value] };
+      }
+    });
+  }
+  
+  // Function to remove a language from the selection
+  const removeLanguage = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.filter(lang => lang !== value)
+    }));
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title || !formData.description) {
+    if (!formData.title || !formData.description || !formData.accessDuration) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -84,6 +146,14 @@ export default function CreateCourse() {
       formDataToSend.append("price", formData.price)
       formDataToSend.append("isPublished", formData.isPublished.toString())
       formDataToSend.append("tags", formData.tags)
+      formDataToSend.append("courseStatus", formData.courseStatus)
+      formDataToSend.append("deliveryMode", formData.deliveryMode)
+      formDataToSend.append("accessDuration", formData.accessDuration)
+      
+      // Handle multiple languages
+      formData.languages.forEach(lang => {
+        formDataToSend.append("languages", lang)
+      })
 
       if (thumbnail) {
         formDataToSend.append("thumbnail", thumbnail)
@@ -204,18 +274,156 @@ export default function CreateCourse() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (USD)</Label>
+                    <Label htmlFor="price">Price (Rs.)</Label>
                     <Input
                       id="price"
                       name="price"
                       type="number"
                       min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      step="1"
+                      placeholder="0"
                       value={formData.price}
                       onChange={handleInputChange}
                     />
                     <p className="text-xs text-muted-foreground">Set to 0 for free content</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="courseStatus">Course Status</Label>
+                    <Select 
+                      value={formData.courseStatus} 
+                      onValueChange={(value) => handleSelectChange("courseStatus", value)}
+                    >
+                      <SelectTrigger id="courseStatus">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UPCOMING">Upcoming</SelectItem>
+                        <SelectItem value="ONGOING">Ongoing</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="deliveryMode">Mode of Delivery</Label>
+                    <Select 
+                      value={formData.deliveryMode} 
+                      onValueChange={(value) => handleSelectChange("deliveryMode", value)}
+                    >
+                      <SelectTrigger id="deliveryMode">
+                        <SelectValue placeholder="Select delivery mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="VIDEO">Video</SelectItem>
+                        <SelectItem value="LIVE">Live</SelectItem>
+                        <SelectItem value="HYBRID">Hybrid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="languages">Course Languages</Label>
+                    <div className="w-full">
+                      {/* Display selected languages as badges */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {formData.languages.map(language => (
+                          <Badge key={language} variant="secondary" className="px-2 py-1">
+                            {language}
+                            <button
+                              type="button"
+                              className="ml-1 ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              onClick={() => removeLanguage(language)}
+                            >
+                              <X className="h-3 w-3" />
+                              <span className="sr-only">Remove {language}</span>
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      {/* Language selector dropdown */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                          >
+                            Add Languages
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search language..." />
+                            <CommandEmpty>No language found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {LANGUAGES.map(language => (
+                                <CommandItem
+                                  key={language.value}
+                                  value={language.value}
+                                  onSelect={() => toggleLanguage(language.value)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      formData.languages.includes(language.value) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {language.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-muted-foreground mt-1">Select all languages available for this course</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="accessDuration">
+                      Access Duration <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select 
+                        value={customDuration ? "custom" : formData.accessDuration} 
+                        onValueChange={(value) => handleSelectChange("accessDuration", value)}
+                      >
+                        <SelectTrigger id="accessDuration">
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3 Months</SelectItem>
+                          <SelectItem value="6">6 Months</SelectItem>
+                          <SelectItem value="12">12 Months</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {customDuration && (
+                        <div className="flex items-center">
+                          <Input
+                            id="customDuration"
+                            name="accessDuration"
+                            type="number"
+                            min="1"
+                            placeholder="Enter months"
+                            value={formData.accessDuration}
+                            onChange={handleInputChange}
+                            className="w-full"
+                            required
+                          />
+                          <span className="ml-2 text-sm">months</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">How long students can access this course after enrollment</p>
                   </div>
                 </div>
 

@@ -150,22 +150,22 @@ export async function PATCH(request: Request, { params }: { params: { courseId: 
 
     // Parse request body
     const body = await request.json()
-    const { title, description, type, price, isPublished, tags } = body
+    console.log("Course update request data:", { courseId, ...body })
 
-    // Update the course in the database
+    // Update the course in the database with all provided fields
+    // This way any field sent in the request will be updated
     const updatedCourse = await prisma.content.update({
       where: {
         id: courseId,
       },
       data: {
-        title,
-        description,
-        type,
-        price: Number(price),
-        isPublished,
-        tags,
+        ...body,
+        // Ensure price is properly converted to a number if present
+        ...(body.price !== undefined && { price: Number(body.price) }),
       },
     })
+
+    console.log("Course updated successfully:", updatedCourse)
 
     // Invalidate cache
     await invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id))

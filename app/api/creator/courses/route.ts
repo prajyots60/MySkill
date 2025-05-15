@@ -33,6 +33,14 @@ export async function POST(request: Request) {
       .map((tag) => tag.trim())
       .filter(Boolean)
     const thumbnail = formData.get("thumbnail") as File | null
+    
+    // Get new fields
+    const courseStatus = formData.get("courseStatus") as string || "UPCOMING"
+    const deliveryMode = formData.get("deliveryMode") as string || "VIDEO"
+    const accessDuration = Number.parseInt(formData.get("accessDuration") as string) || 12
+    
+    // Get multiple languages (handle as array)
+    const languages = formData.getAll("languages") as string[] || ["English"]
 
     if (!title || !description) {
       return NextResponse.json({ message: "Title and description are required" }, { status: 400 })
@@ -69,6 +77,10 @@ export async function POST(request: Request) {
         isPublished,
         tags,
         thumbnail: thumbnailUrl,
+        courseStatus: courseStatus as any,
+        deliveryMode: deliveryMode as any,
+        accessDuration,
+        languages,
         creator: {
           connect: { id: session.user.id },
         },

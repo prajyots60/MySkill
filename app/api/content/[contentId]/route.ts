@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { contentId: string } }
 ) {
   try {
-    const contentId = params.contentId
+    const {contentId} = await params
     const session = await getServerSession(authOptions)
     const userId = session?.user?.id
     

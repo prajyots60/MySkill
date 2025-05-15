@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
-import { AlertCircle, CheckCircle, ExternalLink, Loader2, Youtube, Database, HardDrive } from "lucide-react"
+import { AlertCircle, CheckCircle, ExternalLink, Loader2, Youtube, Database, HardDrive, Film } from "lucide-react"
 import { useYouTubeStore } from "@/lib/store/youtube-store"
 import { useGDriveStore } from "@/lib/store/gdrive-store"
+import { useDailymotionStore } from "@/lib/store/dailymotion-store"
 import { formatDate, formatBytes } from "@/lib/utils/format"
+import { DailymotionConnectForm } from "./dailymotion-connect-form"
 
 export default function ServiceConnectionsPage() {
   const router = useRouter()
@@ -34,14 +36,24 @@ export default function ServiceConnectionsPage() {
     error: gdriveError, 
     checkConnectionStatus: checkGDriveStatus 
   } = useGDriveStore()
+  
+  // Dailymotion connection state
+  const {
+    connected: dailymotionConnected,
+    details: dailymotionDetails,
+    loading: dailymotionLoading,
+    error: dailymotionError,
+    checkConnectionStatus: checkDailymotionStatus
+  } = useDailymotionStore()
 
   // Check connection status on page load
   useEffect(() => {
     if (status === "authenticated") {
       checkYouTubeStatus()
       checkGDriveStatus()
+      checkDailymotionStatus()
     }
-  }, [status, checkYouTubeStatus, checkGDriveStatus])
+  }, [status, checkYouTubeStatus, checkGDriveStatus, checkDailymotionStatus])
 
   // Handle connect to YouTube
   const handleYouTubeConnect = () => {
@@ -51,6 +63,11 @@ export default function ServiceConnectionsPage() {
   // Handle connect to Google Drive
   const handleGDriveConnect = () => {
     window.location.href = "/api/gdrive/connect"
+  }
+  
+  // Handle connect to Dailymotion
+  const handleDailymotionConnect = () => {
+    window.location.href = "/api/dailymotion/connect"
   }
 
   // Handle refresh YouTube connection status
@@ -68,6 +85,15 @@ export default function ServiceConnectionsPage() {
     toast({
       title: "Success",
       description: "Google Drive connection status refreshed",
+    })
+  }
+  
+  // Handle refresh Dailymotion connection status
+  const handleDailymotionRefresh = async () => {
+    await checkDailymotionStatus()
+    toast({
+      title: "Success",
+      description: "Dailymotion connection status refreshed",
     })
   }
 
@@ -398,6 +424,132 @@ export default function ServiceConnectionsPage() {
                   Connect to Google Drive
                 </Button>
               </>
+            )}
+          </CardFooter>
+        </Card>
+        
+        {/* Dailymotion Connection Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Film className="h-5 w-5 text-blue-400" />
+              Dailymotion Connection
+            </CardTitle>
+            <CardDescription>Connect your Dailymotion account to upload videos directly from the platform</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dailymotionLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : dailymotionError ? (
+              <div className="bg-destructive/10 p-4 rounded-lg flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-destructive">Error checking connection status</h3>
+                  <p className="text-sm text-muted-foreground">{dailymotionError}</p>
+                </div>
+              </div>
+            ) : dailymotionConnected ? (
+              <div className="space-y-6">
+                <div className="bg-success/10 p-4 rounded-lg flex items-start gap-3">
+                  <CheckCircle className="h-5 w-5 text-success mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-success">Connected to Dailymotion</h3>
+                    <p className="text-sm text-muted-foreground">Your account is successfully connected to Dailymotion</p>
+                  </div>
+                </div>
+
+                {dailymotionDetails && (
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center gap-4">
+                      {dailymotionDetails.profilePictureUrl && (
+                        <img
+                          src={dailymotionDetails.profilePictureUrl || "/placeholder.svg"}
+                          alt="Profile"
+                          className="w-16 h-16 rounded-full"
+                        />
+                      )}
+                      <div>
+                        <h3 className="font-medium text-lg">{dailymotionDetails.username}</h3>
+                        <p className="text-sm text-muted-foreground">User ID: {dailymotionDetails.userId}</p>
+                        {dailymotionDetails.connectedAt && (
+                          <p className="text-sm text-muted-foreground">
+                            Connected since: {formatDate(new Date(dailymotionDetails.connectedAt))}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <h3 className="font-medium">What you can do:</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Upload videos directly to your Dailymotion account</li>
+                    <li>Create and manage playlists</li>
+                    <li>Access video analytics and publishing tools</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-muted p-4 rounded-lg">
+                  <h3 className="font-medium mb-2">Not connected to Dailymotion</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect your Dailymotion account to upload videos directly from this platform.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-medium">Benefits of connecting:</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Upload videos directly to your Dailymotion account</li>
+                    <li>Create and manage playlists</li>
+                    <li>Access video analytics and publishing tools</li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <h3 className="font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Important
+                  </h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    You will need a Dailymotion account with permissions to upload videos. The platform will only access the videos you upload through it.
+                  </p>
+                </div>
+
+                <DailymotionConnectForm />
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            {dailymotionConnected ? (
+              <>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleDailymotionRefresh} disabled={dailymotionLoading}>
+                    {dailymotionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Refresh Status
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => window.location.href = "/api/dailymotion/reconnect"}
+                  >
+                    Reconnect Dailymotion
+                  </Button>
+                </div>
+                <Button asChild>
+                  <a href="https://www.dailymotion.com/myvideos" target="_blank" rel="noopener noreferrer">
+                    Open Dailymotion <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={handleDailymotionRefresh} disabled={dailymotionLoading}>
+                {dailymotionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Refresh Status
+              </Button>
             )}
           </CardFooter>
         </Card>

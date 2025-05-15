@@ -18,7 +18,6 @@ interface OptimizedCourseCardProps {
   lectureCount?: number
   duration?: string
   isPublished?: boolean
-  level?: string
   isTrending?: boolean
   tags?: string[]
   price?: number
@@ -40,7 +39,6 @@ export function OptimizedCourseCard({
   lectureCount = 0,
   duration = "",
   isPublished = true,
-  level = "Beginner",
   isTrending = false,
   tags = [],
   price,
@@ -62,12 +60,6 @@ export function OptimizedCourseCard({
           className="object-cover w-full h-full transition-transform group-hover:scale-105 duration-300"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-        <div className="absolute top-3 left-3">
-          <Badge variant="secondary" className="bg-black/50 backdrop-blur-sm text-white border-none">
-            {level}
-          </Badge>
-        </div>
 
         <div className="absolute top-3 right-3 flex gap-2">
           {price === 0 && <Badge className="bg-green-500/90 text-white border-none">Free</Badge>}

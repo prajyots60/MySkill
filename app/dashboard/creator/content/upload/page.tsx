@@ -726,7 +726,7 @@ export default function UploadContent() {
                       />
                       <p className="text-xs text-muted-foreground">
                         Supported formats: MP4, MOV, AVI, etc. 
-                        <span className="font-medium text-green-600 dark:text-green-400"> Videos are uploaded directly to YouTube - no size limit!</span>
+                        <span className="font-medium text-green-600 dark:text-green-400"> Video size should be less than 2GB</span>
                       </p>
                     </div>
 

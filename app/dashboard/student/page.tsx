@@ -274,24 +274,28 @@ export default function StudentDashboard() {
                       key={course.id}
                       className="overflow-hidden flex flex-col md:flex-row group hover:shadow-lg transition-all duration-200 border-none shadow-md"
                     >
-                      <div className="relative h-40 md:w-64 md:min-w-64 overflow-hidden">
-                        <img
-                          src={course.thumbnail || "/placeholder.svg"}
-                          alt={course.title}
-                          className="object-cover w-full h-full transition-transform group-hover:scale-105 duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <div className="absolute bottom-3 left-3">
-                          <Badge variant="secondary" className="bg-black/50 backdrop-blur-sm text-white border-none">
-                            {course.progress || 0}% Complete
-                          </Badge>
-                        </div>
+                      <div className="relative h-40 md:w-64 md:min-w-64 overflow-hidden cursor-pointer">
+                        <Link href={`/content/${course.id}`}>
+                          <img
+                            src={course.thumbnail || "/placeholder.svg"}
+                            alt={course.title}
+                            className="object-cover w-full h-full transition-transform group-hover:scale-105 duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-3 left-3">
+                            <Badge variant="secondary" className="bg-black/50 backdrop-blur-sm text-white border-none">
+                              {course.progress || 0}% Complete
+                            </Badge>
+                          </div>
+                        </Link>
                       </div>
                       <div className="flex-1 p-6">
                         <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-bold text-lg group-hover:text-primary transition-colors">
-                            {course.title}
-                          </h3>
+                          <Link href={`/content/${course.id}`}>
+                            <h3 className="font-bold text-lg group-hover:text-primary transition-colors cursor-pointer">
+                              {course.title}
+                            </h3>
+                          </Link>
                         </div>
                         <div className="flex items-center gap-2 mb-3">
                           <Avatar className="h-5 w-5">
@@ -315,10 +319,6 @@ export default function StudentDashboard() {
                             <span>
                               {course.completedLectures || 0}/{course.totalLectures || 0} lectures
                             </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>{course.totalDuration || "1h 20m"} total</span>
                           </div>
                         </div>
 

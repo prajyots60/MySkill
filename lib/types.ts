@@ -1,10 +1,10 @@
-import type { ContentType, LectureType, LiveStatus } from "@prisma/client"
+import type { ContentType, LectureType, LiveStatus, CourseStatus, DeliveryMode } from "@prisma/client"
 
 // User roles - only STUDENT, CREATOR, and ADMIN
 export type UserRole = "STUDENT" | "CREATOR" | "ADMIN"
 
 // Content types
-export type { ContentType, LectureType, LiveStatus }
+export type { ContentType, LectureType, LiveStatus, CourseStatus, DeliveryMode }
 
 // Temporary user data stored in Redis during onboarding
 export interface TempUserData {
@@ -49,6 +49,10 @@ export interface Course {
   createdAt?: Date
   updatedAt?: Date
   tags: string[]
+  courseStatus?: CourseStatus
+  deliveryMode?: DeliveryMode
+  accessDuration?: number
+  language?: string
   creatorId?: string
   creatorName?: string
   creatorImage?: string | null

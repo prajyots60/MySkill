@@ -12,6 +12,7 @@ interface PlyrComponentProps {
 export function PlyrComponent({ videoId, title, onEnded }: PlyrComponentProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Import Plyr dynamically to avoid SSR issues
@@ -26,13 +27,17 @@ export function PlyrComponent({ videoId, title, onEnded }: PlyrComponentProps) {
           playerRef.current.destroy()
         }
 
-        // Create YouTube player with custom options
+        // Create YouTube player with custom options - WITH FORCED CONTAINER FULLSCREEN
         const player = new Plyr(containerRef.current, {
-          
           autoplay: false,
           seekTime: 10,
-          controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "settings", "fullscreen"],
+          controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "settings"],
           settings: ["captions", "quality", "speed"],
+          fullscreen: { 
+            enabled: true,
+            fallback: true,
+            iosNative: false,
+          },
           youtube: {
             noCookie: true,
             rel: 0,
@@ -46,7 +51,15 @@ export function PlyrComponent({ videoId, title, onEnded }: PlyrComponentProps) {
           blankVideo: "about:blank",
           disableContextMenu: true,
           hideControls: false,
+          clickToPlay: true,
+          resetOnEnd: false,
+          invertTime: false,
+          toggleInvert: false,
+          ratio: '16:9',
+          keyboard: { global: false }
         })
+        
+        
 
         // Add event listeners
         player.on("ready", () => {
@@ -86,11 +99,13 @@ export function PlyrComponent({ videoId, title, onEnded }: PlyrComponentProps) {
   }, [videoId, title, onEnded])
 
   return (
-    <div
-      ref={containerRef}
-      data-plyr-provider="youtube"
-      data-plyr-embed-id={videoId}
-      className="w-full h-full no-download-video"
-    ></div>
+    <div ref={wrapperRef} className="w-full h-full relative">
+      <div
+        ref={containerRef}
+        data-plyr-provider="youtube"
+        data-plyr-embed-id={videoId}
+        className="w-full h-full no-download-video"
+      ></div>
+    </div>
   )
 }
