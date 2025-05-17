@@ -98,7 +98,61 @@ self.addEventListener("fetch", (event: any) => {
   // Skip non-GET requests
   if (request.method !== "GET") return
 
-  // Skip cross-origin requests
+  // Enable navigation preload if supported - this makes navigation requests significantly faster
+  if (request.mode === 'navigate' && (self as any).registration.navigationPreload) {
+    event.respondWith(
+      (async () => {
+        try {
+          // Try to use navigation preload response if available
+          const preloadResponse = await event.preloadResponse
+          if (preloadResponse) {
+            // Cache this response for faster back/forward navigation
+            const cache = await caches.open(DYNAMIC_CACHE)
+            cache.put(request.url, preloadResponse.clone())
+            return preloadResponse
+          }
+          
+          // If no preload response, check the cache first 
+          const cachedResponse = await caches.match(request)
+          if (cachedResponse) {
+            // Clone the cached response so we can update it in the background
+            const responseToReturn = cachedResponse.clone()
+            
+            // Revalidate the cache in the background
+            fetch(request)
+              .then(response => {
+                if (response.ok) {
+                  const cache = caches.open(DYNAMIC_CACHE)
+                  cache.then(c => c.put(request.url, response))
+                }
+              })
+              .catch(() => {}) // Ignore errors on background refresh
+              
+            return responseToReturn
+          }
+          
+          // If not in cache, get from network
+          const networkResponse = await fetch(event.request)
+          
+          // Cache navigation responses for faster future navigations
+          const cache = await caches.open(DYNAMIC_CACHE)
+          cache.put(request.url, networkResponse.clone())
+          
+          return networkResponse
+        } catch (error) {
+          // Fallback to whatever is in the cache
+          const cachedResponse = await caches.match(request)
+          if (cachedResponse) {
+            return cachedResponse
+          }
+          
+          // If nothing in the cache, try the offline page
+          return caches.match('/offline')
+        }
+      })()
+    )
+    return
+  }
   if (!request.url.startsWith(self.location.origin)) return
 
   // Determine which strategy to use

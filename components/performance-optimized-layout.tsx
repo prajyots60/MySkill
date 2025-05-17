@@ -68,6 +68,26 @@ export function PerformanceOptimizedLayout({ children }: { children: React.React
       document.head.appendChild(link)
     })
 
+    // Enable back/forward cache for faster navigation
+    if ('navigation' in window && (window.navigation as any).addEventListener) {
+      const handleNavigateEvent = (event: any) => {
+        // This indicates back/forward navigation
+        if (event.navigationType === 'traverse') {
+          // Add any special handling for back/forward navigation
+          console.log('Using back/forward cache for navigation')
+        }
+      }
+      
+      try {
+        (window.navigation as any).addEventListener('navigate', handleNavigateEvent)
+        return () => {
+          (window.navigation as any).removeEventListener('navigate', handleNavigateEvent)
+        }
+      } catch (error) {
+        console.error('Navigation API error:', error)
+      }
+    }
+
     return () => {
       // Clean up preconnect links on unmount
       document.querySelectorAll('link[rel="preconnect"]').forEach((el) => {

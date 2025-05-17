@@ -9,6 +9,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ReactQueryProvider } from "@/lib/react-query/provider"
 import { PerformanceOptimizedLayout } from "@/components/performance-optimized-layout"
+import { NavigationOptimizer } from "@/components/navigation-optimizer"
 import Script from "next/script"
 
 const inter = Inter({
@@ -68,7 +69,11 @@ export default function RootLayout({
                 <div className="flex min-h-screen w-full overflow-hidden">
                   <AppSidebar />
                   <main className="flex-1 overflow-auto relative">
-                    <PerformanceOptimizedLayout>{children}</PerformanceOptimizedLayout>
+                    <PerformanceOptimizedLayout>
+                      <NavigationOptimizer>
+                        {children}
+                      </NavigationOptimizer>
+                    </PerformanceOptimizedLayout>
                   </main>
                 </div>
                 <Toaster />
@@ -91,10 +96,25 @@ export default function RootLayout({
               }
             } catch (e) {}
             
-            // Register service worker
-            if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
+            // Register and optimize service worker
+            if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
+                navigator.serviceWorker.register('/sw.js')
+                  .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                    
+                    // Enable navigation preload if supported
+                    if (registration.navigationPreload) {
+                      registration.navigationPreload.enable().then(() => {
+                        console.log('Navigation Preload enabled');
+                      }).catch(err => {
+                        console.error('Navigation Preload error:', err);
+                      });
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                  });
               });
             }
           `}

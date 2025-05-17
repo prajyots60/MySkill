@@ -41,6 +41,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { PrefetchableLink } from "@/components/prefetchable-link"
 import { signOut } from "next-auth/react"
 import { ThemeSwitch } from "@/components/theme-switch"
 import { useEffect, useState } from "react"
@@ -89,10 +90,15 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="sidebar-modern">
       <SidebarHeader className="flex flex-col gap-0.5 py-1.5">
         <div className="flex items-center justify-center px-1.5">
-          <Link href={isAuthenticated ? getDefaultDashboardPath(userRole) : "/"} className="flex items-center gap-1">
+          <PrefetchableLink 
+            href={isAuthenticated ? getDefaultDashboardPath(userRole) : "/"} 
+            className="flex items-center gap-1"
+            prefetchOnMount={true}
+            instantHoverLoad={true}
+          >
             <Video className="h-4 w-4 text-primary shrink-0" />
             <span className="font-semibold text-[13px] text-primary group-data-[collapsible=icon]:hidden">EduTube</span>
-          </Link>
+          </PrefetchableLink>
         </div>
 
         <div className="flex items-center justify-center gap-0.5">
@@ -127,10 +133,13 @@ export function AppSidebar() {
                     tooltip="Home"
                     className="group-data-[collapsible=icon]:justify-center"
                   >
-                    <Link href="/">
+                    <PrefetchableLink 
+                      href="/" 
+                      instantHoverLoad={true}
+                    >
                       <BookOpen className="h-4 w-4" />
                       <span className="text-[13px]">Home</span>
-                    </Link>
+                    </PrefetchableLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
@@ -141,10 +150,13 @@ export function AppSidebar() {
                     tooltip="Explore"
                     className="group-data-[collapsible=icon]:justify-center"
                   >
-                    <Link href="/explore">
+                    <PrefetchableLink 
+                      href="/explore"
+                      instantHoverLoad={true}
+                    >
                       <Library className="h-4 w-4" />
                       <span className="text-[13px]">Explore</span>
-                    </Link>
+                    </PrefetchableLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -166,7 +178,7 @@ export function AppSidebar() {
                       tooltip="Explore"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/explore">
+                      <Link href="/explore" prefetch={true} scroll={false}>
                         <Library className="h-4 w-4" />
                         <span className="text-[13px]">Explore</span>
                       </Link>
@@ -180,10 +192,14 @@ export function AppSidebar() {
                       tooltip="Dashboard"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/dashboard/student">
+                      <PrefetchableLink 
+                        href="/dashboard/student"
+                        instantHoverLoad={true}
+                        prefetchOnMount={true}
+                      >
                         <LayoutDashboard className="h-4 w-4" />
                         <span className="text-[13px]">Dashboard</span>
-                      </Link>
+                      </PrefetchableLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
@@ -194,7 +210,7 @@ export function AppSidebar() {
                       tooltip="My Courses"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/dashboard/student/my-courses">
+                      <Link href="/dashboard/student/my-courses" prefetch={true} scroll={false}>
                         <BookOpen className="h-4 w-4" />
                         <span className="text-[13px]">My Courses</span>
                       </Link>
@@ -208,7 +224,7 @@ export function AppSidebar() {
                       tooltip="Saved"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/dashboard/student/saved">
+                      <Link href="/dashboard/student/saved" prefetch={true} scroll={false}>
                         <Bookmark className="h-4 w-4" />
                         <span className="text-[13px]">Saved</span>
                       </Link>
@@ -222,7 +238,7 @@ export function AppSidebar() {
                       tooltip="Calendar"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/dashboard/student/calendar">
+                      <Link href="/dashboard/student/calendar" prefetch={true} scroll={false}>
                         <Calendar className="h-4 w-4" />
                         <span className="text-[13px]">Calendar</span>
                       </Link>
@@ -236,7 +252,7 @@ export function AppSidebar() {
                       tooltip="Exams"
                       className="group-data-[collapsible=icon]:justify-center"
                     >
-                      <Link href="/dashboard/student/exams">
+                      <Link href="/dashboard/student/exams" prefetch={true} scroll={false}>
                         <FileQuestion className="h-4 w-4" />
                         <span className="text-[13px]">Exams</span>
                       </Link>
@@ -261,14 +277,17 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={isActive("/dashboard/creator")}
-                        tooltip="Creator Dashboard"
-                        className="group-data-[collapsible=icon]:justify-center"
+                        tooltip="Creator Dashboard"                      className="group-data-[collapsible=icon]:justify-center"
+                    >
+                      <PrefetchableLink 
+                        href="/dashboard/creator"
+                        instantHoverLoad={true}
+                        prefetchOnMount={true}
                       >
-                        <Link href="/dashboard/creator">
-                          <LayoutDashboard className="h-4 w-4" />
-                          <span className="text-[13px]">Creator Dashboard</span>
-                        </Link>
-                      </SidebarMenuButton>
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span className="text-[13px]">Creator Dashboard</span>
+                      </PrefetchableLink>
+                    </SidebarMenuButton>
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
@@ -278,7 +297,7 @@ export function AppSidebar() {
                         tooltip="Create Course"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/content/create">
+                        <Link href="/dashboard/creator/content/create" prefetch={true} scroll={false}>
                           <PlusCircle className="h-4 w-4" />
                           <span className="text-[13px]">Create Course</span>
                         </Link>
@@ -292,7 +311,7 @@ export function AppSidebar() {
                         tooltip="Upload Content"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/content/upload">
+                        <Link href="/dashboard/creator/content/upload" prefetch={true} scroll={false}>
                           <Upload className="h-4 w-4" />
                           <span className="text-[13px]">Upload Content</span>
                         </Link>
@@ -303,14 +322,17 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={isActive("/dashboard/creator/exams")}
-                        tooltip="Manage Exams"
-                        className="group-data-[collapsible=icon]:justify-center"
+                        tooltip="Manage Exams"                      className="group-data-[collapsible=icon]:justify-center"
+                    >
+                      <PrefetchableLink 
+                        href="/dashboard/creator/exams"
+                        instantHoverLoad={true}
+                        prefetchOnMount={userRole === "CREATOR"}
                       >
-                        <Link href="/dashboard/creator/exams">
-                          <FileQuestion className="h-4 w-4" />
-                          <span className="text-[13px]">Manage Exams</span>
-                        </Link>
-                      </SidebarMenuButton>
+                        <FileQuestion className="h-4 w-4" />
+                        <span className="text-[13px]">Manage Exams</span>
+                      </PrefetchableLink>
+                    </SidebarMenuButton>
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
@@ -323,6 +345,8 @@ export function AppSidebar() {
                         <Link
                           href="/dashboard/creator/service-connections"
                           className={!youtubeConnected ? "text-primary" : ""}
+                          prefetch={true}
+                          scroll={false}
                         >
                           <Youtube className="h-4 w-4" />
                           <span className="text-[13px]">Connected Services </span>
@@ -340,7 +364,7 @@ export function AppSidebar() {
                         tooltip="Manage Students"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/students">
+                        <Link href="/dashboard/creator/students" prefetch={true} scroll={false}>
                           <Users className="h-4 w-4" />
                           <span className="text-[13px]">Manage Students</span>
                         </Link>
@@ -354,7 +378,7 @@ export function AppSidebar() {
                         tooltip="Earnings & Payouts"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/earnings">
+                        <Link href="/dashboard/creator/earnings" prefetch={true} scroll={false}>
                           <DollarSign className="h-4 w-4" />
                           <span className="text-[13px]">Earnings & Payouts</span>
                         </Link>
@@ -368,7 +392,7 @@ export function AppSidebar() {
                         tooltip="Calendar"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/calendar">
+                        <Link href="/dashboard/creator/calendar" prefetch={true} scroll={false}>
                           <Calendar className="h-4 w-4" />
                           <span className="text-[13px]">Calendar</span>
                         </Link>
@@ -382,7 +406,7 @@ export function AppSidebar() {
                         tooltip="Add Student"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/add-student">
+                        <Link href="/dashboard/creator/add-student" prefetch={true} scroll={false}>
                           <Users className="h-4 w-4" />
                           <span className="text-[13px]">Add Student</span>
                         </Link>
@@ -396,7 +420,7 @@ export function AppSidebar() {
                         tooltip="Analytics"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/creator/analytics">
+                        <Link href="/dashboard/creator/analytics" prefetch={true} scroll={false}>
                           <BarChart className="h-4 w-4" />
                           <span className="text-[13px]">Analytics</span>
                         </Link>
@@ -420,7 +444,7 @@ export function AppSidebar() {
                         tooltip="Admin Panel"
                         className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <Link href="/dashboard/admin">
+                        <Link href="/dashboard/admin" prefetch={true} scroll={false}>
                           <Shield className="h-4 w-4" />
                           <span className="text-[13px]">Admin Panel</span>
                         </Link>
@@ -456,7 +480,7 @@ export function AppSidebar() {
                 size="sm"
                 className="flex-col items-center justify-center h-auto py-0.5 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:h-6"
               >
-                <Link href={userRole === "CREATOR" ? "/dashboard/creator/settings" : "/settings"} className="flex flex-col items-center">
+                <Link href={userRole === "CREATOR" ? "/dashboard/creator/settings" : "/settings"} className="flex flex-col items-center" prefetch={true} scroll={false}>
                   <Settings className="h-4 w-4 mb-0.5" />
                   <span className="text-[11px] group-data-[collapsible=icon]:hidden">Settings</span>
                 </Link>
@@ -466,7 +490,7 @@ export function AppSidebar() {
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="flex-col items-center justify-center h-auto py-0.5 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:mt-0.5"
+                className="flex-col items-center justify-center h-auto py-0.5 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group_data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:mt-0.5"
               >
                 <div className="flex flex-col items-center">
                   <LogOut className="h-4 w-4 mb-0.5" />
@@ -483,7 +507,7 @@ export function AppSidebar() {
               size="sm"
               className="flex-col items-center justify-center h-auto py-0.5 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:h-6"
             >
-              <Link href="/auth/signin" className="flex flex-col items-center">
+              <Link href="/auth/signin" className="flex flex-col items-center" prefetch={true} scroll={false}>
                 <LogOut className="h-4 w-4 mb-0.5" />
                 <span className="text-[11px] group-data-[collapsible=icon]:hidden">Sign in</span>
               </Link>
@@ -494,7 +518,7 @@ export function AppSidebar() {
               size="sm"
               className="flex-col items-center justify-center h-auto py-0.5 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:mt-0.5"
             >
-              <Link href="/auth/signup" className="flex flex-col items-center">
+              <Link href="/auth/signup" className="flex flex-col items-center" prefetch={true} scroll={false}>
                 <PlusCircle className="h-4 w-4 mb-0.5" />
                 <span className="text-[11px] group-data-[collapsible=icon]:hidden">Sign up</span>
               </Link>
