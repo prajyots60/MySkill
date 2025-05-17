@@ -36,6 +36,22 @@ export default async function ExamPage({ params }: ExamPageProps) {
     redirect("/dashboard?error=exam-not-found")
   }
   
+  // Check if the exam's scheduled start date has arrived
+  if (exam.startDate && new Date(exam.startDate) > new Date()) {
+    // Format the date for display in the message
+    const formattedDate = new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    }).format(new Date(exam.startDate));
+    
+    // Redirect to dashboard with error message
+    redirect(`/dashboard/student?error=exam-not-available&message=This exam will be available on ${formattedDate}`)
+  }
+  
   // If user is not a creator/admin, verify they're enrolled in the course
   if (session.user.role === "STUDENT" && exam.contentId) {
     // Check if the student is enrolled in the course using our utility

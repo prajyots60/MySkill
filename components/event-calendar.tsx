@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSession } from "next-auth/react"
 import {
   Calendar,
@@ -17,6 +17,7 @@ import {
   CalendarDays,
   LayoutGrid,
   LayoutList,
+  X,
 } from "lucide-react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isPast, isFuture, isSameDay, parseISO, addMonths, getMonth, getYear } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -29,6 +30,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   Popover,
   PopoverContent,
@@ -70,10 +80,11 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
   const [events, setEvents] = useState<UpcomingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [userTimeZone, setUserTimeZone] = useState<string>("UTC")
+  const [showEventModal, setShowEventModal] = useState(false)
   
   // Filter state
   const [view, setView] = useState<"calendar" | "list">("calendar")
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "SCHEDULED" | "LIVE" | "ENDED">("ALL")
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "SCHEDULED" | "LIVE" | "ENDED" | "PUBLISHED" | "CLOSED">("ALL")
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -112,14 +123,14 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
         }
       }
     }
-  }, [searchParams])
-
-  // Fetch events data
-  const fetchEvents = useCallback(async () => {
+  }, [searchParams])    // Memoize the fetchEvents function to prevent unnecessary recreations
+  const fetchEvents = useCallback(async (shouldShowLoading = true) => {
     if (!session?.user?.id) return
     
     try {
-      setLoading(true)
+      if (shouldShowLoading) {
+        setLoading(true)
+      }
       
       // Prepare date ranges for the calendar view
       const startDate = startOfMonth(currentDate)
@@ -133,7 +144,16 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
       // Set up query parameters
       const queryOptions: any = {
         timeZone: userTimeZone,
-        status: statusFilter,
+        view: view,
+      }
+      
+      // Only set status filter if it's a valid LiveStatus for lectures
+      // For exam-specific statuses, we'll filter them on the client side
+      if (statusFilter !== "PUBLISHED" && statusFilter !== "CLOSED") {
+        queryOptions.status = statusFilter
+      } else {
+        // For exam-specific filters, we need to fetch ALL events and filter them here
+        queryOptions.status = "ALL"
       }
       
       // For calendar view, fetch the entire month
@@ -142,10 +162,20 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
         queryOptions.endDate = endDate
         queryOptions.limit = 100 // Higher limit for calendar view
       } 
-      // For list view, use pagination
+      // For list view, use pagination and ensure we include some date range
       else {
         queryOptions.page = currentPage
         queryOptions.limit = ITEMS_PER_PAGE
+        // Also include date filter in list view to ensure we get both events and exams
+        queryOptions.startDate = new Date() // Default to today
+        // If a specific date is selected, use that as a starting point
+        if (selectedDate) {
+          queryOptions.startDate = selectedDate
+        }
+        // Set end date to far in the future to get upcoming events
+        const futureDate = new Date()
+        futureDate.setFullYear(futureDate.getFullYear() + 1)
+        queryOptions.endDate = futureDate
       }
       
       const result = await fetchFunction(queryOptions)
@@ -153,20 +183,54 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
       if (result.success) {
         // Filter by search query if present
         let filteredEvents = result.events
+        
+        // Display message if no events found initially
+        if (filteredEvents.length === 0 && view === "list") {
+          console.log("No events returned from server for list view");
+        }
+        
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase()
-          filteredEvents = filteredEvents.filter(event => 
+          filteredEvents = filteredEvents.filter((event: UpcomingEvent) => 
             event.title.toLowerCase().includes(query) ||
             event.courseName.toLowerCase().includes(query) ||
             (event.creatorName && event.creatorName.toLowerCase().includes(query))
           )
         }
         
-        setEvents(filteredEvents)
+        // Additional filtering for exam statuses when needed
+        if (statusFilter === "PUBLISHED" || statusFilter === "CLOSED") {
+          filteredEvents = filteredEvents.filter((event: UpcomingEvent) => 
+            event.type === "EXAM" && event.status === statusFilter
+          )
+        }
+        
+        // Handle status mapping for live events if the server expects different values
+        // This ensures we're sending valid enum values to the Prisma query
+        
+        // Use functional update to ensure we don't set state with the same reference
+        setEvents(prevEvents => {
+          // Only update if events have actually changed
+          if (JSON.stringify(prevEvents) !== JSON.stringify(filteredEvents)) {
+            return filteredEvents;
+          }
+          return prevEvents;
+        });
         
         // Calculate total pages for list view
-        if (view === "list" && result.total) {
-          setTotalPages(Math.ceil(result.total / ITEMS_PER_PAGE))
+        if (view === "list") {
+          if (result.total) {
+            // Server provided total count
+            setTotalPages(Math.ceil(result.total / ITEMS_PER_PAGE))
+          } else {
+            // Calculate from the filtered results if server didn't provide total
+            setTotalPages(Math.ceil(filteredEvents.length / ITEMS_PER_PAGE))
+          }
+          
+          // Additional check for no results
+          if (filteredEvents.length === 0) {
+            console.log("No events after filtering for list view. Query params:", queryOptions)
+          }
         }
       } else {
         console.error("Error fetching events:", result.error)
@@ -178,8 +242,25 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
       }
     } catch (error) {
       console.error("Error fetching events:", error)
+      
+      // Check if it's a Prisma validation error for status
+      if (error instanceof Error && error.message.includes("Invalid value for argument `liveStatus`")) {
+        toast({
+          title: "Filter Error",
+          description: "The selected status filter is not compatible with this view. Please try a different filter.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load events",
+          variant: "destructive"
+        })
+      }
     } finally {
-      setLoading(false)
+      if (shouldShowLoading) {
+        setLoading(false)
+      }
     }
   }, [
     session?.user?.id, 
@@ -197,7 +278,10 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
     fetchEvents()
   }, [fetchEvents])
 
-  // Update URL when filters change
+  // Update URL when filters change - using a ref to track previous URL to avoid unnecessary updates
+  const previousUrlRef = useRef<string>("")
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  
   const updateUrl = useCallback(() => {
     const params = new URLSearchParams()
     
@@ -208,11 +292,37 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
     if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"))
     
     const newUrl = `${window.location.pathname}?${params.toString()}`
-    router.push(newUrl, { scroll: false })
+    
+    // Only update URL if it's actually different to avoid unnecessary navigation
+    if (newUrl !== previousUrlRef.current) {
+      previousUrlRef.current = newUrl
+      
+      // Use replaceState for date clicks to avoid adding to browser history
+      if (selectedDate) {
+        window.history.replaceState({}, '', newUrl)
+      } else {
+        router.push(newUrl, { scroll: false })
+      }
+    }
   }, [view, statusFilter, searchQuery, currentPage, selectedDate, router])
 
+  // Debounce URL updates to prevent rapid fire updates with a longer delay
   useEffect(() => {
-    updateUrl()
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    // Set a new timer
+    debounceTimerRef.current = setTimeout(() => {
+      updateUrl()
+    }, 300) // Longer delay to better batch changes
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
   }, [view, statusFilter, searchQuery, currentPage, selectedDate, updateUrl])
 
   // Handle date navigation
@@ -226,18 +336,40 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
     setSelectedDate(null)
   }
 
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(prevDate => 
-      isSameDay(date, prevDate as Date) ? null : date
-    )
-  }
+  // Memoize events for a particular day to prevent unnecessary calculations
+  const getEventsForDay = useCallback((date: Date) => {
+    return events.filter(event => {
+      const eventDate = parseISO(event.scheduledAt)
+      return isSameDay(eventDate, date)
+    })
+  }, [events])
+
+  const handleDateClick = useCallback((date: Date) => {
+    // Don't update if it's the same date to prevent unnecessary re-renders
+    if (selectedDate && isSameDay(selectedDate, date)) {
+      // Just toggle the modal if it's already selected
+      setShowEventModal(!showEventModal)
+      return
+    }
+    
+    // Update the selectedDate
+    setSelectedDate(date)
+    
+    // Check if the date has events and show modal if it does
+    const dateEvents = getEventsForDay(date)
+    if (dateEvents.length > 0) {
+      setShowEventModal(true)
+    }
+  }, [selectedDate, showEventModal, getEventsForDay])
 
   // Handle search
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     setCurrentPage(1) // Reset to first page on new search
-    fetchEvents()
-  }
+    
+    // Use a background fetch to avoid showing loading state for quick searches
+    fetchEvents(false)
+  }, [fetchEvents])
 
   // Calendar calculation
   const calendarDays = useMemo(() => {
@@ -246,19 +378,11 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
     return eachDayOfInterval({ start, end })
   }, [currentDate])
 
-  // Filter events for a particular day
-  const getEventsForDay = (date: Date) => {
-    return events.filter(event => {
-      const eventDate = parseISO(event.scheduledAt)
-      return isSameDay(eventDate, date)
-    })
-  }
-
   // Filter events for the selected date
   const selectedDateEvents = useMemo(() => {
     if (!selectedDate) return []
     return getEventsForDay(selectedDate)
-  }, [selectedDate, events])
+  }, [selectedDate, events, getEventsForDay])
 
   // Format date for display
   const formatEventDate = (dateString: string) => {
@@ -267,16 +391,42 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
   }
 
   // Format event status for display
-  const formatEventStatus = (status: string) => {
-    switch (status) {
-      case "LIVE":
-        return <Badge className="bg-red-500">Live Now</Badge>
-      case "SCHEDULED":
-        return <Badge variant="outline">Upcoming</Badge>
-      case "ENDED":
-        return <Badge variant="secondary">Ended</Badge>
-      default:
-        return null
+  const formatEventStatus = (status: string, type: string) => {
+    if (type === "EXAM") {
+      switch (status) {
+        case "PUBLISHED":
+          return <Badge className="bg-blue-500">Available</Badge>
+        case "CLOSED":
+          return <Badge variant="secondary">Closed</Badge>
+        case "DRAFT":
+          return <Badge variant="outline">Draft</Badge>
+        default:
+          return null
+      }
+    } else {
+      // For regular events (LIVE type)
+      switch (status) {
+        case "LIVE":
+          return <Badge className="bg-red-500">Live Now</Badge>
+        case "SCHEDULED":
+          return <Badge variant="outline">Upcoming</Badge>
+        case "ENDED":
+          return <Badge variant="secondary">Ended</Badge>
+        default:
+          return null
+      }
+    }
+  }
+
+  // Check if exam can be accessed based on scheduled date
+  const canAccessExam = (scheduledAt: string): boolean => {
+    try {
+      const examDate = new Date(scheduledAt);
+      const now = new Date();
+      return isPast(examDate) || isToday(examDate);
+    } catch (error) {
+      console.error("Error checking exam access date:", error);
+      return false; // Default to preventing access if there's an error
     }
   }
 
@@ -284,13 +434,20 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between gap-2">
         <h2 className="text-2xl font-bold tracking-tight">
-          {variant === "creator" ? "Your Events Calendar" : "Event Calendar"}
+          {variant === "creator" ? "Your Events & Exams Calendar" : "Events & Exams Calendar"}
         </h2>
         
         <div className="flex gap-2">
           <Tabs 
             value={view} 
-            onValueChange={(v) => setView(v as "calendar" | "list")}
+            onValueChange={(v) => {
+              const newView = v as "calendar" | "list";
+              // Only update if view actually changed
+              if (newView !== view) {
+                setView(newView);
+                setCurrentPage(1); // Reset to first page on view change
+              }
+            }}
             className="w-auto"
           >
             <TabsList className="grid w-[180px] grid-cols-2">
@@ -306,12 +463,20 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
           </Tabs>
           
           {variant === "creator" && (
-            <Button asChild>
-              <Link href="/dashboard/creator/content/upload">
-                <Plus className="h-4 w-4 mr-1" />
-                Schedule Event
-              </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild>
+                <Link href="/dashboard/creator/content/upload">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Schedule Event
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/creator/exams">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Exam
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -325,7 +490,15 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
               placeholder="Search events..."
               className="pl-8 w-full sm:w-[250px]"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSearchQuery(newValue);
+                // If search query is empty, trigger search automatically
+                if (newValue === '' && searchQuery !== '') {
+                  // Small delay to allow state to update
+                  setTimeout(() => handleSearch(new Event('submit') as any), 0);
+                }
+              }}
             />
           </div>
           <Button type="submit" variant="outline" size="icon">
@@ -336,7 +509,14 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
         <div className="flex items-center gap-2">
           <Select 
             value={statusFilter} 
-            onValueChange={(value) => setStatusFilter(value as any)}
+            onValueChange={(value) => {
+              const newStatus = value as "ALL" | "SCHEDULED" | "LIVE" | "ENDED" | "PUBLISHED" | "CLOSED";
+              // Only update if status actually changed
+              if (newStatus !== statusFilter) {
+                setStatusFilter(newStatus);
+                setCurrentPage(1); // Reset to first page on filter change
+              }
+            }}
           >
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Status" />
@@ -346,6 +526,8 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
               <SelectItem value="LIVE">Live Now</SelectItem>
               <SelectItem value="SCHEDULED">Upcoming</SelectItem>
               <SelectItem value="ENDED">Ended</SelectItem>
+              <SelectItem value="PUBLISHED">Available Exams</SelectItem>
+              <SelectItem value="CLOSED">Closed Exams</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -437,12 +619,17 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                                 key={idx}
                                 className={cn(
                                   "text-xs truncate rounded px-1 py-0.5",
-                                  event.status === "LIVE" && "bg-red-500/10 text-red-700 dark:text-red-400",
-                                  event.status === "SCHEDULED" && "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-                                  event.status === "ENDED" && "bg-gray-500/10 text-gray-700 dark:text-gray-400"
+                                  // Live events
+                                  event.type === "LIVE" && event.status === "LIVE" && "bg-red-500/10 text-red-700 dark:text-red-400",
+                                  event.type === "LIVE" && event.status === "SCHEDULED" && "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                                  event.type === "LIVE" && event.status === "ENDED" && "bg-gray-500/10 text-gray-700 dark:text-gray-400",
+                                  // Exam events
+                                  event.type === "EXAM" && event.status === "PUBLISHED" && "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+                                  event.type === "EXAM" && event.status === "CLOSED" && "bg-gray-500/10 text-gray-700 dark:text-gray-400",
+                                  event.type === "EXAM" && event.status === "DRAFT" && "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
                                 )}
                               >
-                                {event.title}
+                                {event.type === "EXAM" ? "📝 " : ""}{event.title}
                               </div>
                             ))}
                             {dayEvents.length > 2 && (
@@ -458,79 +645,23 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                 </>
               )}
             </CardContent>
-            
-            {selectedDate && (
-              <CardFooter className="flex-col items-stretch border-t p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium">
-                    Events for {format(selectedDate, 'MMMM d, yyyy')}
-                  </h4>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSelectedDate(null)}
-                  >
-                    Clear
-                  </Button>
-                </div>
-                
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {selectedDateEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No events scheduled for this day
-                    </p>
-                  ) : (
-                    selectedDateEvents.map((event, idx) => (
-                      <div 
-                        key={idx} 
-                        className="border rounded-md p-3 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-medium">{event.title}</h5>
-                              {formatEventStatus(event.status)}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{event.courseName}</p>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>{format(parseISO(event.scheduledAt), 'h:mm a')}</span>
-                              {event.duration && (
-                                <span>({event.duration} min)</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <Button
-                            asChild
-                            variant={event.status === "LIVE" ? "default" : "outline"}
-                            size="sm"
-                            className={event.status === "LIVE" ? "bg-red-500 hover:bg-red-600" : ""}
-                          >
-                            <Link href={`/content/${event.courseId}/player/${event.id}`}>
-                              {event.status === "LIVE" ? "Join Now" : "View"}
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardFooter>
-            )}
           </Card>
         ) : (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Upcoming Events</CardTitle>
+              <CardTitle>Upcoming Events & Exams</CardTitle>
               <CardDescription>
                 {statusFilter === "ALL" 
-                  ? "All scheduled and live events" 
+                  ? "All events and exams" 
                   : statusFilter === "LIVE" 
                     ? "Currently live events" 
                     : statusFilter === "SCHEDULED" 
                       ? "Upcoming scheduled events"
-                      : "Past events"}
+                      : statusFilter === "PUBLISHED"
+                        ? "Available exams"
+                        : statusFilter === "CLOSED"
+                          ? "Closed exams"
+                          : "Past events"}
               </CardDescription>
             </CardHeader>
             
@@ -555,8 +686,8 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                         {searchQuery 
                           ? "Try adjusting your search or filters" 
                           : variant === "creator"
-                            ? "Schedule your first event to see it here"
-                            : "Enroll in courses with live sessions to see them here"}
+                            ? "Schedule events or create exams to see them here"
+                            : "Enroll in courses with live sessions or exams to see them here"}
                       </p>
                     </div>
                   ) : (
@@ -574,7 +705,10 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                           <TableRow key={event.id}>
                             <TableCell>
                               <div>
-                                <div className="font-medium">{event.title}</div>
+                                <div className="font-medium flex items-center gap-1">
+                                  {event.type === "EXAM" && <span title="Exam">📝</span>}
+                                  {event.title}
+                                </div>
                                 <div className="text-sm text-muted-foreground">{event.courseName}</div>
                                 {variant === "student" && event.creatorName && (
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
@@ -589,18 +723,22 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                             </TableCell>
                             <TableCell>
                               {formatEventDate(event.scheduledAt)}
-                              {event.duration && (
+                              {event.type === "EXAM" && event.timeLimit ? (
+                                <div className="text-xs text-muted-foreground">
+                                  Duration: {event.timeLimit} minutes
+                                </div>
+                              ) : event.duration ? (
                                 <div className="text-xs text-muted-foreground">
                                   Duration: {event.duration} minutes
                                 </div>
-                              )}
+                              ) : null}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                {event.status === "LIVE" && (
+                                {event.type === "LIVE" && event.status === "LIVE" && (
                                   <CircleDot className="h-3 w-3 text-red-500 animate-pulse" />
                                 )}
-                                {formatEventStatus(event.status)}
+                                {formatEventStatus(event.status, event.type)}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -610,8 +748,24 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
                                 size="sm"
                                 className={event.status === "LIVE" ? "bg-red-500 hover:bg-red-600" : ""}
                               >
-                                <Link href={`/content/${event.courseId}/player/${event.id}`}>
-                                  {event.status === "LIVE" ? "Join Now" : "View Details"}
+                                <Link href={event.type === "EXAM" 
+                                  ? (canAccessExam(event.scheduledAt) ? `/exams/${event.formId}` : "#") 
+                                  : `/content/${event.courseId}/player/${event.id}`}
+                                  onClick={(e) => {
+                                    // Prevent navigation if exam isn't available yet
+                                    if (event.type === "EXAM" && !canAccessExam(event.scheduledAt)) {
+                                      e.preventDefault();
+                                      toast({
+                                        title: "Exam not available yet",
+                                        description: `This exam will be available on ${formatEventDate(event.scheduledAt)}`,
+                                        variant: "default"
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {event.type === "EXAM" 
+                                    ? (canAccessExam(event.scheduledAt) ? "Take Exam" : "Not Available Yet")
+                                    : event.status === "LIVE" ? "Join Now" : "View Details"}
                                 </Link>
                               </Button>
                             </TableCell>
@@ -653,6 +807,123 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
           </Card>
         )}
       </div>
+
+      {/* Event Details Modal */}
+      <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+              {selectedDate && format(selectedDate, 'MMMM d, yyyy')}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDateEvents.length} event{selectedDateEvents.length !== 1 ? 's' : ''} scheduled for this day
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto py-4">
+            {selectedDateEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
+                <p className="text-muted-foreground">No events scheduled for this day</p>
+              </div>
+            ) : (
+              selectedDateEvents.map((event, idx) => (
+                <div 
+                  key={idx} 
+                  className="border rounded-md p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <h3 className="font-medium text-base flex items-center gap-1.5">
+                          {event.type === "EXAM" && <span title="Exam">📝</span>}
+                          {event.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {formatEventStatus(event.status, event.type)}
+                          <span className="text-sm text-muted-foreground">{event.courseName}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-muted/50 rounded-md p-3 text-sm space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{format(parseISO(event.scheduledAt), 'h:mm a')}</span>
+                      </div>
+                      
+                      {(event.type === "EXAM" && event.timeLimit) || event.duration ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Duration:</span>
+                          <span>{event.type === "EXAM" && event.timeLimit ? event.timeLimit : event.duration} minutes</span>
+                        </div>
+                      ) : null}
+                      
+                      {event.type === "EXAM" && event.endDate && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Available until:</span>
+                          <span>{format(parseISO(event.endDate), 'MMM d, yyyy h:mm a')}</span>
+                        </div>
+                      )}
+                      
+                      {/* Creator info if available */}
+                      {event.creatorName && variant === "student" && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-muted-foreground">Creator:</span>
+                          <div className="flex items-center gap-1">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={event.creatorImage || ""} />
+                              <AvatarFallback>{event.creatorName[0]}</AvatarFallback>
+                            </Avatar>
+                            <span>{event.creatorName}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button
+                        asChild
+                        variant={event.status === "LIVE" ? "default" : "outline"}
+                        className={event.status === "LIVE" ? "bg-red-500 hover:bg-red-600" : ""}
+                      >
+                        <Link href={event.type === "EXAM" 
+                          ? (canAccessExam(event.scheduledAt) ? `/exams/${event.formId}` : "#") 
+                          : `/content/${event.courseId}/player/${event.id}`}
+                          onClick={(e) => {
+                            // Prevent navigation if exam isn't available yet
+                            if (event.type === "EXAM" && !canAccessExam(event.scheduledAt)) {
+                              e.preventDefault();
+                              toast({
+                                title: "Exam not available yet",
+                                description: `This exam will be available on ${formatEventDate(event.scheduledAt)}`,
+                                variant: "default"
+                              });
+                            }
+                          }}
+                        >
+                          {event.type === "EXAM" 
+                            ? (canAccessExam(event.scheduledAt) ? "Take Exam" : "Not Available Yet")
+                            : event.status === "LIVE" ? "Join Now" : "View Details"}
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEventModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

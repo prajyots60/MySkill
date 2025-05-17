@@ -14,7 +14,10 @@ import {
   ArrowRight,
   Check,
   CircleDot,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  CalendarDays,
+  ClipboardCheck
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
@@ -59,7 +62,7 @@ interface UpcomingLecturesProps {
 
 export function UpcomingLectures({ 
   variant = "student", 
-  limit = 5,
+  limit = 3, // Reduce default limit to 3 for dashboard view
   showTitle = true,
   className
 }: UpcomingLecturesProps) {
@@ -320,28 +323,69 @@ export function UpcomingLectures({
     }
   }
 
+  // Format exam due date
+  const formatDueDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      
+      if (isToday(date)) {
+        return `today, ${format(date, 'h:mm a')}`
+      } else if (isTomorrow(date)) {
+        return `tomorrow, ${format(date, 'h:mm a')}`
+      } else {
+        return format(date, 'MMM d, h:mm a')
+      }
+    } catch (error) {
+      console.error("Error formatting due date:", error)
+      return "Unknown"
+    }
+  }
+
+  // Check if exam can be accessed based on scheduled date
+  const canAccessExam = (scheduledAt: string): boolean => {
+    try {
+      const examDate = new Date(scheduledAt);
+      const now = new Date();
+      return now >= examDate; // Changed to a more straightforward comparison
+    } catch (error) {
+      console.error("Error checking exam access date:", error);
+      return false; // Default to preventing access if there's an error
+    }
+  }
+
   return (
-    <Card className={cn("h-auto", className)}>
+    <Card className={cn("h-auto shadow-sm", className)}>
       {showTitle && (
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">
-            {variant === "creator" ? "Your Upcoming Sessions" : "Upcoming Live Classes"}
-          </CardTitle>
-          <CardDescription>
-            {variant === "creator" 
-              ? "Live sessions you're scheduled to teach" 
-              : "Upcoming live sessions from your enrolled courses"}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">
+                {variant === "creator" ? "Your Upcoming Sessions" : "Upcoming Events"}
+              </CardTitle>
+              <CardDescription>
+                {variant === "creator" 
+                  ? "Live sessions you're scheduled to teach" 
+                  : "Classes & exams from your enrolled courses"}
+              </CardDescription>
+            </div>
+            <CalendarDays className="h-5 w-5 text-muted-foreground" />
+          </div>
         </CardHeader>
       )}
       <CardContent className={showTitle ? "p-0" : "pt-0 px-0"}>
         {loading ? (
           <div className="space-y-4 p-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-1/2" />
+              <div key={i} className="flex space-y-2 items-start">
+                <Skeleton className="h-6 w-6 rounded-md mr-2" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-3 w-1/4" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -355,12 +399,33 @@ export function UpcomingLectures({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
+                      {/* Event type icon based on type */}
+                      <span className={cn(
+                        "p-1 rounded-md flex items-center justify-center",
+                        event.type === "EXAM" 
+                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      )}>
+                        {event.type === "EXAM" ? (
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                        ) : (
+                          <Video className="h-3.5 w-3.5" />
+                        )}
+                      </span>
                       <h4 className="font-medium text-sm">{event.title}</h4>
                       {event.status === "LIVE" && (
                         <Badge className="bg-red-500 hover:bg-red-600 gap-1">
                           <CircleDot className="h-2 w-2 animate-pulse" />
                           LIVE
                         </Badge>
+                      )}
+                      {event.type === "EXAM" && event.status === "PUBLISHED" && (
+                        canAccessExam(event.scheduledAt) ?
+                          <Badge className="bg-purple-500 hover:bg-purple-600 text-white">Available</Badge> :
+                          <Badge variant="secondary" className="bg-violet-100 text-violet-700 hover:bg-violet-200 border-violet-300">Upcoming</Badge>
+                      )}
+                      {event.type === "EXAM" && event.status === "CLOSED" && (
+                        <Badge variant="outline">Closed</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{event.courseName}</p>
@@ -386,10 +451,22 @@ export function UpcomingLectures({
                         <span>{formatTimeUntil(event.scheduledAt)}</span>
                       </div>
                       
-                      {event.duration && (
+                      {event.type === "EXAM" && event.timeLimit ? (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          <span>{event.timeLimit} min time limit</span>
+                        </div>
+                      ) : event.duration && (
                         <div className="flex items-center text-xs text-muted-foreground">
                           <AlertCircle className="h-3 w-3 mr-1" />
                           <span>{event.duration} min</span>
+                        </div>
+                      )}
+
+                      {event.type === "EXAM" && event.endDate && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <CalendarDays className="h-3 w-3 mr-1" />
+                          <span>Due {formatDueDate(event.endDate)}</span>
                         </div>
                       )}
                     </div>
@@ -397,18 +474,52 @@ export function UpcomingLectures({
                   
                   <div className="flex flex-col gap-2 items-end">
                     <Button
-                      asChild
+                      asChild={canAccessExam(event.scheduledAt) || event.type !== "EXAM"}
                       variant={event.status === "LIVE" ? "default" : "outline"}
                       size="sm"
-                      className={event.status === "LIVE" ? "bg-red-500 hover:bg-red-600" : ""}
+                      disabled={event.type === "EXAM" && !canAccessExam(event.scheduledAt)}
+                      onClick={event.type === "EXAM" && !canAccessExam(event.scheduledAt) ? () => {
+                        toast({
+                          title: "Exam not available yet",
+                          description: `This exam will be available on ${formatScheduledTime(event.scheduledAt)}`,
+                          variant: "default"
+                        });
+                      } : undefined}
+                      className={cn(
+                        event.status === "LIVE" ? "bg-red-500 hover:bg-red-600" : "",
+                        event.type === "EXAM" && canAccessExam(event.scheduledAt) ? 
+                          "text-purple-700 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:text-purple-800 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/40" : 
+                          event.type === "EXAM" && !canAccessExam(event.scheduledAt) ? 
+                            "text-slate-500 border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed" : 
+                            ""
+                      )}
                     >
-                      <Link href={`/content/${event.courseId}/player/${event.id}`}>
-                        <Video className="h-3 w-3 mr-1" />
-                        {event.status === "LIVE" ? "Join Now" : "View Details"}
-                      </Link>
+                      {event.type === "EXAM" && !canAccessExam(event.scheduledAt) ? (
+                        <>
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Not Available Yet
+                        </>
+                      ) : (
+                        <Link href={event.type === "EXAM" 
+                          ? `/exams/${event.formId}` 
+                          : `/content/${event.courseId}/player/${event.id}`}
+                        >
+                          {event.type === "EXAM" ? (
+                            <>
+                              <BookOpen className="h-3 w-3 mr-1" />
+                              {event.status === "PUBLISHED" ? "Take Exam" : "View Exam"}
+                            </>
+                          ) : (
+                            <>
+                              <Video className="h-3 w-3 mr-1" />
+                              {event.status === "LIVE" ? "Join Now" : "View Details"}
+                            </>
+                          )}
+                        </Link>
+                      )}
                     </Button>
                     
-                    {variant === "student" && event.status === "SCHEDULED" && (
+                    {variant === "student" && event.type === "LIVE" && event.status === "SCHEDULED" && (
                       <div className="flex gap-1">
                         <TooltipProvider>
                           <Tooltip>
@@ -432,33 +543,35 @@ export function UpcomingLectures({
                           </Tooltip>
                         </TooltipProvider>
                         
-                        <DropdownMenu>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <Calendar className="h-3 w-3" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Add to calendar
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => addToCalendar(event.id, 'google')}>
-                              Google Calendar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => addToCalendar(event.id, 'outlook')}>
-                              Outlook Calendar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => addToCalendar(event.id, 'ical')}>
-                              iCal File
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {event.type === "LIVE" && (
+                          <DropdownMenu>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                      <Calendar className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Add to calendar
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => addToCalendar(event.id, 'google')}>
+                                Google Calendar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => addToCalendar(event.id, 'outlook')}>
+                                Outlook Calendar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => addToCalendar(event.id, 'ical')}>
+                                iCal File
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     )}
                   </div>
@@ -468,11 +581,15 @@ export function UpcomingLectures({
           </div>
         ) : (
           <div className="py-6 text-center">
-            <Video className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <div className="flex justify-center mb-2">
+              <div className="bg-muted/30 rounded-full p-2">
+                <CalendarDays className="h-6 w-6 text-muted-foreground" />
+              </div>
+            </div>
             <p className="text-sm text-muted-foreground">
               {variant === "creator" 
                 ? "You don't have any upcoming sessions scheduled" 
-                : "No upcoming live sessions from your courses"}
+                : "No upcoming events or exams from your courses"}
             </p>
             {variant === "creator" && (
               <Button variant="outline" className="mt-4" asChild>
@@ -486,9 +603,9 @@ export function UpcomingLectures({
       </CardContent>
       {upcomingEvents.length > 0 && (
         <CardFooter className="pt-0">
-          <Button variant="link" size="sm" className="ml-auto" asChild>
+          <Button variant="link" size="sm" className="ml-auto flex items-center" asChild>
             <Link href={variant === "creator" ? "/dashboard/creator/calendar" : "/dashboard/student/calendar"}>
-              View All <ArrowRight className="ml-1 h-4 w-4" />
+              View Calendar <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>
         </CardFooter>

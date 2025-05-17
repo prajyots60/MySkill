@@ -52,6 +52,9 @@ interface ExamCreatorProps {
   formId?: string
   onExamCreated?: (examId: string, formId: string, formUrl: string) => void
   requireCourse?: boolean
+  courses?: { id: string; title: string }[]
+  onCourseChange?: (courseId: string) => void
+  defaultTab?: "details" | "questions" | "publish"
 }
 
 // Main component for creating and editing exams
@@ -67,9 +70,12 @@ export default function ExamCreator({
   formId,
   onExamCreated,
   requireCourse = false,
+  courses = [],
+  onCourseChange,
+  defaultTab = "details",
 }: ExamCreatorProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("details")
+  const [activeTab, setActiveTab] = useState(defaultTab)
   const [examId, setExamId] = useState<string | null>(null)
   const [formIdState, setFormId] = useState<string | null>(formId || null)
   const [questions, setQuestions] = useState<any[]>([])
@@ -232,10 +238,8 @@ export default function ExamCreator({
         description: "Now you can add questions to your exam.",
       })
       
-      // Automatically navigate to questions tab after creating an exam
-      setTimeout(() => {
-        setActiveTab("questions")
-      }, 100)
+      // Immediately navigate to questions tab after creating an exam
+      setActiveTab("questions")
     } catch (error: any) {
       toast({
         title: "Error creating exam",
@@ -405,6 +409,27 @@ export default function ExamCreator({
     }
   }
 
+  // Update date loading functions
+  const formatDateTimeForInput = (dateString?: string | null): string => {
+    if (!dateString) return '';
+    try {
+      // Format to YYYY-MM-DDTHH:MM format required for datetime-local input
+      return new Date(dateString).toISOString().slice(0, 16);
+    } catch (error) {
+      console.error("Error formatting date for input:", error);
+      return '';
+    }
+  }
+
+  // Ensure Questions tab is selected after exam creation
+  useEffect(() => {
+    if (examId && !formIdState) {
+      // This specifically targets the initial creation flow
+      // formIdState would be null when creating a new exam
+      setActiveTab("questions");
+    }
+  }, [examId, formIdState]);
+
   // Load the exam if examId is provided
   useEffect(() => {
     if (examId) {
@@ -427,8 +452,8 @@ export default function ExamCreator({
             type: exam.type,
             passingScore: exam.passingScore || 70,
             timeLimit: exam.timeLimit || 30,
-            startDate: exam.startDate ? new Date(exam.startDate).toISOString().split("T")[0] : "",
-            endDate: exam.endDate ? new Date(exam.endDate).toISOString().split("T")[0] : "",
+            startDate: formatDateTimeForInput(exam.startDate),
+            endDate: formatDateTimeForInput(exam.endDate),
           })
           
           // Set the questions
@@ -481,8 +506,8 @@ export default function ExamCreator({
             type: exam.type,
             passingScore: exam.passingScore || 70,
             timeLimit: exam.timeLimit || 30,
-            startDate: exam.startDate ? new Date(exam.startDate).toISOString().split("T")[0] : "",
-            endDate: exam.endDate ? new Date(exam.endDate).toISOString().split("T")[0] : "",
+            startDate: formatDateTimeForInput(exam.startDate),
+            endDate: formatDateTimeForInput(exam.endDate),
           })
           
           // Set the questions
@@ -497,8 +522,9 @@ export default function ExamCreator({
             setPublishedUrl(`/exams/${exam.formId}/take`)
           }
           
-          // If there are questions, allow navigating to the questions tab
-          if (exam.questions && exam.questions.length > 0) {
+          // Only set the tab to 'questions' if it hasn't been set already
+          // This allows our immediate tab switch after creation to take precedence
+          if (exam.questions && exam.questions.length > 0 && activeTab === "details") {
             setActiveTab("questions")
           }
         } catch (error: any) {
@@ -517,22 +543,35 @@ export default function ExamCreator({
   }, [formIdState])
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Exam Creator</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-4xl mx-auto border-indigo-100 dark:border-indigo-900/30 shadow-lg overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 border-b border-indigo-100 dark:border-indigo-900/30">
+        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-700 to-purple-700 text-transparent bg-clip-text">Exam Creator</CardTitle>
+        <CardDescription className="text-indigo-600/70 dark:text-indigo-300/70">
           Create custom quizzes and assessments for your students
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="details">Exam Details</TabsTrigger>
-            <TabsTrigger value="questions" disabled={!examId}>
+      <CardContent className="pt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue={defaultTab}>
+          <TabsList className="mb-6 bg-indigo-50/70 dark:bg-indigo-950/30 p-1 rounded-lg">
+            <TabsTrigger 
+              value="details" 
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-800/40 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:shadow-sm rounded-md transition-all duration-200"
+            >
+              Exam Details
+            </TabsTrigger>
+            <TabsTrigger 
+              value="questions" 
+              disabled={!examId}
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-800/40 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:shadow-sm rounded-md transition-all duration-200"
+            >
               Questions ({questions.length})
             </TabsTrigger>
-            <TabsTrigger value="publish" disabled={!examId || questions.length === 0}>
+            <TabsTrigger 
+              value="publish" 
+              disabled={!examId || questions.length === 0}
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-800/40 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:shadow-sm rounded-md transition-all duration-200"
+            >
               Publish
             </TabsTrigger>
           </TabsList>
@@ -541,20 +580,66 @@ export default function ExamCreator({
           <TabsContent value="details">
             <Form {...examForm}>
               <form onSubmit={examForm.handleSubmit(createExam)}>
-                <div className="space-y-4">
-                  <FormField
-                    control={examForm.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Exam Title *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter exam title" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                <div className="space-y-6">
+                  {requireCourse && courses && courses.length > 0 && (
+                    <div className="bg-gradient-to-r from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/30 dark:to-purple-950/30 p-5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 mb-4 shadow-sm">
+                      <h3 className="text-lg font-medium text-indigo-800 dark:text-indigo-300 mb-3">Course Assignment</h3>
+                      <FormItem className="mb-0">
+                        <FormLabel className="text-indigo-700 dark:text-indigo-300">
+                          Select Course <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <Select
+                          value={contentId || ""}
+                          onValueChange={(value) => {
+                            if (onCourseChange) {
+                              onCourseChange(value);
+                            }
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="border-indigo-200 ring-indigo-100 dark:border-indigo-800/40 focus:ring-2 focus:ring-indigo-500/20">
+                              <SelectValue placeholder="Select a course" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="border-indigo-100 dark:border-indigo-900/40">
+                            {courses.length === 0 ? (
+                              <SelectItem value="none" disabled>No courses available</SelectItem>
+                            ) : (
+                              courses.map(course => (
+                                <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-indigo-600/60 dark:text-indigo-400/60 mt-2">
+                          Students enrolled in this course will have access to the exam.
+                        </FormDescription>
+                        {!contentId && (
+                          <p className="text-sm text-indigo-600/80 dark:text-indigo-400/80 mt-2 italic flex items-center">
+                            <span className="inline-block w-1.5 h-1.5 bg-indigo-400 rounded-full mr-2"></span>
+                            Required for exams to be visible to enrolled students
+                          </p>
+                        )}
                       </FormItem>
-                    )}
-                  />
+                    </div>
+                  )}
+                  
+                  <div className="bg-white dark:bg-slate-900/60 border border-indigo-100 dark:border-indigo-900/30 p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-medium text-indigo-800 dark:text-indigo-300 mb-4">Exam Details</h3>
+                  
+                    <FormField
+                      control={examForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Exam Title <span className="text-red-500">*</span></FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter exam title" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   
                   <FormField
                     control={examForm.control}
@@ -675,9 +760,9 @@ export default function ExamCreator({
                       name="startDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Start Date (Optional)</FormLabel>
+                          <FormLabel>Start Date & Time (Optional)</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="datetime-local" {...field} />
                           </FormControl>
                           <FormDescription>
                             When the exam becomes available.
@@ -692,9 +777,9 @@ export default function ExamCreator({
                       name="endDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>End Date (Optional)</FormLabel>
+                          <FormLabel>End Date & Time (Optional)</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="datetime-local" {...field} />
                           </FormControl>
                           <FormDescription>
                             When the exam closes.
@@ -705,9 +790,26 @@ export default function ExamCreator({
                     />
                   </div>
                   
-                  <Button type="submit" disabled={isLoading || !!examId}>
-                    {isLoading ? "Creating..." : examId ? "Exam Created" : "Create Exam"}
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || !!examId}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md transition-all duration-200"
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="mr-2">Creating...</span>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </>
+                    ) : examId ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Exam Created
+                      </>
+                    ) : (
+                      "Create Exam"
+                    )}
                   </Button>
+                  </div>
                 </div>
               </form>
             </Form>
@@ -716,42 +818,57 @@ export default function ExamCreator({
           {/* Questions Tab */}
           <TabsContent value="questions">
             {examId ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Existing Questions */}
                 {questions.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Existing Questions</h3>
-                    <Accordion type="multiple" defaultValue={[]}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-semibold text-indigo-800 dark:text-indigo-300">Existing Questions</h3>
+                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300 text-sm rounded-full font-medium">
+                        {questions.length} Question{questions.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <Accordion 
+                      type="multiple" 
+                      defaultValue={[]} 
+                      className="border border-indigo-100 dark:border-indigo-900/30 rounded-lg overflow-hidden bg-white dark:bg-slate-900/60 shadow-sm"
+                    >
                       {questions.map((question, index) => (
-                        <AccordionItem key={question.id} value={question.id}>
-                          <AccordionTrigger className="text-left">
+                        <AccordionItem key={question.id} value={question.id} className="border-indigo-100 dark:border-indigo-900/30 px-1">
+                          <AccordionTrigger className="text-left py-4 px-3 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">Q{index + 1}:</span>
-                              <span>{question.text.substring(0, 60)}{question.text.length > 60 ? '...' : ''}</span>
-                              <span className="ml-auto text-sm text-muted-foreground">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                                {index + 1}
+                              </div>
+                              <span className="font-medium text-indigo-700 dark:text-indigo-300">{question.text.substring(0, 60)}{question.text.length > 60 ? '...' : ''}</span>
+                              <span className="ml-auto text-sm text-indigo-500/70 dark:text-indigo-400/70 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">
                                 {question.type.replace('_', ' ')} ({question.points} pt{question.points !== 1 ? 's' : ''})
                               </span>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="space-y-4 p-4">
+                            <div className="space-y-5 p-5 bg-indigo-50/50 dark:bg-indigo-950/10 rounded-lg">
                               <div>
-                                <h4 className="font-medium">Question Text</h4>
-                                <p>{question.text}</p>
+                                <h4 className="font-medium text-indigo-700 dark:text-indigo-300 mb-2">Question Text</h4>
+                                <p className="bg-white dark:bg-slate-900/60 p-3 rounded border border-indigo-100 dark:border-indigo-900/30">{question.text}</p>
                               </div>
                               
                               {(question.type === "MULTIPLE_CHOICE" || question.type === "CHECKBOX") && question.options && (
                                 <div>
-                                  <h4 className="font-medium">Options</h4>
-                                  <ul className="space-y-2 mt-2">
+                                  <h4 className="font-medium text-indigo-700 dark:text-indigo-300 mb-2">Options</h4>
+                                  <ul className="space-y-2 mt-2 bg-white dark:bg-slate-900/60 p-3 rounded border border-indigo-100 dark:border-indigo-900/30">
                                     {question.options.map((option: any, i: number) => (
-                                      <li key={i} className="flex items-center gap-2">
-                                        {option.isCorrect && (
-                                          <Check className="h-4 w-4 text-green-500" />
+                                      <li key={i} className={`flex items-center gap-2 p-2 rounded ${option.isCorrect ? 'bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30' : ''}`}>
+                                        {option.isCorrect ? (
+                                          <div className="flex-shrink-0 h-5 w-5 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center">
+                                            <Check className="h-3 w-3 text-white" />
+                                          </div>
+                                        ) : (
+                                          <div className="flex-shrink-0 h-5 w-5 rounded-full border border-gray-300 dark:border-gray-700"></div>
                                         )}
-                                        <span>{option.text}</span>
+                                        <span className={option.isCorrect ? 'text-green-700 dark:text-green-400 font-medium' : ''}>{option.text}</span>
                                         {option.isCorrect && (
-                                          <span className="ml-auto text-sm text-green-500">Correct</span>
+                                          <span className="ml-auto text-sm text-green-600 dark:text-green-400 font-medium">Correct</span>
                                         )}
                                       </li>
                                     ))}

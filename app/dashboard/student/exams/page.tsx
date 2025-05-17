@@ -69,6 +69,8 @@ interface Exam {
   timeLimit?: number
   formId: string
   contentId?: string
+  startDate?: string
+  endDate?: string
   content?: {
     id: string
     title: string
@@ -164,18 +166,56 @@ export default function StudentExamsPage() {
     setFilteredExams(filtered)
   }, [searchTerm, statusFilter, courseFilter, exams])
 
+  // Function to check if exam can be taken (scheduled start date has arrived)
+  const canAccessExam = (exam: Exam): boolean => {
+    try {
+      // If no start date is set, assume it can be accessed immediately
+      if (!exam.startDate) return true;
+      
+      const now = new Date();
+      const examDate = new Date(exam.startDate);
+      
+      return examDate <= now;
+    } catch (error) {
+      console.error("Error checking exam access date:", error);
+      return false; // Default to preventing access if there's an error
+    }
+  }
+
+  // Format date for display
+  const formatDateTime = (dateString?: string, fallback: string = "Immediately"): string => {
+    if (!dateString) return fallback;
+    
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return fallback;
+    }
+  }
+
   // Get exam status badge
-  const getStatusBadge = (status: string, passed?: boolean | null) => {
+  const getStatusBadge = (status: string, passed?: boolean | null, exam?: Exam) => {
     if (passed === true) {
       return <Badge className="bg-green-500 hover:bg-green-600">Passed</Badge>
     } else if (passed === false) {
       return <Badge variant="destructive">Failed</Badge>
     } else if (status === "PUBLISHED") {
-      return <Badge>Available</Badge>
+      // If exam is provided, check if it's available based on start date
+      if (exam && !canAccessExam(exam)) {
+        return <Badge variant="secondary" className="bg-violet-100 text-violet-700 hover:bg-violet-200 border-violet-300">Upcoming</Badge>
+      }
+      return <Badge className="bg-purple-500 hover:bg-purple-600 text-white">Available</Badge>
     } else if (status === "CLOSED") {
-      return <Badge variant="outline">Closed</Badge>
+      return <Badge variant="outline" className="border-gray-400 text-gray-600">Closed</Badge>
     } else {
-      return <Badge variant="secondary">Draft</Badge>
+      return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300">Draft</Badge>
     }
   }
 
@@ -221,26 +261,26 @@ export default function StudentExamsPage() {
     <div className="container mx-auto py-10 px-4 md:px-6">
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Course Exams</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-indigo-500 text-transparent bg-clip-text">Course Exams</h1>
           <p className="text-muted-foreground">View and take exams from your enrolled courses.</p>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
           <div className="relative w-full md:w-72">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-purple-400" />
             <Input
               placeholder="Search exams..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
+              className="pl-8 focus-visible:ring-purple-500"
             />
           </div>
           
           <div className="flex flex-wrap gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Filter className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-1 border-purple-200 hover:bg-purple-50">
+                  <Filter className="h-4 w-4 text-purple-500" />
                   Status
                 </Button>
               </DropdownMenuTrigger>
@@ -259,8 +299,8 @@ export default function StudentExamsPage() {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <BookOpen className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-1 border-indigo-200 hover:bg-indigo-50">
+                  <BookOpen className="h-4 w-4 text-indigo-500" />
                   Course
                 </Button>
               </DropdownMenuTrigger>
@@ -281,13 +321,13 @@ export default function StudentExamsPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="upcoming">
-          <TabsList>
-            <TabsTrigger value="upcoming" className="gap-1">
+        <Tabs defaultValue="upcoming" className="space-y-4">
+          <TabsList className="bg-slate-100 p-1">
+            <TabsTrigger value="upcoming" className="gap-1 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm">
               <Calendar className="h-4 w-4" />
               Upcoming Exams
             </TabsTrigger>
-            <TabsTrigger value="taken" className="gap-1">
+            <TabsTrigger value="taken" className="gap-1 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm">
               <Check className="h-4 w-4" />
               Completed Exams
             </TabsTrigger>
@@ -302,6 +342,7 @@ export default function StudentExamsPage() {
                     <TableHead>Course</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Duration</TableHead>
+                    <TableHead className="whitespace-nowrap">Available From</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -316,20 +357,40 @@ export default function StudentExamsPage() {
                           <TableCell>{exam.content?.title || "N/A"}</TableCell>
                           <TableCell>{exam.type}</TableCell>
                           <TableCell>{exam.timeLimit ? `${exam.timeLimit} min` : "Unlimited"}</TableCell>
-                          <TableCell>{getStatusBadge(exam.status)}</TableCell>
+                          <TableCell>{formatDateTime(exam.startDate)}</TableCell>
+                          <TableCell>{getStatusBadge(exam.status, null, exam)}</TableCell>
                           <TableCell>
-                            <Button asChild variant="outline" size="sm" className="gap-1">
-                              <Link href={`/exams/${exam.formId}/take`}>
-                                <Eye className="h-4 w-4" />
-                                Take Exam
-                              </Link>
-                            </Button>
+                            {canAccessExam(exam) ? (
+                              <Button asChild variant="outline" size="sm" className="gap-1 bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-300">
+                                <Link href={`/exams/${exam.formId}/take`}>
+                                  <Eye className="h-4 w-4" />
+                                  Take Exam
+                                </Link>
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                disabled
+                                className="gap-1 opacity-70 cursor-not-allowed bg-slate-50 text-slate-500 border-slate-200"
+                                onClick={() => {
+                                  toast({
+                                    title: "Exam Not Available Yet",
+                                    description: `This exam will be available on ${formatDateTime(exam.startDate)}`,
+                                    variant: "default"
+                                  });
+                                }}
+                              >
+                                <Calendar className="h-4 w-4" />
+                                Not Available Yet
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={7} className="h-24 text-center">
                         No upcoming exams found
                       </TableCell>
                     </TableRow>
@@ -368,9 +429,9 @@ export default function StudentExamsPage() {
                               ? `${exam.studentScore}%` 
                               : "Pending"}
                           </TableCell>
-                          <TableCell>{getStatusBadge(exam.status, exam.studentPassed)}</TableCell>
+                          <TableCell>{getStatusBadge(exam.status, exam.studentPassed, exam)}</TableCell>
                           <TableCell>
-                            <Button asChild variant="outline" size="sm" className="gap-1">
+                            <Button asChild variant="outline" size="sm" className="gap-1 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-300">
                               <Link href={`/exams/${exam.formId}/results`}>
                                 <Eye className="h-4 w-4" />
                                 View Results

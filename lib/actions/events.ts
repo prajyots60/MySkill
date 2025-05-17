@@ -32,18 +32,24 @@ const CACHE_DURATION = 60 * 10
 export interface UpcomingEvent {
   id: string
   title: string
-  type: "LIVE"
-  status: "SCHEDULED" | "LIVE" | "ENDED"
+  type: "LIVE" | "EXAM"
+  status: "SCHEDULED" | "LIVE" | "ENDED" | "PUBLISHED" | "CLOSED" | "DRAFT"
   scheduledAt: string
   courseId: string
   courseName: string
-  sectionId: string
-  sectionName: string
+  sectionId?: string
+  sectionName?: string
   creatorId: string
   creatorName: string | null
   creatorImage: string | null
   duration?: number | null
   isReminded?: boolean
+  // Exam specific properties
+  examId?: string
+  formId?: string
+  timeLimit?: number
+  passingScore?: number
+  endDate?: string
 }
 
 interface EventQueryOptions {
@@ -51,8 +57,9 @@ interface EventQueryOptions {
   limit?: number
   startDate?: Date
   endDate?: Date
-  status?: "SCHEDULED" | "LIVE" | "ENDED" | "ALL"
+  status?: "SCHEDULED" | "LIVE" | "ENDED" | "PUBLISHED" | "CLOSED" | "DRAFT" | "ALL"
   timeZone?: string
+  view?: "calendar" | "list"
 }
 
 // Get upcoming events for a creator
@@ -71,6 +78,7 @@ export async function getCreatorUpcomingEvents(options: EventQueryOptions = {}) 
       endDate,
       status = "ALL",
       timeZone = "UTC",
+      view = "list",
     } = options
 
     // Try to get from cache first if no special options are provided
@@ -183,6 +191,22 @@ export async function getCreatorUpcomingEvents(options: EventQueryOptions = {}) 
       isReminded: eventReminders.some(reminder => reminder.lectureId === lecture.id),
     }))
 
+    // Fetch exams created by this creator if this is a calendar view (which uses date ranges)
+    // or if we're showing all events, or if we're in list view
+    if ((endDate || status === "ALL") || view === "list") {
+      const examEvents = await getCreatorExamsForCalendar(session.user.id, options);
+      
+      // Combine lecture events with exam events
+      events.push(...examEvents);
+      
+      // Sort combined events by scheduled date
+      events.sort((a, b) => {
+        const dateA = new Date(a.scheduledAt).getTime();
+        const dateB = new Date(b.scheduledAt).getTime();
+        return dateA - dateB;
+      });
+    }
+
     // Cache the results if this is the default query
     if (page === 1 && limit === 5 && !endDate && status === "ALL") {
       const cacheKey = `${UPCOMING_CREATOR_EVENTS_CACHE_KEY}:${session.user.id}`
@@ -217,6 +241,7 @@ export async function getStudentUpcomingEvents(options: EventQueryOptions = {}) 
       endDate,
       status = "ALL",
       timeZone = "UTC",
+      view = "list",
     } = options
 
     // Try to get from cache first if no special options are provided
@@ -254,7 +279,12 @@ export async function getStudentUpcomingEvents(options: EventQueryOptions = {}) 
 
     // Filter by status for live lectures
     if (status !== "ALL") {
-      whereConditions.liveStatus = status
+      // Make sure we only use valid LiveStatus enum values for lecture queries
+      if (status === "SCHEDULED" || status === "LIVE" || status === "ENDED") {
+        whereConditions.liveStatus = status;
+      }
+      // For exam-specific statuses, we'll skip this filter and only apply it later
+      // to the combined results
     } else {
       // For ALL, include both SCHEDULED (future) and LIVE
       whereConditions.OR = [
@@ -338,6 +368,22 @@ export async function getStudentUpcomingEvents(options: EventQueryOptions = {}) 
       duration: lecture.duration,
       isReminded: eventReminders.some(reminder => reminder.lectureId === lecture.id),
     }))
+
+    // Fetch exams for the student if this is a calendar view (which uses date ranges)
+    // or if we're showing all events, or if we're in list view
+    if ((endDate || status === "ALL") || view === "list") {
+      const examEvents = await getStudentExamsForCalendar(session.user.id, options);
+      
+      // Combine lecture events with exam events
+      events.push(...examEvents);
+      
+      // Sort combined events by scheduled date
+      events.sort((a, b) => {
+        const dateA = new Date(a.scheduledAt).getTime();
+        const dateB = new Date(b.scheduledAt).getTime();
+        return dateA - dateB;
+      });
+    }
 
     // Cache the results if this is the default query
     if (page === 1 && limit === 5 && !endDate && status === "ALL") {
@@ -555,6 +601,174 @@ export async function getEventCalendarData(lectureId: string, format: 'google' |
       error: error instanceof Error ? error.message : "Failed to get calendar data" 
     }
   }
+}
+
+// Get exams for a student to show in calendar
+async function getStudentExamsForCalendar(userId: string, options: EventQueryOptions = {}) {
+  const {
+    startDate = new Date(),
+    endDate,
+    timeZone = "UTC",
+    view = "calendar",
+    status = "ALL",
+  } = options;
+
+  // Find all exams from courses the student is enrolled in
+  const queryOptions: any = {
+    content: {
+      enrollments: {
+        some: {
+          userId: userId,
+        },
+      },
+    }
+  };
+  
+  // For list view, show all published exams regardless of date
+  // For calendar view, respect the date filters
+  if (view === "calendar") {
+    queryOptions.status = "PUBLISHED";
+    queryOptions.startDate = {
+      ...(startDate && { gte: startDate }),
+      ...(endDate && { lte: endDate }),
+    };
+  } else {
+    // For list view, allow filtering by specific status
+    if (status === "PUBLISHED" || status === "CLOSED") {
+      queryOptions.status = status;
+    } else if (status === "ALL") {
+      // Include all valid exam statuses for list view
+      queryOptions.status = { in: ["PUBLISHED", "CLOSED"] };
+    }
+    
+    // For list view, include a generous date range to show upcoming exams
+    if (startDate) {
+      queryOptions.startDate = { gte: startDate };
+    }
+  }
+
+  const exams = await prisma.exam.findMany({
+    where: queryOptions,
+    include: {
+      content: {
+        select: {
+          id: true,
+          title: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      },
+      section: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  // Transform exam data to match UpcomingEvent format
+  return exams.map((exam) => ({
+    id: exam.id,
+    title: exam.title,
+    type: "EXAM" as const,
+    status: exam.status,
+    scheduledAt: formatDateToTimeZone(exam.startDate || new Date(), timeZone),
+    courseId: exam.contentId || "",
+    courseName: exam.content?.title || "Unknown Course",
+    sectionId: exam.sectionId || undefined,
+    sectionName: exam.section?.title || undefined, 
+    creatorId: exam.creatorId,
+    creatorName: exam.content?.creator?.name || null,
+    creatorImage: exam.content?.creator?.image || null,
+    duration: exam.timeLimit || null,
+    examId: exam.id,
+    formId: exam.formId || undefined,
+    timeLimit: exam.timeLimit || undefined,
+    passingScore: exam.passingScore || undefined,
+    endDate: exam.endDate ? formatDateToTimeZone(exam.endDate, timeZone) : undefined
+  }));
+}
+
+// Get exams for a creator to show in calendar
+async function getCreatorExamsForCalendar(creatorId: string, options: EventQueryOptions = {}) {
+  const {
+    startDate = new Date(),
+    endDate,
+    timeZone = "UTC",
+    view = "calendar",
+    status = "ALL",
+  } = options;
+
+  // Build query options
+  const queryOptions: any = {
+    creatorId: creatorId,
+  };
+  
+  // For list view, show all exams with appropriate status filtering
+  // For calendar view, respect the date filters
+  if (view === "calendar") {
+    queryOptions.startDate = {
+      ...(startDate && { gte: startDate }),
+      ...(endDate && { lte: endDate }),
+    };
+  } else {
+    // For list view, allow filtering by specific status
+    if (status === "PUBLISHED" || status === "CLOSED" || status === "DRAFT") {
+      queryOptions.status = status;
+    }
+    
+    // For list view, include a generous date range to show upcoming exams
+    if (startDate) {
+      queryOptions.startDate = { gte: startDate };
+    }
+  }
+
+  // Find all exams created by this creator
+  const exams = await prisma.exam.findMany({
+    where: queryOptions,
+    include: {
+      content: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      section: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  // Transform exam data to match UpcomingEvent format
+  return exams.map((exam) => ({
+    id: exam.id,
+    title: exam.title,
+    type: "EXAM" as const,
+    status: exam.status,
+    scheduledAt: formatDateToTimeZone(exam.startDate || new Date(), timeZone),
+    courseId: exam.contentId || "",
+    courseName: exam.content?.title || "Unknown Course",
+    sectionId: exam.sectionId || undefined,
+    sectionName: exam.section?.title || undefined, 
+    creatorId: exam.creatorId,
+    creatorName: "You", // For creator's own exams
+    creatorImage: null,
+    duration: exam.timeLimit || null,
+    examId: exam.id,
+    formId: exam.formId || undefined,
+    timeLimit: exam.timeLimit || undefined,
+    passingScore: exam.passingScore || undefined,
+    endDate: exam.endDate ? formatDateToTimeZone(exam.endDate, timeZone) : undefined
+  }));
 }
 
 // Helper function to format dates for calendar links

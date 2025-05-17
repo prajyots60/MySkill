@@ -260,53 +260,62 @@ export default function CreatorExamsPage() {
   // Render exam card view
   const renderExamCards = () => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
         {filteredExams.map((exam) => (
-          <Card key={exam.id} className="flex flex-col h-full">
-            <CardHeader className="pb-2">
+          <Card key={exam.id} className="flex flex-col h-full border-indigo-100 dark:border-indigo-900/40 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+            <CardHeader className="pb-2 bg-gradient-to-r from-indigo-50/50 to-violet-50/50 dark:from-indigo-950/20 dark:to-violet-950/20 border-b border-indigo-100 dark:border-indigo-900/30">
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">
+                <CardTitle className="text-lg group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
                   <Link href={`/dashboard/creator/exams/${exam.id}`}>
                     {exam.title}
                   </Link>
                 </CardTitle>
                 <Badge variant={
-                  exam.status === "DRAFT" ? "secondary" : 
-                  exam.status === "PUBLISHED" ? "default" : 
-                  "destructive"
+                  exam.status === "DRAFT" 
+                    ? "secondary" 
+                    : exam.status === "PUBLISHED" 
+                      ? "default" 
+                      : "destructive"
+                } className={
+                  exam.status === "DRAFT" 
+                    ? "bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50" 
+                    : exam.status === "PUBLISHED" 
+                      ? "bg-green-100 border-green-200 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50"
+                      : ""
                 }>
                   {exam.status}
                 </Badge>
               </div>
-              <CardDescription>
+              <CardDescription className="line-clamp-2 mt-1">
                 {exam.description || "No description provided"}
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow text-sm pb-2">
-              <div className="space-y-2">
-                <div className="flex gap-1 text-muted-foreground">
-                  <FileQuestion className="h-4 w-4 mt-0.5" />
+            <CardContent className="flex-grow text-sm pb-2 pt-4">
+              <div className="space-y-3">
+                <div className="flex gap-2 text-muted-foreground">
+                  <FileQuestion className="h-4 w-4 mt-0.5 text-indigo-400" />
                   <span>{exam.questionCount || 0} Question{(exam.questionCount || 0) !== 1 ? "s" : ""}</span>
                 </div>
                 
-                <div className="flex gap-1 text-muted-foreground">
-                  <Users className="h-4 w-4 mt-0.5" />
+                <div className="flex gap-2 text-muted-foreground">
+                  <Users className="h-4 w-4 mt-0.5 text-violet-400" />
                   <span>{exam.responseCount || 0} Response{(exam.responseCount || 0) !== 1 ? "s" : ""}</span>
                 </div>
                 
-                <div className="flex gap-1 text-muted-foreground">
-                  <Clock className="h-4 w-4 mt-0.5" />
+                <div className="flex gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4 mt-0.5 text-indigo-400" />
                   <span>Created: {formatDate(new Date(exam.createdAt))}</span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="pt-0">
+            <CardFooter className="pt-0 mt-2 border-t border-indigo-100 dark:border-indigo-900/30">
               <div className="flex justify-between w-full">
                 {exam.status === "PUBLISHED" || exam.status === "CLOSED" ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
                     asChild
+                    className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                   >
                     <Link href={`/exams/${exam.formId}/results`}>
                       <FileText className="h-4 w-4 mr-1" />
@@ -318,6 +327,7 @@ export default function CreatorExamsPage() {
                     variant="outline" 
                     size="sm" 
                     asChild
+                    className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                   >
                     <Link href={`/exams/${exam.formId}/edit`}>
                       <Edit className="h-4 w-4 mr-1" />
@@ -327,47 +337,50 @@ export default function CreatorExamsPage() {
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
                       <Settings className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                  <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg min-w-[180px]">
+                    <DropdownMenuLabel className="text-indigo-800 dark:text-indigo-300">Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-indigo-100 dark:bg-indigo-800/40" />
                     {exam.status === "DRAFT" && (
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                         <Link href={`/exams/${exam.formId}/edit`}>
-                          <Edit className="h-4 w-4 mr-2" />
+                          <Edit className="h-4 w-4 mr-2 text-indigo-500" />
                           Edit Exam
                         </Link>
                       </DropdownMenuItem>
                     )}
                     {exam.status === "PUBLISHED" && (
                       <>
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                           <Link href={`/exams/${exam.formId}/take`} target="_blank">
-                            <Eye className="h-4 w-4 mr-2" />
+                            <Eye className="h-4 w-4 mr-2 text-indigo-500" />
                             Preview
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                           <Link href={`/exams/${exam.formId}/results`}>
-                            <FileText className="h-4 w-4 mr-2" />
+                            <FileText className="h-4 w-4 mr-2 text-indigo-500" />
                             View Results
                           </Link>
                         </DropdownMenuItem>
                       </>
                     )}
                     {exam.status === "CLOSED" && (
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                         <Link href={`/exams/${exam.formId}/results`}>
-                          <FileText className="h-4 w-4 mr-2" />
+                          <FileText className="h-4 w-4 mr-2 text-indigo-500" />
                           View Results
                         </Link>
                       </DropdownMenuItem>
                     )}
                     {exam.status === "DRAFT" && (
-                      <DropdownMenuItem onClick={() => confirmDelete(exam)} className="text-destructive focus:text-destructive">
+                      <DropdownMenuItem 
+                        onClick={() => confirmDelete(exam)} 
+                        className="text-red-600 hover:text-red-700 focus:text-red-700 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-950/30 dark:focus:bg-red-950/30"
+                      >
                         <Trash className="h-4 w-4 mr-2" />
                         Delete Exam
                       </DropdownMenuItem>
@@ -474,143 +487,120 @@ export default function CreatorExamsPage() {
       </div>
     )
   }
-  
-  // If the ExamCreator is showing, only display that
+   // If the ExamCreator is showing, only display that
   if (showExamCreator) {
     return (
-      <div className="container py-10">
+      <div className="container py-10 px-4">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Create New Exam</h1>
-            <p className="text-muted-foreground">Create a new exam for your students</p>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">Create New Exam</h1>
+            <p className="text-muted-foreground mt-1">Create a comprehensive assessment for your students</p>
           </div>
-          <Button variant="outline" onClick={() => setShowExamCreator(false)}>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowExamCreator(false)}
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+          >
             Back to Exams
           </Button>
         </div>
         
-        {/* Course/Section Selection Form */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Select Course</CardTitle>
-            <CardDescription>Choose a course for this exam. Students enrolled in this course will have access to the exam.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="courseId" className="block text-sm font-medium mb-1">
-                    Course <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    value={newExam.courseId}
-                    onValueChange={(value) => {
-                      setNewExam({
-                        ...newExam,
-                        courseId: value,
-                        sectionId: "" // Reset section when course changes
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a course" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {courses.length === 0 ? (
-                        <SelectItem value="none" disabled>No courses available</SelectItem>
-                      ) : (
-                        courses.map(course => (
-                          <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {newExam.courseId === "" && (
-                    <p className="text-sm text-muted-foreground mt-1">Required for exams that should be visible to students in a specific course</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <ExamCreator 
-          contentId={newExam.courseId !== "" ? newExam.courseId : undefined} 
-          sectionId={newExam.sectionId !== "" ? newExam.sectionId : undefined}
-          examTitle={newExam.title}
-          examDescription={newExam.description}
-          examType={newExam.type}
-          passingScore={parseInt(newExam.passingScore) || 70}
-          timeLimit={parseInt(newExam.timeLimit) || 30}
-          onExamCreated={handleExamCreated}
-          requireCourse={true}
-        />
+        <div className="bg-gradient-to-br from-indigo-50/30 to-violet-50/30 dark:from-indigo-950/10 dark:to-violet-950/10 rounded-xl p-5 shadow-inner">
+          <ExamCreator 
+            contentId={newExam.courseId !== "" ? newExam.courseId : undefined} 
+            sectionId={newExam.sectionId !== "" ? newExam.sectionId : undefined}
+            examTitle={newExam.title}
+            examDescription={newExam.description}
+            examType={newExam.type}
+            passingScore={parseInt(newExam.passingScore) || 70}
+            timeLimit={parseInt(newExam.timeLimit) || 30}
+            onExamCreated={handleExamCreated}
+            requireCourse={true}
+            courses={courses}
+            onCourseChange={(courseId) => {
+              setNewExam({
+                ...newExam,
+                courseId: courseId,
+                sectionId: "" // Reset section when course changes
+              });
+            }}
+          />
+        </div>
       </div>
     )
   }
   
   return (
-    <div className="container py-10">
+    <div className="container py-10 px-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Exams</h1>
-          <p className="text-muted-foreground">Create and manage your exams</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 text-transparent bg-clip-text">Exams</h1>
+          <p className="text-muted-foreground mt-1">Create and manage assessments for your students</p>
         </div>
         
-        <Button onClick={handleCreateNewExam}>
+        <Button onClick={handleCreateNewExam} className="bg-gradient-to-r from-indigo-600 to-violet-500 hover:from-indigo-700 hover:to-violet-600 text-white shadow-md">
           <FilePlus className="h-4 w-4 mr-2" />
           Create New Exam
         </Button>
       </div>
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20 p-4 rounded-xl shadow-sm">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
           <Input 
             placeholder="Search exams..." 
-            className="pl-8" 
+            className="pl-9 border-indigo-100 bg-white dark:bg-slate-900 focus-visible:ring-violet-500 rounded-md" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" className="border-indigo-200 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                <Filter className="h-4 w-4 mr-2 text-indigo-500" />
                 Status
-                {statusFilter && <Badge variant="secondary" className="ml-2">{statusFilter}</Badge>}
-                <ChevronDown className="h-4 w-4 ml-2" />
+                {statusFilter && <Badge variant="secondary" className="ml-2 bg-violet-100 text-violet-700">{statusFilter}</Badge>}
+                <ChevronDown className="h-4 w-4 ml-2 text-indigo-400" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+            <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg">
+              <DropdownMenuItem onClick={() => setStatusFilter(null)} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                 All
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("DRAFT")}>
+              <DropdownMenuItem onClick={() => setStatusFilter("DRAFT")} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                 Draft
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("PUBLISHED")}>
+              <DropdownMenuItem onClick={() => setStatusFilter("PUBLISHED")} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                 Published
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("CLOSED")}>
+              <DropdownMenuItem onClick={() => setStatusFilter("CLOSED")} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                 Closed
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
           {(searchTerm || statusFilter) && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+            >
               Clear Filters
             </Button>
           )}
           
-          <div className="border rounded-md overflow-hidden flex">
+          <div className="border border-indigo-200 rounded-md overflow-hidden flex">
             <Button 
               variant={viewMode === "grid" ? "default" : "ghost"} 
               size="sm" 
-              className="rounded-none px-2"
+              className={`rounded-none px-3 ${
+                viewMode === "grid" 
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
+                  : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+              }`}
               onClick={() => setViewMode("grid")}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -618,7 +608,11 @@ export default function CreatorExamsPage() {
             <Button 
               variant={viewMode === "list" ? "default" : "ghost"} 
               size="sm" 
-              className="rounded-none px-2"
+              className={`rounded-none px-3 ${
+                viewMode === "list" 
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
+                  : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+              }`}
               onClick={() => setViewMode("list")}
             >
               <List className="h-4 w-4" />
@@ -628,53 +622,78 @@ export default function CreatorExamsPage() {
       </div>
       
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center py-16 my-4">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-indigo-500 mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading your exams...</p>
+          </div>
         </div>
       ) : exams.length === 0 ? (
-        <div className="bg-muted rounded-lg p-8 text-center">
-          <FileQuestion className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-medium mb-2">No Exams Created Yet</h2>
-          <p className="text-muted-foreground mb-4">
-            Create your first exam to assess students' knowledge and track their progress.
+        <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20 rounded-xl p-10 text-center shadow-sm my-6">
+          <FileQuestion className="h-16 w-16 mx-auto mb-5 text-indigo-400" />
+          <h2 className="text-2xl font-semibold mb-3 text-indigo-900 dark:text-indigo-200">No Exams Created Yet</h2>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Create your first exam to assess students' knowledge and track their progress through your courses.
           </p>
-          <Button onClick={handleCreateNewExam}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button 
+            onClick={handleCreateNewExam}
+            className="bg-gradient-to-r from-indigo-600 to-violet-500 hover:from-indigo-700 hover:to-violet-600 text-white shadow-md px-5 py-6"
+            size="lg"
+          >
+            <Plus className="h-5 w-5 mr-2" />
             Create Your First Exam
           </Button>
         </div>
       ) : filteredExams.length === 0 ? (
-        <div className="bg-muted/50 rounded-lg p-8 text-center">
-          <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-medium mb-2">No Matching Exams</h2>
+        <div className="bg-gradient-to-br from-indigo-50/50 to-violet-50/50 dark:from-indigo-950/10 dark:to-violet-950/10 rounded-xl p-8 text-center my-6">
+          <Search className="h-12 w-12 mx-auto mb-4 text-indigo-300" />
+          <h2 className="text-xl font-medium mb-2 text-indigo-800 dark:text-indigo-200">No Matching Exams</h2>
           <p className="text-muted-foreground mb-4">
             No exams match your current search and filters.
           </p>
-          <Button variant="outline" onClick={clearFilters}>
+          <Button 
+            variant="outline" 
+            onClick={clearFilters}
+            className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/30"
+          >
             Clear Filters
           </Button>
         </div>
       ) : (
-        <div>
+        <div className="mt-4">
           <Tabs defaultValue="all">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">
-                <BookOpen className="h-4 w-4 mr-2" />
-                All Exams ({filteredExams.length})
-              </TabsTrigger>
-              <TabsTrigger value="draft">
-                <Edit className="h-4 w-4 mr-2" />
-                Drafts ({filteredExams.filter(e => e.status === "DRAFT").length})
-              </TabsTrigger>
-              <TabsTrigger value="published">
-                <FileQuestion className="h-4 w-4 mr-2" />
-                Published ({filteredExams.filter(e => e.status === "PUBLISHED").length})
-              </TabsTrigger>
-              <TabsTrigger value="closed">
-                <Clock className="h-4 w-4 mr-2" />
-                Closed ({filteredExams.filter(e => e.status === "CLOSED").length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="border-b border-indigo-100 dark:border-indigo-900/30">
+              <TabsList className="mb-0 bg-transparent h-12 p-0">
+                <TabsTrigger 
+                  value="all" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-none rounded-none h-12 px-5 bg-transparent text-muted-foreground"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  All Exams ({filteredExams.length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="draft" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-none rounded-none h-12 px-5 bg-transparent text-muted-foreground"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Drafts ({filteredExams.filter(e => e.status === "DRAFT").length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="published" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-none rounded-none h-12 px-5 bg-transparent text-muted-foreground"
+                >
+                  <FileQuestion className="h-4 w-4 mr-2" />
+                  Published ({filteredExams.filter(e => e.status === "PUBLISHED").length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="closed" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-none rounded-none h-12 px-5 bg-transparent text-muted-foreground"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Closed ({filteredExams.filter(e => e.status === "CLOSED").length})
+                </TabsTrigger>
+              </TabsList>
+            </div>
             
             <TabsContent value="all">
               {viewMode === "grid" ? renderExamCards() : renderExamList()}

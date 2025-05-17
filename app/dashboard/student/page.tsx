@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,6 +28,7 @@ interface EnrolledCourse extends Course {
 
 export default function StudentDashboard() {
   const { data: session, status } = useSession()
+  const searchParams = useSearchParams()
   const [inProgressCourses, setInProgressCourses] = useState<EnrolledCourse[]>([])
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +44,27 @@ export default function StudentDashboard() {
     console.log(`Navigated to: ${path}`)
     // Add your analytics tracking logic here
   }
+  
+  // Check for error parameters in URL
+  useEffect(() => {
+    const error = searchParams.get('error')
+    const message = searchParams.get('message')
+    const courseId = searchParams.get('course')
+    
+    if (error === 'exam-not-available') {
+      toast({
+        title: "Exam Not Available Yet",
+        description: message || "This exam is not available yet. Please check the scheduled start time.",
+        variant: "destructive"
+      })
+    } else if (error === 'not-enrolled' && courseId) {
+      toast({
+        title: "Enrollment Required",
+        description: "You need to be enrolled in this course to access its exams.",
+        variant: "destructive"
+      })
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchEnrolledCourses = async () => {
