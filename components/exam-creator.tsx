@@ -35,7 +35,7 @@ import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Separator } from "@/components/ui/separator"
-import { AlertCircle, Check, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, Check, Loader2, Plus, Trash2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ExamType, QuestionType } from "@prisma/client"
 
