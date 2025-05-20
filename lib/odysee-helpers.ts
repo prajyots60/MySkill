@@ -1,4 +1,3 @@
-// filepath: /home/supra/Desktop/eduplatformv20/lib/odysee-helpers.ts
 /**
  * Utility functions for working with Odysee videos in the eduplatform
  */
@@ -423,4 +422,88 @@ export function getOdyseeThumbnailUrl(claimId: string): string {
   // Odysee typically serves thumbnails through their spee.ch CDN
   // This may change in the future, so this is a best-effort implementation
   return `https://thumbnails.odycdn.com/optimize/s:1280:720/quality:85/plain/https://thumbs.odycdn.com/71801d64187cd66ac61c2dc6fce135e3.jpg`;
+}
+
+/**
+ * Fetches a thumbnail URL for an Odysee video using our API endpoint
+ * @param params Object containing either claimId, claimName, or url
+ * @returns Promise with the thumbnail URL and additional metadata
+ */
+export async function fetchOdyseeThumbnail({ 
+  claimId, 
+  claimName, 
+  url 
+}: { 
+  claimId?: string; 
+  claimName?: string; 
+  url?: string;
+}): Promise<{
+  success: boolean;
+  thumbnailUrl: string;
+  title?: string;
+  description?: string;
+  duration?: number;
+  error?: string;
+}> {
+  try {
+    // Build query params based on what we have
+    const params = new URLSearchParams();
+    if (claimId) params.append('claimId', claimId);
+    if (claimName) params.append('claimName', claimName);
+    if (url) params.append('url', url);
+    
+    // Use our server-side API endpoint to get the thumbnail
+    const response = await fetch(`/api/odysee/get-thumbnail?${params.toString()}`, {
+      method: 'GET',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch thumbnail: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    return {
+      success: data.success,
+      thumbnailUrl: data.thumbnailUrl || '/images/default-video-thumbnail.jpg',
+      title: data.title,
+      description: data.description,
+      duration: data.duration,
+      error: data.error
+    };
+  } catch (error) {
+    console.error('Error fetching Odysee thumbnail:', error);
+    return {
+      success: false,
+      thumbnailUrl: '/images/default-video-thumbnail.jpg',
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Extracts simplified claim ID from Odysee URLs or claim names
+ * @param url Odysee URL or claim name
+ * @returns Simple claim ID if found, null otherwise
+ */
+export function extractSimpleClaimId(url: string): string | null {
+  // For standard URLs
+  if (url.includes('odysee.com/')) {
+    // Try to extract from URL path
+    const match = url.match(/odysee\.com\/(?:@[^\/]+\/)?([a-zA-Z0-9\-_]+)(?:[?#]|$)/);
+    return match ? match[1] : null;
+  }
+  
+  // For claim names in format @channel/video
+  if (url.startsWith('@') && url.includes('/')) {
+    const parts = url.split('/');
+    return parts.length > 1 ? parts[1] : null;
+  }
+  
+  // For shortlinks
+  if (url.includes('ody.sh/')) {
+    return extractVideoIdFromShortlink(url);
+  }
+  
+  return null;
 }

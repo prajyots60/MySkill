@@ -46,45 +46,46 @@ model VerificationToken {
 }
 
 model User {
-  id                   String                @id @default(cuid())
-  name                 String?
-  email                String?               @unique
-  emailVerified        DateTime?
-  image                String?
-  role                 UserRole              @default(STUDENT)
-  bio                  String?
-  youtubeConnected     Boolean               @default(false)
-  socialLinks          Json?
-  onboarded            Boolean               @default(false)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  youtubeChannelId     String?
-  youtubeChannelName   String?
-  youtubeConnectedAt   DateTime?
-  youtubeThumbnailUrl  String?
-  gdriveConnected      Boolean               @default(false)
-  gdriveConnectedAt    DateTime?
-  gdriveEmail          String?
-  gdriveName           String?
-  gdriveProfileImage   String?
-  dailymotionConnected Boolean               @default(false)
-  accounts             Account[]
-  bookmarks            Bookmark[]
-  comments             Comment[]
-  contents             Content[]
-  creatorProfile       CreatorProfile?
-  dailymotionInfo      DailymotionInfo?
-  documents            Document[]
-  enrollments          Enrollment[]
-  eventReminders       EventReminder[]
-  createdExams         Exam[]
-  progress             Progress[]
-  reviews              Review[]
-  sessions             Session[]
-  studentExamResponses StudentExamResponse[]
-  followers            UserFollow[]          @relation("UserFollowers")
-  following            UserFollow[]          @relation("UserFollowing")
+  id                     String                  @id @default(cuid())
+  name                   String?
+  email                  String?                 @unique
+  emailVerified          DateTime?
+  image                  String?
+  role                   UserRole                @default(STUDENT)
+  bio                    String?
+  youtubeConnected       Boolean                 @default(false)
+  socialLinks            Json?
+  onboarded              Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  youtubeChannelId       String?
+  youtubeChannelName     String?
+  youtubeConnectedAt     DateTime?
+  youtubeThumbnailUrl    String?
+  gdriveConnected        Boolean                 @default(false)
+  gdriveConnectedAt      DateTime?
+  gdriveEmail            String?
+  gdriveName             String?
+  gdriveProfileImage     String?
+  dailymotionConnected   Boolean                 @default(false)
+  accounts               Account[]
+  bookmarks              Bookmark[]
+  comments               Comment[]
+  contents               Content[]
+  creatorProfile         CreatorProfile?
+  dailymotionInfo        DailymotionInfo?
+  documents              Document[]
+  enrollments            Enrollment[]
+  eventReminders         EventReminder[]
+  createdExams           Exam[]
+  progress               Progress[]
+  reviews                Review[]
+  sessions               Session[]
+  studentExamResponses   StudentExamResponse[]
+  followers              UserFollow[]            @relation("UserFollowers")
+  following              UserFollow[]            @relation("UserFollowing")
   userServiceConnections UserServiceConnection[]
+  uploadedResources      CourseResource[]
 
   @@index([email])
 }
@@ -137,31 +138,32 @@ model UserFollow {
 }
 
 model Content {
-  id             String        @id @default(cuid())
-  title          String
-  description    String
-  thumbnail      String?
-  type           ContentType   @default(COURSE)
-  price          Float?        @default(0)
-  isPublished    Boolean       @default(false)
-  tags           String[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  creatorId      String
-  accessDuration Int?
-  courseStatus   CourseStatus? @default(UPCOMING)
-  deliveryMode   DeliveryMode? @default(VIDEO)
-  languages      String[]
-  richContent    Json?
-  bookmarks      Bookmark[]
-  comments       Comment[]
-  creator        User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  documents      Document[]
-  enrollments    Enrollment[]
-  exams          Exam[]
-  resources      Resource[]
-  reviews        Review[]
-  sections       Section[]
+  id              String           @id @default(cuid())
+  title           String
+  description     String
+  thumbnail       String?
+  type            ContentType      @default(COURSE)
+  price           Float?           @default(0)
+  isPublished     Boolean          @default(false)
+  tags            String[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  creatorId       String
+  accessDuration  Int?
+  courseStatus    CourseStatus?    @default(UPCOMING)
+  deliveryMode    DeliveryMode?    @default(VIDEO)
+  languages       String[]
+  richContent     Json?
+  bookmarks       Bookmark[]
+  comments        Comment[]
+  creator         User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  documents       Document[]
+  enrollments     Enrollment[]
+  exams           Exam[]
+  resources       Resource[]
+  reviews         Review[]
+  sections        Section[]
+  courseResources CourseResource[] @relation("ContentToCourseResource")
 
   @@index([creatorId])
   @@index([type])
@@ -190,6 +192,9 @@ model Lecture {
   order          Int
   type           LectureType     @default(VIDEO)
   videoId        String?
+  videoSource    VideoSource?    @default(YOUTUBE)
+  claimId        String? // For Odysee videos
+  claimName      String? // For Odysee videos
   duration       Int?
   isPreview      Boolean         @default(false)
   liveStatus     LiveStatus?
@@ -200,6 +205,8 @@ model Lecture {
   updatedAt      DateTime        @updatedAt
   sectionId      String
   streamData     Json?
+  metadata       Json?
+  secureMetadata Json?
   comments       Comment[]
   documents      Document[]
   eventReminders EventReminder[]
@@ -454,8 +461,8 @@ model Review {
 }
 
 model DailymotionInfo {
-  id                String   @id @default(cuid())
-  userId            String   @unique
+  id                String                  @id @default(cuid())
+  userId            String                  @unique
   dailymotionUserId String
   username          String?
   screenname        String?
@@ -464,21 +471,21 @@ model DailymotionInfo {
   expiresAt         DateTime
   profilePictureUrl String?
   scope             String?
-  connectedAt       DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectedAt       DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   credentials       DailymotionCredentials?
 
   @@index([userId])
 }
 
 model DailymotionCredentials {
-  id                String   @id @default(cuid())
-  dailymotionInfoId String   @unique
-  apiKey            String   // Encrypted API key
-  apiSecret         String   // Encrypted API secret
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String          @id @default(cuid())
+  dailymotionInfoId String          @unique
+  apiKey            String // Encrypted API key
+  apiSecret         String // Encrypted API secret
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   dailymotionInfo   DailymotionInfo @relation(fields: [dailymotionInfoId], references: [id], onDelete: Cascade)
 
   @@index([dailymotionInfoId])
@@ -487,7 +494,7 @@ model DailymotionCredentials {
 model UserServiceConnection {
   id            String   @id @default(cuid())
   userId        String
-  service       String   // e.g., 'DAILYMOTION', 'YOUTUBE', etc.
+  service       String // e.g., 'DAILYMOTION', 'YOUTUBE', etc.
   isConnected   Boolean  @default(false)
   lastConnected DateTime
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -535,6 +542,12 @@ enum LiveStatus {
   ENDED
 }
 
+enum VideoSource {
+  YOUTUBE
+  ODYSEE
+  WASABI
+}
+
 enum ExamType {
   QUIZ
   MCQ
@@ -553,4 +566,32 @@ enum QuestionType {
   CHECKBOX
   SHORT_ANSWER
   PARAGRAPH
+}
+
+enum StorageProvider {
+  LOCAL
+  WASABI
+  S3
+  GDRIVE
+}
+
+model CourseResource {
+  id              String          @id @default(cuid())
+  title           String
+  type            String
+  storagePath     String
+  storageProvider StorageProvider @default(WASABI)
+  url             String?
+  sizeInBytes     Int
+  courseId        String
+  uploadedById    String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  metadata        Json?
+
+  course     Content @relation("ContentToCourseResource", fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+
+  @@index([courseId])
+  @@index([uploadedById])
 }

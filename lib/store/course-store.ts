@@ -38,6 +38,7 @@ interface CourseStore {
     progress: number
     status: "uploading" | "processing" | "completed" | "failed"
     error?: string
+    toastShown?: boolean
   }[]
 
   // Form states
@@ -905,6 +906,12 @@ export const useCourseStore = create<CourseStore>()(
           const uploadIndex = state.activeUploads.findIndex((upload) => upload.id === id)
           if (uploadIndex !== -1) {
             state.activeUploads[uploadIndex].status = status
+            
+            // Reset toastShown for status changes
+            if (status === "completed" || status === "failed") {
+              state.activeUploads[uploadIndex].toastShown = false;
+            }
+            
             if (error) {
               state.activeUploads[uploadIndex].error = error
             }

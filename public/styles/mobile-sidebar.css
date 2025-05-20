@@ -1,0 +1,91 @@
+/* Mobile Sidebar Styles */
+
+/* Make sidebar take full width on mobile */
+[data-sidebar="sidebar"][data-mobile="true"] {
+  width: 100% !important;
+  max-width: 280px;
+}
+
+/* Change the default close button in SheetContent to make room for our custom one */
+[data-sidebar="sidebar"][data-mobile="true"] [data-radix-sheet-close] {
+  display: none !important;
+}
+
+/* Add a handle to help users understand they can swipe to close */
+[data-sidebar="sidebar"][data-mobile="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 4px;
+  height: 40px;
+  background-color: hsl(var(--sidebar-border));
+  border-radius: 4px 0 0 4px;
+  transform: translateY(-50%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Make the menu text slightly larger on mobile for better tapping targets */
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu-button"] {
+  padding: 0.625rem 0.75rem;
+  min-height: 2.75rem;
+}
+
+/* Add a subtle animation for opening the mobile sidebar */
+[data-sidebar="sidebar"][data-mobile="true"] {
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Add touch-friendly padding to the menu items */
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="menu"] {
+  padding: 0.25rem;
+}
+
+/* Increase spacing between menu groups on mobile */
+[data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group"] {
+  margin-bottom: 0.5rem;
+}
+
+/* Add visual feedback for active touch state */
+@media (max-width: 768px) {
+  [data-sidebar="menu-button"]:active {
+    background-color: hsl(var(--sidebar-accent));
+    transform: scale(0.98);
+  }
+  
+  /* Increase opacity of the swipe handle when touching it */
+  [data-sidebar="sidebar"][data-mobile="true"]:active::after {
+    opacity: 0.6;
+  }
+  
+  /* Add page content shift for better mobile UI */
+  .mobile-sidebar-open {
+    margin-left: 280px;
+    transition: margin-left 0.3s ease;
+  }
+  
+  /* Fix styling for sidebar footer on mobile */
+  [data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="footer"] {
+    margin-top: auto;
+    padding-bottom: 1rem;
+  }
+  
+  /* Add better tap target areas on mobile */
+  [data-sidebar="sidebar"][data-mobile="true"] [data-sidebar="group-label"] {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Add safe area insets for mobile */
+  [data-sidebar="sidebar"][data-mobile="true"] {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

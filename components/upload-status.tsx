@@ -12,29 +12,40 @@ export function UploadStatus() {
   const { activeUploads, removeUpload } = useCourseStore()
   const { toast } = useToast()
 
-  // Show completion toast when upload completes
+  // Show completion toast when upload completes and remove completed/failed uploads immediately
   useEffect(() => {
-    activeUploads.forEach((upload) => {
-      if (upload.status === "completed") {
-        toast({
-          title: "Upload Complete",
-          description: `${upload.title} has been uploaded successfully.`,
-          duration: 5000,
-        })
-        // Remove the upload after showing the toast
-        setTimeout(() => removeUpload(upload.id), 5000)
-      } else if (upload.status === "failed") {
-        toast({
-          title: "Upload Failed",
-          description: upload.error || "Failed to upload content. Please try again.",
-          variant: "destructive",
-          duration: 5000,
-        })
-        // Remove the failed upload after showing the toast
-        setTimeout(() => removeUpload(upload.id), 5000)
-      }
-    })
-  }, [activeUploads, toast, removeUpload])
+    // Process all uploads that are completed or failed
+    const completedOrFailedUploads = [...activeUploads].filter(
+      upload => (upload.status === "completed" || upload.status === "failed")
+    );
+    
+    if (completedOrFailedUploads.length > 0) {
+      completedOrFailedUploads.forEach((upload) => {
+        if (upload.status === "completed") {
+          toast({
+            title: "Upload Complete",
+            description: `${upload.title} has been uploaded successfully.`,
+            duration: 5000,
+          });
+          
+          // Remove the upload immediately instead of waiting
+          console.log("Removing completed upload immediately:", upload.id);
+          setTimeout(() => removeUpload(upload.id), 0);
+        } else if (upload.status === "failed") {
+          toast({
+            title: "Upload Failed",
+            description: upload.error || "Failed to upload content. Please try again.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          
+          console.log("Removing failed upload immediately:", upload.id);
+          // Remove the failed upload immediately
+          setTimeout(() => removeUpload(upload.id), 0);
+        }
+      });
+    }
+  }, [activeUploads, toast, removeUpload]);
 
   // Handle canceling an upload
   const handleCancelUpload = async (uploadId: string) => {
@@ -94,7 +105,11 @@ export function UploadStatus() {
             </div>
           </div>
           <Progress value={upload.progress} className="h-2" />
-          <div className="text-xs text-muted-foreground mt-1">{upload.progress}% complete</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {Math.round(upload.progress)}% complete
+            {upload.status === "uploading" && <span> (uploading...)</span>}
+            {upload.status === "processing" && <span> (processing...)</span>}
+          </div>
         </div>
       ))}
     </div>

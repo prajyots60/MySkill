@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { parseOdyseeUrl, getOdyseeEmbedUrl } from '@/lib/odysee-helpers'
+import { getOdyseeDirectUrl } from '@/lib/odysee-direct-url'
 // Removed Plyr CSS import as we're using direct iframe approach
 
 interface OdyseePlyrProps {

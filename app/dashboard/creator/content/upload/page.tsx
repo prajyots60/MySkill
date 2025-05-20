@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar, Clock, FileVideo, Loader2, Upload, Video, AlertCircle, Copy } from "lucide-react"
+import { Calendar, Clock, FileVideo, Loader2, Upload, Video, AlertCircle, Copy, Cloud, ShieldCheck } from "lucide-react"
 import { useYouTubeStore } from "@/lib/store/youtube-store"
 import {
   Dialog,
@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/dialog"
 import { useCourseStore } from "@/lib/store/course-store"
 import YouTubeDirectUploader from "@/components/youtube-direct-uploader"
+import { OdyseeVideoUploader } from "@/components/odysee-components"
+import WasabiVideoUploader from "@/components/wasabi-video-uploader"
+import { BackgroundWasabiUploader } from "@/components/background-wasabi-uploader"
 
 export default function UploadContent() {
   const router = useRouter()
@@ -33,14 +36,16 @@ export default function UploadContent() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Get courseId from URL if available
+  // Get courseId and sectionId from URL if available
   const urlCourseId = searchParams.get("courseId")
+  const urlSectionId = searchParams.get("sectionId")
 
   // Use our YouTube store with optimized connection check
   const { connected: youtubeConnected, loading: checkingConnection, checkConnectionStatus } = useYouTubeStore()
 
+  // State for selected video source
   const [selectedCourse, setSelectedCourse] = useState(urlCourseId || "")
-  const [selectedSection, setSelectedSection] = useState("")
+  const [selectedSection, setSelectedSection] = useState(urlSectionId || "")
   const [courses, setCourses] = useState<any[]>([])
   const [sections, setSections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,14 +54,31 @@ export default function UploadContent() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadType, setUploadType] = useState<"video" | "live">("video")
   const [connectionChecked, setConnectionChecked] = useState(false)
+  const [videoSource, setVideoSource] = useState<"youtube" | "odysee" | "wasabi">("youtube")
 
-  // Video upload form state
+  // Unified video upload form state for all video sources
   const [videoForm, setVideoForm] = useState({
     title: "",
     description: "",
     isPreview: false,
     file: null as File | null,
+    odyseeUrl: "", // For Odysee video URL input
   })
+
+  // Reset all form fields when video source changes
+  useEffect(() => {
+    // Keep the title and description when switching, but reset the file and odyseeUrl
+    setVideoForm(prev => ({ 
+      ...prev,
+      file: null,
+      odyseeUrl: ""
+    }));
+    
+    // Reset file input element if switching from file-based upload
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [videoSource]);
 
   // Live stream form state
   const [liveForm, setLiveForm] = useState({
@@ -124,12 +146,17 @@ export default function UploadContent() {
     }
 
     fetchCourses()
-  }, [status, toast, urlCourseId])
+  }, [status, toast, urlCourseId, urlSectionId])
 
   // Fetch sections when a course is selected
   const handleCourseChange = async (courseId: string) => {
     setSelectedCourse(courseId)
-    setSelectedSection("")
+    
+    // Only reset the selected section if we don't have one from the URL
+    // or if we're changing to a different course than what was initially loaded
+    if (!urlSectionId || (urlCourseId && courseId !== urlCourseId)) {
+      setSelectedSection("")
+    }
 
     try {
       setFetchingSections(true)
@@ -218,7 +245,8 @@ export default function UploadContent() {
   const handleVideoUpload = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!youtubeConnected) {
+    // For YouTube uploads, validate connection
+    if (videoSource === "youtube" && !youtubeConnected) {
       toast({
         title: "YouTube Not Connected",
         description: "Please connect your YouTube account before uploading videos",
@@ -237,7 +265,8 @@ export default function UploadContent() {
       return
     }
 
-    if (!videoForm.title) {
+    // Common validation for all video sources
+    if (!videoForm.title.trim()) {
       toast({
         title: "Error",
         description: "Please enter a title",
@@ -246,10 +275,24 @@ export default function UploadContent() {
       return
     }
 
-    if (!videoForm.file) {
+    // Validation specific to upload methods that need files
+    if ((videoSource === "youtube" || videoSource === "wasabi") && !videoForm.file) {
+      // For Wasabi, we only show this error if they try to submit the form
+      // The form button is already disabled when no file is selected
+      // But as extra validation, we check here too
       toast({
         title: "Error",
         description: "Please select a video file",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    // Validation specific to Odysee
+    if (videoSource === "odysee" && !videoForm.odyseeUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an Odysee video URL",
         variant: "destructive",
       })
       return
@@ -258,174 +301,193 @@ export default function UploadContent() {
     setLoading(true)
     setUploadProgress(0)
 
-    try {
-      // Create FormData for file upload
-      const formData = new FormData()
-      formData.append("sectionId", selectedSection)
-      formData.append("title", videoForm.title)
-      formData.append("description", videoForm.description || "")
-      formData.append("isPreview", videoForm.isPreview.toString())
-      formData.append("videoFile", videoForm.file)
+    // For Wasabi uploads, we need to prevent form submission as the WasabiVideoUploader component will handle it
+    if (videoSource === "wasabi") {
+      setLoading(false);
+      // Since we want to use the WasabiVideoUploader component's handling, 
+      // we shouldn't actually submit the form through the normal flow
+      e.preventDefault();
+      // Don't return here so the WasabiVideoUploader component can handle it
+    }
+    
+    // YouTube uploads require file upload
+    if (videoSource === "youtube") {
+      try {
+        // Create FormData for file upload
+        const formData = new FormData()
+        formData.append("sectionId", selectedSection)
+        formData.append("title", videoForm.title)
+        formData.append("description", videoForm.description || "")
+        formData.append("isPreview", videoForm.isPreview.toString())
+        
+        // Only append file for YouTube uploads (guaranteed to exist due to earlier validation)
+        if (videoForm.file) {
+          formData.append("videoFile", videoForm.file)
+        }
 
-      // Upload the video
-      const response = await fetch("/api/creator/lectures/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to upload video")
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Add the upload to the course store for tracking
-        const { addUpload, updateUploadProgress, updateUploadStatus } = useCourseStore.getState()
-        const uploadId = result.jobId
-
-        addUpload({
-          id: uploadId,
-          type: "lecture",
-          title: videoForm.title,
+        // Upload the video
+        const response = await fetch("/api/creator/lectures/upload", {
+          method: "POST",
+          body: formData,
         })
 
-        // Start polling for upload status with a smarter strategy
-        let pollCount = 0
-        const maxPollCount = 180 // Maximum number of polls (30 minutes with 10-second interval)
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || "Failed to upload video")
+        }
 
-        const pollInterval = setInterval(async () => {
-          pollCount++
+        const result = await response.json()
 
-          // If we've been polling for too long, stop and show an error
-          if (pollCount > maxPollCount) {
-            clearInterval(pollInterval)
-            updateUploadStatus(
-              uploadId,
-              "failed",
-              "Upload timed out. Please check your course page to see if the video was uploaded.",
-            )
-            setLoading(false)
-            return
-          }
+        if (result.success) {
+          // Add the upload to the course store for tracking
+          const { addUpload, updateUploadProgress, updateUploadStatus } = useCourseStore.getState()
+          const uploadId = result.jobId
 
-          try {
-            const statusResponse = await fetch(`/api/creator/lectures/upload?jobId=${uploadId}`)
+          addUpload({
+            id: uploadId,
+            type: "lecture",
+            title: videoForm.title,
+          })
 
-            if (!statusResponse.ok) {
-              if (statusResponse.status === 404) {
-                // Job not found, but this might be temporary during server restart
-                console.log("Job not found, will retry...")
-                return
-              }
-              throw new Error("Failed to check upload status")
+          // Start polling for upload status with a smarter strategy
+          let pollCount = 0
+          const maxPollCount = 180 // Maximum number of polls (30 minutes with 10-second interval)
+
+          const pollInterval = setInterval(async () => {
+            pollCount++
+
+            // If we've been polling for too long, stop and show an error
+            if (pollCount > maxPollCount) {
+              clearInterval(pollInterval)
+              updateUploadStatus(
+                uploadId,
+                "failed",
+                "Upload timed out. Please check your course page to see if the video was uploaded.",
+              )
+              setLoading(false)
+              return
             }
 
-            const statusResult = await statusResponse.json()
+            try {
+              const statusResponse = await fetch(`/api/creator/lectures/upload?jobId=${uploadId}`)
 
-            if (statusResult.success) {
-              const { status, progress, error } = statusResult.job
-
-              // Update progress
-              updateUploadProgress(uploadId, progress)
-
-              // Update status
-              if (status === "completed") {
-                updateUploadStatus(uploadId, "completed")
-                clearInterval(pollInterval)
-
-                // Reset form
-                setVideoForm({
-                  title: "",
-                  description: "",
-                  isPreview: false,
-                  file: null,
-                })
-
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = ""
+              if (!statusResponse.ok) {
+                if (statusResponse.status === 404) {
+                  // Job not found, but this might be temporary during server restart
+                  console.log("Job not found, will retry...")
+                  return
                 }
+                throw new Error("Failed to check upload status")
+              }
 
-                // Redirect to course page
-                router.push(`/dashboard/creator/content/${selectedCourse}`)
-              } else if (status === "failed") {
-                updateUploadStatus(uploadId, "failed", error)
-                clearInterval(pollInterval)
-                setLoading(false)
-              } else if (status === "processing") {
-                // If we're in the processing stage, we can reduce polling frequency
-                // This is especially useful during the YouTube upload which can take a while
-                if (progress > 20 && progress < 80) {
-                  // During the main upload phase, poll less frequently
+              const statusResult = await statusResponse.json()
+
+              if (statusResult.success) {
+                const { status, progress, error } = statusResult.job
+
+                // Update progress
+                updateUploadProgress(uploadId, progress)
+
+                // Update status
+                if (status === "completed") {
+                  updateUploadStatus(uploadId, "completed")
                   clearInterval(pollInterval)
-                  setTimeout(() => {
-                    // Resume polling after 30 seconds
-                    const newInterval = setInterval(async () => {
-                      // Reuse the same polling logic
-                      try {
-                        const newStatusResponse = await fetch(`/api/creator/lectures/upload?jobId=${uploadId}`)
-                        if (!newStatusResponse.ok) return
 
-                        const newStatusResult = await newStatusResponse.json()
-                        if (newStatusResult.success) {
-                          const { status, progress, error } = newStatusResult.job
-                          updateUploadProgress(uploadId, progress)
+                  // Reset form
+                  setVideoForm({
+                    title: "",
+                    description: "",
+                    isPreview: false,
+                    file: null,
+                  })
 
-                          if (status === "completed") {
-                            updateUploadStatus(uploadId, "completed")
-                            clearInterval(newInterval)
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = ""
+                  }
 
-                            // Reset form and redirect
-                            setVideoForm({
-                              title: "",
-                              description: "",
-                              isPreview: false,
-                              file: null,
-                            })
+                  // Redirect to course page
+                  router.push(`/dashboard/creator/content/${selectedCourse}`)
+                } else if (status === "failed") {
+                  updateUploadStatus(uploadId, "failed", error)
+                  clearInterval(pollInterval)
+                  setLoading(false)
+                } else if (status === "processing") {
+                  // If we're in the processing stage, we can reduce polling frequency
+                  // This is especially useful during the YouTube upload which can take a while
+                  if (progress > 20 && progress < 80) {
+                    // During the main upload phase, poll less frequently
+                    clearInterval(pollInterval)
+                    setTimeout(() => {
+                      // Resume polling after 30 seconds
+                      const newInterval = setInterval(async () => {
+                        // Reuse the same polling logic
+                        try {
+                          const newStatusResponse = await fetch(`/api/creator/lectures/upload?jobId=${uploadId}`)
+                          if (!newStatusResponse.ok) return
 
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = ""
+                          const newStatusResult = await newStatusResponse.json()
+                          if (newStatusResult.success) {
+                            const { status, progress, error } = newStatusResult.job
+                            updateUploadProgress(uploadId, progress)
+
+                            if (status === "completed") {
+                              updateUploadStatus(uploadId, "completed")
+                              clearInterval(newInterval)
+
+                              // Reset form and redirect
+                              setVideoForm({
+                                title: "",
+                                description: "",
+                                isPreview: false,
+                                file: null,
+                              })
+
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = ""
+                              }
+
+                              router.push(`/dashboard/creator/content/${selectedCourse}`)
+                            } else if (status === "failed") {
+                              updateUploadStatus(uploadId, "failed", error)
+                              clearInterval(newInterval)
+                              setLoading(false)
                             }
-
-                            router.push(`/dashboard/creator/content/${selectedCourse}`)
-                          } else if (status === "failed") {
-                            updateUploadStatus(uploadId, "failed", error)
-                            clearInterval(newInterval)
-                            setLoading(false)
                           }
+                        } catch (error) {
+                          console.error("Error checking upload status:", error)
                         }
-                      } catch (error) {
-                        console.error("Error checking upload status:", error)
-                      }
-                    }, 50000) // Poll every 50 seconds during the main upload phase
-                  }, 50000)
+                      }, 50000) // Poll every 50 seconds during the main upload phase
+                    }, 50000)
+                  }
                 }
               }
+            } catch (error) {
+              console.error("Error checking upload status:", error)
+              // Don't update status here, just log the error and continue polling
             }
-          } catch (error) {
-            console.error("Error checking upload status:", error)
-            // Don't update status here, just log the error and continue polling
-          }
-        }, 30000) // Poll every 30 seconds initially
+          }, 30000) // Poll every 30 seconds initially
 
+          toast({
+            title: "Upload Started",
+            description: "Your video is being uploaded in the background. You can continue working while it uploads.",
+          })
+
+          setLoading(false)
+        } else {
+          throw new Error(result.error || "Failed to upload video")
+        }
+      } catch (error) {
         toast({
-          title: "Upload Started",
-          description: "Your video is being uploaded in the background. You can continue working while it uploads.",
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to upload video",
+          variant: "destructive",
         })
-
         setLoading(false)
-      } else {
-        throw new Error(result.error || "Failed to upload video")
+        setUploadProgress(0)
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to upload video",
-        variant: "destructive",
-      })
+    } else {
+      // For Odysee, we don't do anything here as the OdyseeVideoUploader component handles the upload
       setLoading(false)
-      setUploadProgress(0)
     }
   }
 
@@ -711,23 +773,80 @@ export default function UploadContent() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="videoFile">
-                        Video File <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="videoFile"
-                        ref={fileInputRef}
-                        type="file"
-                        accept="video/*"
-                        onChange={handleFileChange}
-                        disabled={loading}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Supported formats: MP4, MOV, AVI, etc. 
-                        <span className="font-medium text-green-600 dark:text-green-400"> Video size should be less than 2GB</span>
-                      </p>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Video Source</Label>
+                        <div className="flex mt-2 space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="sourceYoutube"
+                              name="videoSource"
+                              className="form-radio h-4 w-4 text-primary focus:ring-primary"
+                              checked={videoSource === "youtube"}
+                              onChange={() => setVideoSource("youtube")}
+                            />
+                            <Label htmlFor="sourceYoutube" className="cursor-pointer">Upload to YouTube</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="sourceOdysee"
+                              name="videoSource"
+                              className="form-radio h-4 w-4 text-primary focus:ring-primary"
+                              checked={videoSource === "odysee"}
+                              onChange={() => setVideoSource("odysee")}
+                            />
+                            <Label htmlFor="sourceOdysee" className="cursor-pointer">Odysee Video URL</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="sourceWasabi"
+                              name="videoSource"
+                              className="form-radio h-4 w-4 text-primary focus:ring-primary"
+                              checked={videoSource === "wasabi"}
+                              onChange={() => setVideoSource("wasabi")}
+                            />
+                            <Label htmlFor="sourceWasabi" className="cursor-pointer flex items-center">
+                              <Cloud className="h-4 w-4 mr-1" /> Secure Storage
+                              <span className="ml-1 p-1 bg-green-100 text-green-800 text-xs rounded-md flex items-center">
+                                <ShieldCheck className="h-3 w-3 mr-0.5" /> Encrypted
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {(videoSource === "youtube" || videoSource === "wasabi") && (
+                        <div className="space-y-2">
+                          <Label htmlFor="videoFile">
+                            Video File <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="videoFile"
+                            ref={fileInputRef}
+                            type="file"
+                            accept="video/*"
+                            onChange={handleFileChange}
+                            disabled={loading}
+                            required={videoSource === "youtube" || videoSource === "wasabi"}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {videoSource === "wasabi" ? (
+                              <>
+                                Supported formats: MP4, MOV, AVI, etc. 
+                                <span className="font-medium text-green-600 dark:text-green-400"> Videos will be encrypted and stored securely. Up to 10GB supported.</span>
+                              </>
+                            ) : (
+                              <>
+                                Supported formats: MP4, MOV, AVI, etc. 
+                                <span className="font-medium text-green-600 dark:text-green-400"> Video size should be less than 2GB</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -737,11 +856,11 @@ export default function UploadContent() {
                         onCheckedChange={handleVideoPreviewToggle}
                         disabled={loading}
                       />
-                      <Label htmlFor="videoIsPreview">Make this video available as a preview</Label>
-                    </div>
-
-                    {/* Show the YouTube direct uploader when a file is selected */}
-                    {videoForm.file && (
+                      <Label htmlFor="videoIsPreview">
+                        Make this video available as a preview
+                      </Label>
+                    </div>                      {/* Show the YouTube direct uploader when a file is selected */}
+                    {videoForm.file && videoSource === "youtube" && (
                       <YouTubeDirectUploader
                         sectionId={selectedSection}
                         title={videoForm.title}
@@ -756,6 +875,34 @@ export default function UploadContent() {
                             description: "",
                             isPreview: false,
                             file: null,
+                            odyseeUrl: "",
+                          });
+                          
+                          // Clear the file input field
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                      />
+                    )}
+                    
+                    {/* Show the Wasabi video uploader when a file is selected */}
+                    {videoForm.file && videoSource === "wasabi" && (
+                      <BackgroundWasabiUploader
+                        sectionId={selectedSection}
+                        title={videoForm.title}
+                        description={videoForm.description}
+                        isPreview={videoForm.isPreview}
+                        file={videoForm.file}
+                        enableEncryption={true}
+                        onUploadComplete={(lectureId, fileKey) => {
+                          // Reset form - this will hide the uploader component
+                          setVideoForm({
+                            title: "",
+                            description: "",
+                            isPreview: false,
+                            file: null,
+                            odyseeUrl: "",
                           });
                           
                           // Clear the file input field
@@ -763,27 +910,76 @@ export default function UploadContent() {
                             fileInputRef.current.value = "";
                           }
                           
-                          // Show success message
-                          toast({
-                            title: "Upload Complete",
-                            description: "Your video has been added to the course section!",
-                            variant: "default",
-                          });
-                          
-                          // Redirect to course page after a brief delay
-                          setTimeout(() => {
-                            router.push(`/dashboard/creator/content/${selectedCourse}`);
-                          }, 1500);
-                        }}
-                        onUploadError={(error) => {
-                          toast({
-                            title: "Upload Failed",
-                            description: error.message,
-                            variant: "destructive",
-                          });
+                          // Set loading to false to ensure UI is reset
+                          setLoading(false);
                           setUploadProgress(0);
+                          
+                          toast({
+                            title: "Upload Started in Background",
+                            description: "Your video is now uploading in the background. You can monitor progress in the upload manager.",
+                          });
                         }}
                       />
+                    )}
+                    
+                    {/* Show Odysee uploader for Odysee source */}
+                    {videoSource === "odysee" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="odyseeUrl">Odysee Video URL<span className="text-destructive">*</span></Label>
+                          <Input
+                            id="odyseeUrl"
+                            name="odyseeUrl"
+                            placeholder="Paste Odysee video URL here..."
+                            value={videoForm.odyseeUrl}
+                            onChange={handleVideoFormChange}
+                            disabled={loading}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="flex justify-end">
+                          <Button 
+                            type="submit" 
+                            disabled={
+                              loading || 
+                              !selectedSection || 
+                              !videoForm.title.trim() ||
+                              !videoForm.odyseeUrl.trim()
+                            }
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Add Odysee Video
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        
+                        <OdyseeVideoUploader
+                          sectionId={selectedSection}
+                          title={videoForm.title}
+                          description={videoForm.description}
+                          isPreview={videoForm.isPreview}
+                          initialUrl={videoForm.odyseeUrl}
+                          onUploadComplete={() => {
+                            // Reset form
+                            setVideoForm({
+                              title: "",
+                              description: "",
+                              isPreview: false,
+                              file: null,
+                              odyseeUrl: "",
+                            });
+                          }}
+                        />
+                      </div>
                     )}
 
                     {uploadProgress > 0 && !videoForm.file && (
@@ -801,9 +997,18 @@ export default function UploadContent() {
                       </div>
                     )}
 
-                    {!videoForm.file && (
+                    {!videoForm.file && videoSource !== "odysee" && (
                       <div className="flex justify-end">
-                        <Button type="submit" disabled={loading || !selectedSection || !youtubeConnected}>
+                        <Button 
+                          type="submit" 
+                          disabled={
+                            loading || 
+                            !selectedSection || 
+                            !videoForm.title.trim() ||
+                            (videoSource === "youtube" && !youtubeConnected) ||
+                            (videoSource === "wasabi" && !videoForm.file)
+                          }
+                        >
                           {loading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -812,7 +1017,7 @@ export default function UploadContent() {
                           ) : (
                             <>
                               <Upload className="mr-2 h-4 w-4" />
-                              Upload Video
+                              {videoSource === "wasabi" ? "Select Video to Upload" : "Upload Video"}
                             </>
                           )}
                         </Button>

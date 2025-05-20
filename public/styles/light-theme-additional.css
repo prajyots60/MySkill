@@ -1,0 +1,82 @@
+/* Additional light theme fixes */
+
+/* Fix neon text effect for light mode */
+:root.light .neon-text {
+  background: linear-gradient(to right, #4f46e5, #9333ea);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  text-shadow: none !important;
+}
+
+/* Improve glass effects in light mode */
+:root.light .glass p,
+:root.light .glass span {
+  color: rgba(30, 41, 59, 0.9);
+}
+
+/* Improve background for the wave animation section */
+:root.light .wave-animation {
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0) 0%, rgba(244, 247, 254, 0.5) 100%);
+}
+
+/* Ensure proper contrast for banner stats */
+:root.light section.bg-gradient-to-r.from-indigo-600.to-purple-600 .glass {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+:root.light section.bg-gradient-to-r.from-indigo-600.to-purple-600 .glass span {
+  color: white;
+}
+
+/* Fix the category cards background in light mode */
+:root.light .glass-dark {
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+/* Ensure feature card descriptions are readable */
+:root.light .card-description {
+  color: rgba(15, 23, 42, 0.7);
+}
+
+/* Override for the animated gradient dark in light mode */
+:root.light .animated-gradient-dark {
+  opacity: 0.03 !important;
+  background: linear-gradient(-45deg, #f1f5f9, #f8fafc, #f1f5f9, #f8fafc) !important;
+}
+
+/* Fix for the main hero section */
+:root.light section.relative.py-20.overflow-hidden {
+  background-color: rgba(249, 250, 251, 0.8);
+}
+
+/* Fix checkmarks in feature cards */
+:root.light .text-green-500 {
+  color: #22c55e !important;
+}
+
+/* Fix background section colors */
+:root.light section.py-20.px-4.md\:px-6.bg-muted\/20 {
+  background-color: rgba(245, 247, 250, 0.7) !important;
+}
+
+/* Fix premium card border colors on hover */
+:root.light .premium-card:hover {
+  border-color: rgba(79, 70, 229, 0.3) !important;
+}
+
+/* Fix floating elements color */
+:root.light .float,
+:root.light .float-slow,
+:root.light .float-fast {
+  opacity: 0.3;
+}
+
+/* Improve readability of text in light mode */
+:root.light .text-muted-foreground {
+  color: rgba(15, 23, 42, 0.7) !important;
+}

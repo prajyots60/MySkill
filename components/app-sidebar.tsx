@@ -22,6 +22,7 @@ import {
   GraduationCap,
   FileQuestion,
   BarChart,
+  X,
 } from "lucide-react"
 import {
   Sidebar,
@@ -53,7 +54,7 @@ export function AppSidebar() {
   const { data: session, status } = useSession()
   const userRole = (session?.user?.role as UserRole) || "STUDENT"
   const isAuthenticated = status === "authenticated"
-  const { state } = useSidebar()
+  const { state, openMobile, setOpenMobile, isMobile } = useSidebar()
   const [isMounted, setIsMounted] = useState(false)
 
   // Use our YouTube store
@@ -70,6 +71,32 @@ export function AppSidebar() {
       checkConnectionStatus()
     }
   }, [isAuthenticated, userRole, checkConnectionStatus])
+
+  // Enhanced mobile sidebar toggle
+  useEffect(() => {
+    // Make sure we have the isMobile value from context
+    if (typeof isMobile === 'undefined') return;
+    
+    // Apply additional classes to the body when the mobile sidebar is open
+    if (isMobile && openMobile) {
+      document.body.classList.add('mobile-sidebar-open');
+    } else {
+      document.body.classList.remove('mobile-sidebar-open');
+    }
+    
+    // Close the sidebar when navigating to a new page on mobile
+    const handleRouteChange = () => {
+      if (isMobile && openMobile) {
+        setOpenMobile(false);
+      }
+    };
+    
+    window.addEventListener('popstate', handleRouteChange);
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      document.body.classList.remove('mobile-sidebar-open');
+    };
+  }, [isMobile, openMobile, setOpenMobile]);
 
   // Strict path matching to ensure only current page is highlighted
   const isActive = (path: string) => {
@@ -89,7 +116,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="sidebar-modern">
       <SidebarHeader className="flex flex-col gap-0.5 py-1.5">
-        <div className="flex items-center justify-center px-1.5">
+        <div className="flex items-center justify-between px-1.5">
           <PrefetchableLink 
             href={isAuthenticated ? getDefaultDashboardPath(userRole) : "/"} 
             className="flex items-center gap-1"
@@ -99,6 +126,19 @@ export function AppSidebar() {
             <Video className="h-4 w-4 text-primary shrink-0" />
             <span className="font-semibold text-[13px] text-primary group-data-[collapsible=icon]:hidden">EduTube</span>
           </PrefetchableLink>
+          
+          {/* Mobile close button - only visible on mobile */}
+          {isMounted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setOpenMobile(false)}
+              className="md:hidden p-1 h-7 w-7"
+              aria-label="Close sidebar"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-0.5">
@@ -166,104 +206,106 @@ export function AppSidebar() {
 
         {isAuthenticated && (
           <>
-            {/* Student Dashboard - only for students */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[11px] px-1">Learning</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/explore")}
-                      tooltip="Explore"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <Link href="/explore" prefetch={true} scroll={false}>
-                        <Library className="h-4 w-4" />
-                        <span className="text-[13px]">Explore</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/dashboard/student")}
-                      tooltip="Dashboard"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <PrefetchableLink 
-                        href="/dashboard/student"
-                        instantHoverLoad={true}
-                        prefetchOnMount={true}
+            {/* Student Dashboard - only for students and admins */}
+            {(userRole === "STUDENT" || userRole === "ADMIN") && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-[11px] px-1">Learning</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/explore")}
+                        tooltip="Explore"
+                        className="group-data-[collapsible=icon]:justify-center"
                       >
-                        <LayoutDashboard className="h-4 w-4" />
-                        <span className="text-[13px]">Dashboard</span>
-                      </PrefetchableLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                        <Link href="/explore" prefetch={true} scroll={false}>
+                          <Library className="h-4 w-4" />
+                          <span className="text-[13px]">Explore</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/dashboard/student/my-courses")}
-                      tooltip="My Courses"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <Link href="/dashboard/student/my-courses" prefetch={true} scroll={false}>
-                        <BookOpen className="h-4 w-4" />
-                        <span className="text-[13px]">My Courses</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student")}
+                        tooltip="Dashboard"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <PrefetchableLink 
+                          href="/dashboard/student"
+                          instantHoverLoad={true}
+                          prefetchOnMount={true}
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span className="text-[13px]">Dashboard</span>
+                        </PrefetchableLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/dashboard/student/saved")}
-                      tooltip="Saved"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <Link href="/dashboard/student/saved" prefetch={true} scroll={false}>
-                        <Bookmark className="h-4 w-4" />
-                        <span className="text-[13px]">Saved</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student/my-courses")}
+                        tooltip="My Courses"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <Link href="/dashboard/student/my-courses" prefetch={true} scroll={false}>
+                          <BookOpen className="h-4 w-4" />
+                          <span className="text-[13px]">My Courses</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/dashboard/student/calendar")}
-                      tooltip="Calendar"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <Link href="/dashboard/student/calendar" prefetch={true} scroll={false}>
-                        <Calendar className="h-4 w-4" />
-                        <span className="text-[13px]">Calendar</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student/saved")}
+                        tooltip="Saved"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <Link href="/dashboard/student/saved" prefetch={true} scroll={false}>
+                          <Bookmark className="h-4 w-4" />
+                          <span className="text-[13px]">Saved</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive("/dashboard/student/exams")}
-                      tooltip="Exams"
-                      className="group-data-[collapsible=icon]:justify-center"
-                    >
-                      <Link href="/dashboard/student/exams" prefetch={true} scroll={false}>
-                        <FileQuestion className="h-4 w-4" />
-                        <span className="text-[13px]">Exams</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student/calendar")}
+                        tooltip="Calendar"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <Link href="/dashboard/student/calendar" prefetch={true} scroll={false}>
+                          <Calendar className="h-4 w-4" />
+                          <span className="text-[13px]">Calendar</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-            {/* Add separator before Creator Tools */}
-            {(userRole === "CREATOR" || userRole === "ADMIN") && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student/exams")}
+                        tooltip="Exams"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <Link href="/dashboard/student/exams" prefetch={true} scroll={false}>
+                          <FileQuestion className="h-4 w-4" />
+                          <span className="text-[13px]">Exams</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* Add separator before Creator Tools for admins who see both sections */}
+            {userRole === "ADMIN" && (
               <SidebarSeparator className="my-2" />
             )}
 

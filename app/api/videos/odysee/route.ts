@@ -7,8 +7,10 @@ import {
   isValidOdyseeUrl, 
   resolveOdyseeShortlink, 
   extractVideoIdFromShortlink,
-  getEmbedUrlFromShortlink
+  getEmbedUrlFromShortlink,
+  getOdyseeDirectUrl
 } from '@/lib/odysee-helpers';
+import { OdyseeVideoMetadata, OdyseeStreamData } from '@/types/odysee';
 
 // POST endpoint to save Odysee video information
 export async function POST(req: Request) {
@@ -21,7 +23,17 @@ export async function POST(req: Request) {
 
     // Get request data
     const body = await req.json();
-    const { url: originalUrl, title, description, sectionId, isPreview = false } = body;
+    const { 
+      url: originalUrl, 
+      title, 
+      description, 
+      sectionId, 
+      isPreview = false,
+      directUrl,           // Add support for direct URL parameter
+      embedUrl,            // Add support for embed URL parameter
+      thumbnailUrl,        // Add support for thumbnail URL
+      duration             // Add support for video duration
+    } = body;
 
     if (!originalUrl) {
       return NextResponse.json({ error: 'No video URL provided' }, { status: 400 });
@@ -52,7 +64,10 @@ export async function POST(req: Request) {
               title,
               description,
               sectionId,
-              isPreview
+              isPreview,
+              directUrl,  // Pass directly provided directUrl parameter
+              thumbnailUrl, // Pass thumbnail URL
+              duration      // Pass duration
             );
           }
         }
@@ -78,7 +93,10 @@ export async function POST(req: Request) {
               title,
               description,
               sectionId,
-              isPreview
+              isPreview,
+              directUrl, // Pass directly provided directUrl parameter
+              thumbnailUrl, // Pass thumbnail URL
+              duration      // Pass duration
             );
           }
         }
@@ -106,7 +124,10 @@ export async function POST(req: Request) {
       title,
       description,
       sectionId,
-      isPreview
+      isPreview,
+      directUrl, // Pass directly provided directUrl parameter
+      thumbnailUrl, // Pass thumbnail URL
+      duration      // Pass duration
     );
   } catch (error) {
     console.error('Error saving Odysee video:', error);
@@ -126,8 +147,13 @@ async function createOdyseeVideo(
   title?: string,
   description?: string,
   sectionId?: string,
-  isPreview: boolean = false
+  isPreview: boolean = false,
+  providedDirectUrl?: string,
+  thumbnailUrl?: string,
+  duration?: number
 ) {
+  let nextOrder = 0; // Default order value
+  
   // Check if section exists and user has access to it
   if (sectionId) {
     const section = await prisma.section.findUnique({
@@ -135,9 +161,18 @@ async function createOdyseeVideo(
         id: sectionId
       },
       include: {
-        course: {
+        content: {
           select: {
-            userId: true
+            creatorId: true
+          }
+        },
+        lectures: {
+          orderBy: {
+            order: 'desc'
+          },
+          take: 1,
+          select: {
+            order: true
           }
         }
       }
@@ -148,10 +183,18 @@ async function createOdyseeVideo(
     }
 
     // Verify the user owns the course
-    if (section.course.userId !== userId) {
+    if (section.content.creatorId !== userId) {
       return NextResponse.json({ error: 'You do not have permission to add videos to this section' }, { status: 403 });
     }
+    
+    // Calculate next order number
+    nextOrder = section.lectures.length > 0 && section.lectures[0]
+      ? section.lectures[0].order + 1 
+      : 0;
   }
+
+  // Get the direct URL for the video (prioritize provided direct URL, then signatures, then resolved URL)
+  const directUrl = providedDirectUrl || (originalUrl.includes('signature=') ? originalUrl : (resolvedUrl || originalUrl));
 
   // Create or update lecture with Odysee video information
   const lecture = await prisma.lecture.create({
@@ -159,29 +202,27 @@ async function createOdyseeVideo(
       title: title || `Odysee Video: ${parsedData.claimName}`,
       description: description || '',
       type: 'VIDEO',
+      videoSource: 'ODYSEE',
+      claimId: parsedData.claimId,
+      claimName: parsedData.claimName,
       isPreview,
+      order: nextOrder,
+      duration: duration, // Include the duration if provided
+      // Store the direct URL and thumbnail in the streamData JSON field
+      streamData: {
+        originalUrl: originalUrl,
+        embedUrl: parsedData.embedUrl,
+        directUrl: directUrl,
+        // Include additional metadata that might be useful
+        isUnlisted: originalUrl.includes('signature='),
+        thumbnailUrl: thumbnailUrl || null, // Store the thumbnail URL
+        title: title || `Odysee Video: ${parsedData.claimName}`
+      },
       section: sectionId ? {
         connect: {
           id: sectionId
         }
-      } : undefined,
-      video: {
-        create: {
-          provider: 'ODYSEE',
-          providerId: parsedData.claimId,
-          providerData: {
-            claimName: parsedData.claimName,
-            embedUrl: parsedData.embedUrl,
-            originalUrl: originalUrl, // Store the original URL (may be a shortlink)
-            resolvedUrl: resolvedUrl || undefined // Store the resolved URL if available
-          },
-          url: parsedData.embedUrl,
-          title: title || `Odysee Video: ${parsedData.claimName}`,
-          description: description || '',
-          duration: 0, // Unknown from URL alone
-          thumbnail: null // Could be fetched separately if needed
-        }
-      }
+      } : undefined
     }
   });
 
@@ -191,13 +232,10 @@ async function createOdyseeVideo(
       id: lecture.id,
       title: lecture.title,
       type: lecture.type,
-      video: {
-        id: lecture.id,
-        provider: 'ODYSEE',
-        providerId: parsedData.claimId,
-        url: parsedData.embedUrl,
-        embedUrl: parsedData.embedUrl
-      }
+      claimId: lecture.claimId,
+      claimName: lecture.claimName,
+      videoSource: lecture.videoSource,
+      streamData: lecture.streamData
     }
   });
 }
@@ -233,6 +271,7 @@ export async function GET(req: Request) {
               metadata: {
                 originalUrl,
                 resolvedUrl,
+                directUrl: resolvedUrl, // Add the direct URL
                 claimId: parsedData.claimId,
                 claimName: parsedData.claimName,
                 embedUrl: parsedData.embedUrl
@@ -251,6 +290,7 @@ export async function GET(req: Request) {
               metadata: {
                 originalUrl,
                 resolvedUrl: null,
+                directUrl: originalUrl, // Use original URL as direct URL
                 claimId: videoId,
                 claimName: videoId,
                 embedUrl,
@@ -277,6 +317,7 @@ export async function GET(req: Request) {
       success: true,
       metadata: {
         originalUrl,
+        directUrl: originalUrl, // Include the direct URL
         claimId: parsedData.claimId,
         claimName: parsedData.claimName,
         embedUrl: parsedData.embedUrl

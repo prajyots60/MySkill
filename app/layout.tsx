@@ -1,5 +1,5 @@
-import type React from "react"
 import type { Metadata } from "next"
+import React from "react"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -7,9 +7,15 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/components/auth-provider"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileNavigationProgress } from "@/components/mobile-navigation-progress"
+import { SidebarTouchHandler } from "@/components/sidebar-touch-handler"
+import { MobileNavHint } from "@/components/mobile-nav-hint"
 import { ReactQueryProvider } from "@/lib/react-query/provider"
 import { PerformanceOptimizedLayout } from "@/components/performance-optimized-layout"
 import { NavigationOptimizer } from "@/components/navigation-optimizer"
+import { UploadManagerProvider } from "@/components/upload-manager-provider"
+import { UserRoleHandler } from "@/components/user-role-handler"
 import Script from "next/script"
 
 const inter = Inter({
@@ -53,6 +59,18 @@ export default function RootLayout({
 
         {/* Preload critical assets */}
         <link rel="preload" href="/logo.png" as="image" />
+        
+        {/* Premium animations stylesheet */}
+        <link rel="stylesheet" href="/styles/premium-animations.css" />
+        
+        {/* Light theme fixes stylesheet */}
+        <link rel="stylesheet" href="/styles/light-theme-fixes.css" />
+        <link rel="stylesheet" href="/styles/light-theme-additional.css" />
+        
+        {/* Mobile sidebar styles */}
+        <link rel="stylesheet" href="/styles/mobile-sidebar.css" />
+        <link rel="stylesheet" href="/styles/mobile-content.css" />
+        <link rel="stylesheet" href="/styles/navbar-fix.css" />
 
         {/* Web App Manifest for PWA */}
         <link rel="manifest" href="/manifest.json" />
@@ -63,20 +81,37 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ReactQueryProvider>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-            <AuthProvider>
-              <SidebarProvider>
-                <div className="flex min-h-screen w-full overflow-hidden">
-                  <AppSidebar />
-                  <main className="flex-1 overflow-auto relative">
-                    <PerformanceOptimizedLayout>
-                      <NavigationOptimizer>
-                        {children}
-                      </NavigationOptimizer>
-                    </PerformanceOptimizedLayout>
-                  </main>
-                </div>
-                <Toaster />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <AuthProvider>                <SidebarProvider>
+                <UserRoleHandler />
+                <SidebarTouchHandler>
+                  <div className="flex min-h-screen w-full overflow-hidden">
+                    <AppSidebar />
+                    <main className="flex-1 overflow-auto relative">
+                      <MobileNavigationProgress />
+                      <MobileNavigation />
+                      <MobileNavHint />
+                      <PerformanceOptimizedLayout>
+                        <NavigationOptimizer>
+                          <UploadManagerProvider>
+                          {/* Dynamic import of mobile sidebar toggle to avoid hydration issues */}
+                          {typeof window !== 'undefined' && (
+                            <React.Suspense fallback={null}>
+                              {/* @ts-ignore - Dynamic import */}
+                              {(() => {
+                                const MobileSidebarToggle = require('@/components/mobile-sidebar-toggle').MobileSidebarToggle;
+                                return <MobileSidebarToggle />;
+                              })()}
+                            </React.Suspense>
+                          )}
+                          {children}
+                          </UploadManagerProvider>
+                        </NavigationOptimizer>
+                      </PerformanceOptimizedLayout>
+                    </main>
+                  </div>
+                  <Toaster />
+                </SidebarTouchHandler>
               </SidebarProvider>
             </AuthProvider>
           </ThemeProvider>

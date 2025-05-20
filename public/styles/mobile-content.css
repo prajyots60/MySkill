@@ -1,0 +1,305 @@
+/* Mobile Content Styling */
+
+/* Define RGB values for colors for use in rgba() */
+:root {
+  --primary-rgb: 132, 94, 247; /* Purple color in RGB format */
+  --muted-rgb: 215, 215, 220; /* Light gray for muted elements */
+  --foreground-rgb: 10, 10, 10; /* Near black for text */
+}
+
+:root.dark {
+  --primary-rgb: 147, 112, 252; /* Slightly lighter purple for dark mode */
+  --muted-rgb: 65, 65, 75; /* Darker gray for muted elements */
+  --foreground-rgb: 245, 245, 245; /* Near white for text */
+}
+
+/* This class controls how the main content shifts when the mobile sidebar is open */
+@media (max-width: 768px) {
+  .mobile-content-shifted {
+    transform: translateX(16px);
+    opacity: 0.85;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+    pointer-events: none; /* Prevent interactions with the content when sidebar is open */
+  }
+  
+  /* Fix for backdrop to block content when sidebar is open */
+  .mobile-content-shifted::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 40;
+  }
+  
+  /* Hide the mobile sidebar toggle when sidebar is open */
+  .mobile-content-shifted .mobile-sidebar-toggle {
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  /* Add smooth transition for sidebar toggling */
+  main {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* Add bottom spacing for mobile navigation bar */
+  main {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0));
+  }
+
+  /* Mobile bottom navigation bar styling */
+  .fixed.bottom-0.z-50[role="navigation"] {
+    /* Add support for iOS safe area insets */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Create a solid background fill without any blur */
+    background-color: var(--background);
+    backdrop-filter: none;
+  }
+
+  /* Enhanced container for mobile navigation */
+  .mobile-nav-container {
+    /* Add container shadow to make navigation stand out */
+    filter: drop-shadow(0 -2px 5px rgba(0, 0, 0, 0.15));
+  }
+
+  /* Light mode enhancement */
+  :root:not([class~="dark"]) .mobile-nav-container {
+    filter: drop-shadow(0 -2px 10px rgba(0, 0, 0, 0.2));
+  }
+
+  /* Removed gradient overlay that was causing blur effect */
+
+  /* Bottom navigation container */
+  .fixed.bottom-0.z-50[role="navigation"] nav {
+    /* Solid background effect for navigation bar with enhanced opacity for light mode */
+    background-color: var(--background);
+    background-color: hsl(var(--background) / 0.95); /* Slightly transparent in dark mode */
+    /* Hardware acceleration for smoother animations */
+    transform: translateZ(0);
+    will-change: transform;
+    /* Border and shadow */
+    border-top: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.15);
+    position: relative;
+  }
+  
+  /* Add stronger border for light mode */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav {
+    background-color: hsl(0, 0%, 100%); /* Pure white in light mode */
+    background-image: linear-gradient(180deg, 
+      rgba(248, 248, 252, 1) 0%, 
+      rgba(255, 255, 255, 1) 100%
+    );
+    border-top: 2px solid rgba(228, 228, 231, 1); /* Solid border */
+  }
+  
+  /* Light mode - completely solid background to ensure visibility over images */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav {
+    background-color: hsl(var(--background) / 1); /* Completely opaque in light mode */
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.1), 0 -1px 4px rgba(0, 0, 0, 0.15);
+    backdrop-filter: none; /* No need for blur with solid background */
+    border-top-width: 2px; /* Slightly thicker top border */
+  }
+
+  /* Add more pronounced top border highlight */
+  .fixed.bottom-0.z-50[role="navigation"] nav::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(to right, 
+      hsl(var(--primary) / 0.6),
+      hsl(var(--primary) / 0.2) 50%,
+      hsl(var(--primary) / 0.6) 100%
+    );
+    z-index: 1;
+  }
+  
+  /* Light mode - stronger border highlight */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav::before {
+    background: linear-gradient(to right, 
+      hsl(var(--primary) / 0.7),
+      hsl(var(--primary) / 0.3) 50%,
+      hsl(var(--primary) / 0.7) 100%
+    );
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Dark mode adjustment */
+  :root[class~="dark"] .fixed.bottom-0.z-50[role="navigation"] nav {
+    background-color: hsl(var(--background) / 1); /* Force 100% opacity */
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+
+  /* Creator styling for navbar */
+  .fixed.bottom-0.z-50.creator-nav-theme nav {
+    background-color: hsl(var(--background) / 0.98); 
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(130, 87, 229, 0.2);
+    border-top-color: rgba(130, 87, 229, 0.4);
+  }
+
+  /* Dark mode creator styling */
+  :root[class~="dark"] .fixed.bottom-0.z-50.creator-nav-theme nav {
+    background-color: hsl(var(--background) / 0.98);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(130, 87, 229, 0.2);
+    border-top-color: rgba(130, 87, 229, 0.4);
+  }
+
+  /* Menu button styling */
+  .fixed.bottom-0.z-50[role="navigation"] nav button {
+    position: relative;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    border-radius: 0;
+    flex: 0.8;
+  }
+  
+  /* Light mode menu button enhanced styling */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav button {
+    background-color: rgba(var(--muted-rgb), 0.3);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav button:hover {
+    background-color: rgba(var(--muted-rgb), 0.5);
+  }
+
+  .fixed.bottom-0.z-50[role="navigation"] nav button:active {
+    transform: scale(0.95);
+    background-color: hsl(var(--secondary) / 0.5);
+  }
+
+  /* Navigation items */
+  .fixed.bottom-0.z-50[role="navigation"] nav a {
+    position: relative;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.2s ease;
+  }
+  
+  /* Touch feedback */
+  .fixed.bottom-0.z-50[role="navigation"] nav a:active {
+    transform: scale(0.95);
+  }
+
+  /* Icon transitions */
+  .fixed.bottom-0.z-50[role="navigation"] nav a svg {
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+  
+  /* Active state glow effect with increased contrast */
+  .fixed.bottom-0.z-50[role="navigation"] nav a.text-primary svg {
+    filter: drop-shadow(0 0 4px var(--primary));
+  }
+  
+  /* Light mode text and icon enhancements for better visibility */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a {
+    font-weight: 600;
+    color: hsl(var(--foreground) / 0.95); /* Darker text in light mode */
+  }
+  
+  /* Even stronger text for active items in light mode */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a.text-primary {
+    color: hsl(var(--primary) / 1) !important; /* Full opacity for active items */
+    font-weight: 700;
+  }
+  
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a svg {
+    /* Enhanced shadow around icons in light mode for better contrast against images */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  }
+  
+  /* Additional high contrast enhancements */
+  .fixed.bottom-0.z-50[role="navigation"] nav a.text-primary {
+    text-shadow: 0 0 1px rgba(var(--primary-rgb), 0.3);
+  }
+  
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a.text-primary svg {
+    /* Stronger glow for active icons in light mode */
+    filter: drop-shadow(0 0 4px var(--primary));
+  }
+  
+  /* Enhance the contrast for text */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a span:not([class~="absolute"]) {
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
+  }
+
+  /* Creator mode styling */
+  .fixed.bottom-0.z-50.creator-nav-theme nav::before {
+    background: linear-gradient(to right, 
+      hsl(215, 100%, 50%) 0%,
+      hsl(250, 100%, 60%) 50%,
+      hsl(280, 100%, 50%) 100%
+    );
+  }
+
+  .fixed.bottom-0.z-50.creator-nav-theme .creator-menu-button {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  /* Dark mode creator menu button */
+  :root[class~="dark"] .fixed.bottom-0.z-50.creator-nav-theme .creator-menu-button {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Active indicator animation */
+  .fixed.bottom-0.z-50[role="navigation"] nav a span.absolute.bottom-0 {
+    animation: pulseWidth 2s infinite;
+  }
+
+  /* Animation for the navigation progress indicator */
+  @keyframes slide-right {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0); }
+    100% { transform: translateX(300%); }
+  }
+
+  .animate-slide-right {
+    animation: slide-right 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulseWidth {
+    0%, 100% { width: 1.5rem; opacity: 1; }
+    50% { width: 1rem; opacity: 0.7; }
+  }
+  
+  /* Enhanced active navigation item styling for light mode */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a.nav-item-active {
+    box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.5);
+    position: relative;
+    z-index: 2;
+    background-color: rgba(var(--primary-rgb), 0.15); /* Stronger background */
+  }
+  
+  /* Add subtle background pattern for active items in light mode */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a.nav-item-active::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      circle at center,
+      rgba(var(--primary-rgb), 0.2) 1px,
+      transparent 1px
+    );
+    background-size: 10px 10px;
+    opacity: 0.7;
+    z-index: -1;
+  }
+  
+  /* Active item indicator - more visible in light mode */
+  :root:not([class~="dark"]) .fixed.bottom-0.z-50[role="navigation"] nav a.nav-item-active .absolute.bottom-0 {
+    height: 2px; /* Thicker indicator */
+    background-color: hsl(var(--primary) / 1);
+    box-shadow: 0 0 6px 1px rgba(var(--primary-rgb), 0.5);
+  }
+}

@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from "react"
 import { SecureVideoPlayer } from "@/components/secure-video-player"
 import { PlyrComponent } from "@/components/plyr-component"
+import { OdyseeLecturePlayer } from "@/components/odysee-lecture-player"
+import WasabiLecturePlayer from "@/components/wasabi-lecture-player"
 import { Maximize2, Minimize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -16,6 +18,12 @@ interface VideoPlayerProps {
   isCompleted?: boolean
   onComplete?: () => void
   onProgress?: (progress: number) => void
+  videoSource?: 'YOUTUBE' | 'ODYSEE' | 'WASABI'
+  claimId?: string  // For Odysee videos
+  claimName?: string  // For Odysee videos
+  streamData?: any  // Additional Odysee stream data
+  isEncrypted?: boolean  // For Wasabi encrypted videos
+  encryptionKey?: string  // Encryption key for Wasabi videos
 }
 
 // Direct CSS styles for the video player
@@ -124,6 +132,12 @@ function VideoPlayer({
   isCompleted,
   onComplete,
   onProgress,
+  videoSource,
+  claimId,
+  claimName,
+  streamData,
+  isEncrypted,
+  encryptionKey
 }: VideoPlayerProps) {
   const [isClient, setIsClient] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -157,7 +171,8 @@ function VideoPlayer({
 
   useEffect(() => {
     console.log("[VideoPlayer] Rendering with courseId:", courseId)
-  }, [courseId])
+    console.log("[VideoPlayer] Video type:", videoSource, "VideoId:", videoId, "ClaimId:", claimId)
+  }, [courseId, videoSource, videoId, claimId])
 
   // Add custom CSS for video positioning
   useEffect(() => {
@@ -448,31 +463,73 @@ function VideoPlayer({
     )
   }
 
-  // Use secure player for course content
-  if (lectureId) {
-    const position = isFullscreen ? buttonPositions.fullscreen : buttonPositions.normal;
-    
+  // Common fullscreen button position
+  const position = isFullscreen ? buttonPositions.fullscreen : buttonPositions.normal;
+
+  // Full screen button component
+  const FullscreenButton = () => (
+    <Button 
+      ref={fullscreenButtonRef}
+      onClick={toggleCustomFullscreen}
+      className={`absolute p-3 rounded-lg shadow-lg z-${position.zIndex}`}
+      style={{ 
+        top: `${position.top}px`, 
+        right: `${position.right}px`,
+        backgroundColor: position.backgroundColor
+      }}
+      size="sm"
+      variant="ghost"
+    >
+      {isFullscreen ? 
+        <Minimize2 size={position.size} className={position.iconColor} /> : 
+        <Maximize2 size={position.size} className={position.iconColor} />
+      }
+    </Button>
+  );
+
+  // Handle Odysee videos
+  if (videoSource === 'ODYSEE' && claimId) {
+    console.log("[VideoPlayer] Rendering Odysee player with claim ID:", claimId);
     return (
       <div ref={playerContainerRef} className="relative video-container w-full">
-        {/* Fullscreen button with dynamic positioning */}
-        <Button 
-          ref={fullscreenButtonRef}
-          onClick={toggleCustomFullscreen}
-          className={`absolute p-3 rounded-lg shadow-lg z-${position.zIndex}`}
-          style={{ 
-            top: `${position.top}px`, 
-            right: `${position.right}px`,
-            backgroundColor: position.backgroundColor
-          }}
-          size="sm"
-          variant="ghost"
-        >
-          {isFullscreen ? 
-            <Minimize2 size={position.size} className={position.iconColor} /> : 
-            <Maximize2 size={position.size} className={position.iconColor} />
-          }
-        </Button>
-        
+        <FullscreenButton />
+        <OdyseeLecturePlayer
+          lectureId={lectureId}
+          title={title}
+          claimId={claimId}
+          claimName={claimName || ""}
+          streamData={streamData}
+          onComplete={onComplete}
+          onError={(error) => console.error("Odysee player error:", error)}
+        />
+      </div>
+    )
+  }
+
+  // Handle Wasabi videos
+  if (videoSource === 'WASABI' && videoId) {
+    console.log("[VideoPlayer] Rendering Wasabi player with video ID:", videoId);
+    return (
+      <div ref={playerContainerRef} className="relative video-container w-full">
+        <FullscreenButton />
+        <WasabiLecturePlayer
+          videoId={videoId}
+          title={title}
+          isEncrypted={isEncrypted}
+          className="w-full h-full"
+          autoplay={false}
+          onProgress={onProgress}
+          onComplete={onComplete}
+        />
+      </div>
+    )
+  }
+
+  // Use secure player for course content with YouTube videos
+  if (lectureId) {
+    return (
+      <div ref={playerContainerRef} className="relative video-container w-full">
+        <FullscreenButton />
         <SecureVideoPlayer
           lectureId={lectureId}
           title={title}

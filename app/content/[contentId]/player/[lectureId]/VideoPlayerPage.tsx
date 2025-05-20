@@ -834,6 +834,10 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                     lectureId={currentLecture.id}
                     title={currentLecture.title}
                     videoId={currentLecture.videoId || ""}
+                    videoSource={currentLecture.videoSource}
+                    claimId={currentLecture.claimId}
+                    claimName={currentLecture.claimName}
+                    streamData={currentLecture.streamData}
                     onComplete={handleVideoComplete}
                     onProgress={handleVideoProgress}
                     isCompleted={completedLectures[currentLecture.id] || false}

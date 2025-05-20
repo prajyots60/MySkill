@@ -123,10 +123,28 @@ export function LectureCard({
     }
   }
 
-  // Get YouTube thumbnail URL
+  // Get thumbnail URL based on video source
   const getThumbnailUrl = () => {
-    if (!lecture.videoId) return null
-    return `https://img.youtube.com/vi/${lecture.videoId}/mqdefault.jpg`
+    // For YouTube videos, use the standard YouTube thumbnail URL
+    if (lecture.videoSource === 'YOUTUBE' && lecture.videoId) {
+      return `https://img.youtube.com/vi/${lecture.videoId}/mqdefault.jpg`;
+    }
+    
+    // For Odysee videos
+    if (lecture.videoSource === 'ODYSEE' && lecture.claimId) {
+      // Try to get thumbnail from streamData if available
+      if (lecture.streamData && typeof lecture.streamData === 'object') {
+        if ('thumbnailUrl' in lecture.streamData && lecture.streamData.thumbnailUrl) {
+          return lecture.streamData.thumbnailUrl as string;
+        }
+      }
+      
+      // Fallback to a generic thumbnail for Odysee videos
+      return "/images/odysee-thumbnail-placeholder.svg";
+    }
+    
+    // Default case: no thumbnail available
+    return null;
   }
 
   const thumbnailUrl = getThumbnailUrl()

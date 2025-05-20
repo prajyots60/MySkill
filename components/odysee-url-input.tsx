@@ -10,20 +10,13 @@ import {
   extractVideoIdFromShortlink,
   getEmbedUrlFromShortlink,
   isDirectEmbedMarker,
-  parseDirectEmbedMarker
+  parseDirectEmbedMarker,
+  fetchOdyseeThumbnail
 } from '@/lib/odysee-helpers';
 import { useToast } from '@/hooks/use-toast';
 import { OdyseePlyr } from './odysee-plyr';
-import { Loader2 } from 'lucide-react';
-
-interface OdyseeVideoMetadata {
-  url: string;
-  claimId: string;
-  claimName: string;
-  embedUrl: string;
-  title?: string;
-  isDirectEmbed?: boolean;
-}
+import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { OdyseeVideoMetadata } from '@/types/odysee';
 
 interface OdyseeUrlInputProps {
   onVideoAdded: (metadata: OdyseeVideoMetadata) => void;
@@ -84,12 +77,15 @@ export function OdyseeUrlInput({
         
         setIsValid(true);
         setResolvedUrl(url);
+        
+        // For unlisted videos, we usually can't get thumbnails, so use a default one
         setMetadata({
           url,
           claimId,
           claimName,
           embedUrl: url, // Use the full embed URL with signature
-          title: 'Unlisted Odysee Video'
+          title: 'Unlisted Odysee Video',
+          thumbnailUrl: '/images/default-video-thumbnail.jpg'
         });
         
         // Auto-show preview for unlisted videos
@@ -114,13 +110,42 @@ export function OdyseeUrlInput({
       if (parsed) {
         setIsValid(true);
         setResolvedUrl(url);
-        setMetadata({
+        
+        // Create initial metadata
+        const initialMetadata = {
           url,
           claimId: parsed.claimId,
           claimName: parsed.claimName,
           embedUrl: parsed.embedUrl,
           title: 'Odysee Video'
-        });
+        };
+        
+        setMetadata(initialMetadata);
+        
+        // Fetch thumbnail and additional metadata
+        const fetchThumbnail = async () => {
+          try {
+            const thumbnailData = await fetchOdyseeThumbnail({
+              claimId: parsed.claimId,
+              url
+            });
+            
+            if (isMounted && thumbnailData.success) {
+              // Update metadata with thumbnail and additional info
+              setMetadata(prevMetadata => ({
+                ...prevMetadata!,
+                thumbnailUrl: thumbnailData.thumbnailUrl,
+                title: thumbnailData.title || prevMetadata?.title || 'Odysee Video',
+                description: thumbnailData.description,
+                duration: thumbnailData.duration
+              }));
+            }
+          } catch (error) {
+            console.error('Error fetching thumbnail:', error);
+          }
+        };
+        
+        fetchThumbnail();
         
         // Auto-show preview for standard URLs
         if (showPreview) {
@@ -152,14 +177,44 @@ export function OdyseeUrlInput({
               setUsedDirectEmbed(true);
               setIsValid(true);
               setResolvedUrl(null);
-              setMetadata({
+              
+              // Create initial metadata
+              const initialMetadata = {
                 url,
                 claimId: embedInfo.videoId,
                 claimName: embedInfo.videoId,
                 embedUrl: embedInfo.embedUrl,
                 title: 'Odysee Video',
                 isDirectEmbed: true
-              });
+              };
+              
+              setMetadata(initialMetadata);
+              
+              // Try to fetch thumbnail for direct embed
+              const fetchThumbnail = async () => {
+                try {
+                  const thumbnailData = await fetchOdyseeThumbnail({
+                    claimId: embedInfo.videoId,
+                    url: embedInfo.embedUrl
+                  });
+                  
+                  if (isMounted && thumbnailData.success) {
+                    // Update metadata with thumbnail and additional info
+                    setMetadata(prevMetadata => ({
+                      ...prevMetadata!,
+                      thumbnailUrl: thumbnailData.thumbnailUrl,
+                      title: thumbnailData.title || prevMetadata?.title || 'Odysee Video',
+                      description: thumbnailData.description,
+                      duration: thumbnailData.duration
+                    }));
+                  }
+                } catch (error) {
+                  console.error('Error fetching thumbnail:', error);
+                }
+              };
+              
+              fetchThumbnail();
+              
               setIsValidating(false);
               
               // Auto-show preview once resolved
@@ -179,13 +234,42 @@ export function OdyseeUrlInput({
             const parsed = parseOdyseeUrl(resolved);
             if (parsed) {
               setIsValid(true);
-              setMetadata({
+              
+              // Create initial metadata
+              const initialMetadata = {
                 url: resolved, // Use the resolved URL
                 claimId: parsed.claimId,
                 claimName: parsed.claimName,
                 embedUrl: parsed.embedUrl,
                 title: 'Odysee Video'
-              });
+              };
+              
+              setMetadata(initialMetadata);
+              
+              // Fetch thumbnail for resolved URL
+              const fetchThumbnail = async () => {
+                try {
+                  const thumbnailData = await fetchOdyseeThumbnail({
+                    claimId: parsed.claimId,
+                    url: resolved
+                  });
+                  
+                  if (isMounted && thumbnailData.success) {
+                    // Update metadata with thumbnail and additional info
+                    setMetadata(prevMetadata => ({
+                      ...prevMetadata!,
+                      thumbnailUrl: thumbnailData.thumbnailUrl,
+                      title: thumbnailData.title || prevMetadata?.title || 'Odysee Video',
+                      description: thumbnailData.description,
+                      duration: thumbnailData.duration
+                    }));
+                  }
+                } catch (error) {
+                  console.error('Error fetching thumbnail:', error);
+                }
+              };
+              
+              fetchThumbnail();
               
               // Resolution succeeded
               setIsValidating(false);
@@ -238,14 +322,43 @@ export function OdyseeUrlInput({
             if (embedUrl) {
               setUsedDirectEmbed(true);
               setIsValid(true);
-              setMetadata({
+              
+              // Create initial metadata
+              const initialMetadata = {
                 url,
                 claimId: videoId,
                 claimName: videoId,
                 embedUrl,
                 title: 'Odysee Video',
                 isDirectEmbed: true
-              });
+              };
+              
+              setMetadata(initialMetadata);
+              
+              // Try to fetch thumbnail for direct embed
+              const fetchThumbnail = async () => {
+                try {
+                  const thumbnailData = await fetchOdyseeThumbnail({
+                    claimId: videoId,
+                    url: embedUrl
+                  });
+                  
+                  if (isMounted && thumbnailData.success) {
+                    // Update metadata with thumbnail and additional info
+                    setMetadata(prevMetadata => ({
+                      ...prevMetadata!,
+                      thumbnailUrl: thumbnailData.thumbnailUrl,
+                      title: thumbnailData.title || prevMetadata?.title || 'Odysee Video',
+                      description: thumbnailData.description,
+                      duration: thumbnailData.duration
+                    }));
+                  }
+                } catch (error) {
+                  console.error('Error fetching thumbnail:', error);
+                }
+              };
+              
+              fetchThumbnail();
               
               // Mark as valid with direct embed
               setIsValidating(false);
@@ -385,48 +498,113 @@ export function OdyseeUrlInput({
         </p>
       )}
 
-      {showPreview && showPlayer && metadata && (
+      {showPreview && metadata && (
         <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Video Preview</h3>
-          <div className="border border-gray-200 rounded-lg overflow-hidden relative">
+          <h3 className="text-sm font-medium mb-2">
+            {metadata.title || 'Video Preview'}
+            {metadata.duration && (
+              <span className="ml-2 text-xs text-gray-500">
+                {Math.floor(metadata.duration / 60)}:{(metadata.duration % 60).toString().padStart(2, '0')}
+              </span>
+            )}
+          </h3>
+          
+          {/* Thumbnail display before player loads */}
+          {metadata.thumbnailUrl && !showPlayer && (
             <div 
-              className="aspect-ratio-container" 
-              style={{ 
-                position: 'relative', 
-                paddingBottom: '56.25%',
-                height: 0, 
-                overflow: 'hidden',
-                maxWidth: '100%' 
-              }}
+              className="border border-gray-200 rounded-lg overflow-hidden relative cursor-pointer"
+              onClick={() => setShowPlayer(true)}
             >
-              <iframe
-                src={`${metadata.embedUrl}${metadata.embedUrl.includes('?') ? '&' : '?'}controls=true`}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  border: 'none'
-                }}
-                allowFullScreen
-                title="Odysee Preview"
-              />
-              {/* Overlay to prevent any clicks */}
               <div 
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  zIndex: 10,
-                  background: 'transparent',
-                  cursor: 'not-allowed'
+                className="aspect-ratio-container" 
+                style={{ 
+                  position: 'relative', 
+                  paddingBottom: '56.25%',
+                  height: 0, 
+                  overflow: 'hidden',
+                  maxWidth: '100%' 
                 }}
-              />
+              >
+                <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
+                  <div className="absolute inset-0">
+                    <img 
+                      src={metadata.thumbnailUrl} 
+                      alt={metadata.title || 'Video thumbnail'} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center">
+                      <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center">
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="24" 
+                          height="24" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="text-black"
+                        >
+                          <polygon points="6 3 20 12 6 21 6 3" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
+                <p className="text-sm font-medium truncate">{metadata.title || 'Odysee Video'}</p>
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Video player */}
+          {showPlayer && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden relative">
+              <div 
+                className="aspect-ratio-container" 
+                style={{ 
+                  position: 'relative', 
+                  paddingBottom: '56.25%',
+                  height: 0, 
+                  overflow: 'hidden',
+                  maxWidth: '100%' 
+                }}
+              >
+                <iframe
+                  src={`${metadata.embedUrl}${metadata.embedUrl.includes('?') ? '&' : '?'}controls=true`}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    border: 'none'
+                  }}
+                  allowFullScreen
+                  title="Odysee Preview"
+                />
+                {/* Overlay to prevent any clicks */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    display: 'none' // Hide by default, set to 'block' if you want to block interaction
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+          
+          {metadata.description && (
+            <p className="mt-2 text-sm text-gray-600 line-clamp-2">{metadata.description}</p>
+          )}
         </div>
       )}
     </div>

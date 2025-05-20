@@ -1,0 +1,10 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">
+  <rect width="480" height="360" fill="#121212"/>
+  <g transform="translate(190, 130)">
+    <path d="M50,0 L50,100 L0,50 Z" fill="#FF671D"/>
+    <path d="M0,0 L0,100 L50,50 Z" fill="#FF671D"/>
+  </g>
+  <text x="240" y="260" font-family="Arial, sans-serif" font-size="18" fill="#FFFFFF" text-anchor="middle">Odysee Video</text>
+</svg>
+

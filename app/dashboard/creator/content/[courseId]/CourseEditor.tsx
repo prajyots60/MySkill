@@ -295,7 +295,6 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
     handleAddSection,
     handleDeleteSection,
     handleEditSection,
-    handleAddLecture,
     handleDeleteLecture,
     handleUploadDocument,
     handleDeleteDocument,
@@ -448,6 +447,15 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
     [sections],
   )
 
+  // Function to redirect to upload page with course and section info
+  const redirectToUploadWithSection = useCallback(
+    (sectionId: string) => {
+      router.push(`/dashboard/creator/content/upload?courseId=${courseId}&sectionId=${sectionId}`);
+      setAddingLectureToSectionId(null);  // Close the dialog when redirecting
+    },
+    [courseId, router, setAddingLectureToSectionId]
+  );
+
   // Memoize sections to prevent unnecessary re-renders
   const memoizedSections = useMemo(() => sections, [sections])
 
@@ -596,7 +604,7 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                       section={section}
                       showEditControls={true}
                       courseId={courseId}
-                      onAddLecture={(sectionId) => setAddingLectureToSectionId(sectionId)}
+                      onAddLecture={redirectToUploadWithSection}
                       onEditLecture={handleEditLectureClick}
                       onDeleteSection={handleDeleteSectionClick}
                       onEditSection={handleEditSection}
@@ -1013,55 +1021,30 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Lecture</DialogTitle>
-            <DialogDescription>Add a placeholder lecture that you can upload content to later</DialogDescription>
+            <DialogDescription>Upload content for this new lecture</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="lectureTitle">
-                Lecture Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lectureTitle"
-                value={newLectureTitle}
-                onChange={(e) => setNewLectureTitle(e.target.value)}
-                placeholder="e.g., Introduction to HTML"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lectureDescription">Description (Optional)</Label>
-              <Textarea
-                id="lectureDescription"
-                value={newLectureDescription}
-                onChange={(e) => setNewLectureDescription(e.target.value)}
-                placeholder="Briefly describe what this lecture covers"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch id="lectureIsPreview" checked={newLectureIsPreview} onCheckedChange={setNewLectureIsPreview} />
-              <Label htmlFor="lectureIsPreview">Make this lecture available as a preview</Label>
-            </div>
-            <div className="bg-muted p-4 rounded-md">
-              <div className="flex items-center gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  This will create a placeholder lecture. To add video content, use the Upload Content button.
-                </p>
-              </div>
+            <div className="grid grid-cols-1 gap-4">
+              <Button 
+                onClick={() => {
+                  if (addingLectureToSectionId) {
+                    redirectToUploadWithSection(addingLectureToSectionId);
+                    // Dialog will be closed by the redirectToUploadWithSection function
+                  }
+                }}
+                className="flex items-center justify-center gap-2 h-20"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                <div className="text-left">
+                  <div className="font-medium">Upload Content</div>
+                  <div className="text-xs text-muted-foreground">Upload video or other content for this lecture</div>
+                </div>
+              </Button>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddingLectureToSectionId(null)}>
               Cancel
-            </Button>
-            <Button onClick={handleAddLecture} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Lecture"
-              )}
             </Button>
           </DialogFooter>
         </DialogContent>

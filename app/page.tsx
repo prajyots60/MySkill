@@ -1,85 +1,161 @@
+
+
+
+
+
+
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, BookOpen, Lightbulb, Video, Check, Award, Users, TrendingUp, BarChart, Zap } from "lucide-react"
 import Link from "next/link"
 import { HeroSection } from "@/components/hero-section"
-import { FeaturedCourses } from "@/components/featured-courses"
-import { TopCreators } from "@/components/top-creators"
 import { LearningStreak } from "@/components/learning-streak"
+import { AnimatedHeading } from "@/components/animated-heading"
+import { AnimatedButton } from "@/components/animated-button"
+import { AnimatedSection } from "@/components/animated-section"
+import { FeatureCard3D } from "@/components/feature-card-3d"
+import { PremiumCard } from "@/components/premium-card"
+import { ClientParticleWrapper } from "@/components/client-particle-wrapper"
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <HeroSection />
-
-      {/* Stats Banner */}
-      <section className="py-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="flex flex-col items-center">
-              <span className="text-3xl md:text-4xl font-bold">10K+</span>
-              <span className="text-sm md:text-base opacity-90">Active Students</span>
+    <div className="flex flex-col min-h-screen relative overflow-x-hidden">
+      {/* Particle background for the entire page */}
+      <ClientParticleWrapper color="#6366f1" quantity={70} speed={0.5} />
+      
+      <div className="animated-gradient-dark w-full absolute h-full top-0 left-0 z-[-1] opacity-50" />
+      
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="container mx-auto px-4 relative z-10">
+          <AnimatedSection animation="fade-up">
+            <h1 className="text-5xl md:text-6xl font-bold text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text mb-6 neon-text">
+              Transform Your Learning Journey
+            </h1>
+            <p className="text-xl text-center text-muted-foreground max-w-2xl mx-auto mb-10">
+              Join thousands of students and instructors on the premium educational platform 
+              powered by YouTube integration for seamless learning experiences.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto">
+              <AnimatedButton variant="premium" size="lg" asChild>
+                <Link href="/explore">
+                  Explore Courses <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </AnimatedButton>
+              <AnimatedButton variant="outline" size="lg" asChild>
+                <Link href="/auth/signin">
+                  Get Started
+                </Link>
+              </AnimatedButton>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl md:text-4xl font-bold">500+</span>
-              <span className="text-sm md:text-base opacity-90">Courses</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl md:text-4xl font-bold">250+</span>
-              <span className="text-sm md:text-base opacity-90">Instructors</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl md:text-4xl font-bold">4.8</span>
-              <span className="text-sm md:text-base opacity-90">Average Rating</span>
-            </div>
-          </div>
+          </AnimatedSection>
+            
+          {/* Floating elements */}
+          <div className="absolute top-10 left-10 w-20 h-20 rounded-full bg-indigo-500/20 blur-2xl float"></div>
+          <div className="absolute bottom-10 right-10 w-32 h-32 rounded-full bg-purple-500/20 blur-2xl float-slow"></div>
+          <div className="absolute top-1/2 right-1/4 w-16 h-16 rounded-full bg-blue-500/20 blur-2xl float-fast"></div>
+        </div>
+        
+        {/* Wave animation */}
+        <div className="wave-animation">
+          <div className="wave"></div>
+          <div className="wave"></div>
+          <div className="wave"></div>
         </div>
       </section>
 
-      {/* Category Cards */}
-      <section className="py-12 px-4 md:px-6">
-        <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Explore Top Categories</h2>
-          <p className="text-center text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Discover the perfect course from our diverse range of categories tailored to your learning needs
-          </p>
+      {/* Stats Banner */}
+      <section className="py-10 bg-gradient-to-r from-indigo-600 to-purple-600 text-white relative overflow-hidden">
+        <div className="absolute inset-0 dot-pattern opacity-10"></div>
+        
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center relative z-10">
+            <AnimatedSection animation="fade-up" delay={0.1} className="glass p-6 rounded-xl flex flex-col items-center">
+              <span className="text-4xl md:text-5xl font-bold mb-2 neon-text">10K+</span>
+              <span className="text-sm md:text-base opacity-90">Active Students</span>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.2} className="glass p-6 rounded-xl flex flex-col items-center">
+              <span className="text-4xl md:text-5xl font-bold mb-2 neon-text">500+</span>
+              <span className="text-sm md:text-base opacity-90">Courses</span>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.3} className="glass p-6 rounded-xl flex flex-col items-center">
+              <span className="text-4xl md:text-5xl font-bold mb-2 neon-text">250+</span>
+              <span className="text-sm md:text-base opacity-90">Instructors</span>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.4} className="glass p-6 rounded-xl flex flex-col items-center">
+              <span className="text-4xl md:text-5xl font-bold mb-2 neon-text">4.8</span>
+              <span className="text-sm md:text-base opacity-90">Average Rating</span>
+            </AnimatedSection>
+          </div>
+        </div>
+        
+        {/* Animated gradient overlay */}
+        <div className="absolute inset-0 shimmer"></div>
+      </section>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Category Cards */}
+      <section className="py-20 px-4 md:px-6 relative">
+        <div className="container mx-auto">
+          <AnimatedHeading 
+            title="Explore Top Categories" 
+            subtitle="Discover the perfect course from our diverse range of categories tailored to your learning needs"
+            highlight={true}
+            animationType="slide"
+          />
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mt-16">
             {[
-              { icon: <BookOpen className="h-8 w-8 mb-2" />, name: "Development", count: 120 },
-              { icon: <BarChart className="h-8 w-8 mb-2" />, name: "Business", count: 85 },
-              { icon: <Zap className="h-8 w-8 mb-2" />, name: "IT & Software", count: 75 },
-              { icon: <Award className="h-8 w-8 mb-2" />, name: "Design", count: 65 },
-              { icon: <TrendingUp className="h-8 w-8 mb-2" />, name: "Marketing", count: 55 },
-              { icon: <Users className="h-8 w-8 mb-2" />, name: "Lifestyle", count: 45 },
+              { icon: <BookOpen className="h-10 w-10 mb-2" />, name: "Development", count: 120, color: "indigo" },
+              { icon: <BarChart className="h-10 w-10 mb-2" />, name: "Business", count: 85, color: "blue" },
+              { icon: <Zap className="h-10 w-10 mb-2" />, name: "IT & Software", count: 75, color: "cyan" },
+              { icon: <Award className="h-10 w-10 mb-2" />, name: "Design", count: 65, color: "purple" },
+              { icon: <TrendingUp className="h-10 w-10 mb-2" />, name: "Marketing", count: 55, color: "pink" },
+              { icon: <Users className="h-10 w-10 mb-2" />, name: "Lifestyle", count: 45, color: "violet" },
             ].map((category, index) => (
-              <Link href={`/explore?category=${category.name.toLowerCase()}`} key={index}>
-                <div className="bg-card hover:bg-accent transition-colors rounded-lg p-4 text-center h-full flex flex-col items-center justify-center cursor-pointer border border-border hover:border-primary/50">
-                  {category.icon}
-                  <h3 className="font-medium">{category.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{category.count} courses</p>
-                </div>
-              </Link>
+              <AnimatedSection key={index} animation="fade-up" delay={index * 0.1} className="h-full">
+                <PremiumCard 
+                  className="h-full glass-dark hover:border-indigo-500/50 border-transparent" 
+                  hoverEffect="tilt"
+                  glowColor={`rgba(var(--${category.color}-500), 0.4)`}
+                >
+                  <Link href={`/explore?category=${category.name.toLowerCase()}`} className="block p-6 h-full">
+                    <div className="flex flex-col items-center justify-center text-center h-full">
+                      <div className="transition-transform duration-300 hover:scale-110" style={{ color: `var(--${category.color}-500, #6366f1)` }}>
+                        {category.icon}
+                      </div>
+                      <h3 className="font-medium mt-2">{category.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">{category.count} courses</p>
+                    </div>
+                  </Link>
+                </PremiumCard>
+              </AnimatedSection>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-12 px-4 md:px-6 bg-muted/50">
+      <section className="py-20 px-4 md:px-6 bg-muted/20 relative overflow-hidden">
+        <div className="absolute inset-0 dot-pattern opacity-5"></div>
         <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">How Our Platform Works</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            A seamless experience for both creators and learners with our innovative educational platform
-          </p>
+          <AnimatedHeading 
+            title="How Our Platform Works" 
+            subtitle="A seamless experience for both creators and learners with our innovative educational platform"
+            highlight={true}
+            animationType="slide"
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="border-t-4 border-t-indigo-500 shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <Video className="h-12 w-12 text-indigo-500 mb-2" />
-                <CardTitle>Create & Upload</CardTitle>
-                <CardDescription>Upload your videos or go live directly from our platform</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+            <AnimatedSection animation="fade-up" delay={0.1}>
+              <FeatureCard3D
+                icon={<Video className="h-12 w-12" />}
+                title="Create & Upload"
+                description="Upload your videos or go live directly from our platform"
+                borderColor="indigo-500"
+              >
                 <p>
                   Our platform handles all the technical details. Your content is securely stored on YouTube but fully
                   managed through our interface.
@@ -98,16 +174,16 @@ export default function Home() {
                     <span>HD video streaming</span>
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+              </FeatureCard3D>
+            </AnimatedSection>
 
-            <Card className="border-t-4 border-t-purple-500 shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <BookOpen className="h-12 w-12 text-purple-500 mb-2" />
-                <CardTitle>Organize & Structure</CardTitle>
-                <CardDescription>Create sections, add lectures, and upload supplementary materials</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <AnimatedSection animation="fade-up" delay={0.2}>
+              <FeatureCard3D
+                icon={<BookOpen className="h-12 w-12" />}
+                title="Organize & Structure"
+                description="Create sections, add lectures, and upload supplementary materials"
+                borderColor="purple-500"
+              >
                 <p>
                   Organize your content into a structured learning experience with sections, lectures, and additional
                   resources.
@@ -126,16 +202,16 @@ export default function Home() {
                     <span>Resource management</span>
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+              </FeatureCard3D>
+            </AnimatedSection>
 
-            <Card className="border-t-4 border-t-blue-500 shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <Lightbulb className="h-12 w-12 text-blue-500 mb-2" />
-                <CardTitle>Share & Grow</CardTitle>
-                <CardDescription>Share your courses and build your audience</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <AnimatedSection animation="fade-up" delay={0.3}>
+              <FeatureCard3D
+                icon={<Lightbulb className="h-12 w-12" />}
+                title="Share & Grow"
+                description="Share your courses and build your audience"
+                borderColor="blue-500"
+              >
                 <p>
                   Easily share your courses with students. Track engagement and grow your audience with our built-in
                   tools.
@@ -154,143 +230,103 @@ export default function Home() {
                     <span>Revenue tracking</span>
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+              </FeatureCard3D>
+            </AnimatedSection>
           </div>
         </div>
       </section>
-
-      <FeaturedCourses />
 
       {/* Learning Streak Section */}
       <LearningStreak />
 
-      {/* Testimonials */}
-      <section className="py-16 px-4 md:px-6 bg-gradient-to-b from-white to-slate-50 dark:from-slate-950 dark:to-slate-900">
-        <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">What Our Users Say</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Join thousands of satisfied students and instructors who are transforming the way they learn and teach
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Sarah Johnson",
-                role: "Web Development Student",
-                avatar: "/placeholder-user.jpg",
-                content:
-                  "This platform has completely transformed how I learn coding. The courses are structured perfectly and the ability to interact with instructors makes all the difference.",
-                rating: 5,
-              },
-              {
-                name: "Michael Chen",
-                role: "Data Science Instructor",
-                avatar: "/placeholder-user.jpg",
-                content:
-                  "As an instructor, I've tried many platforms, but none compare to the tools and support offered here. My audience has grown significantly in just a few months.",
-                rating: 5,
-              },
-              {
-                name: "Priya Patel",
-                role: "Marketing Professional",
-                avatar: "/placeholder-user.jpg",
-                content:
-                  "The quality of courses here is unmatched. I've learned more in 3 months than I did in a year of traditional learning. Highly recommend for professionals looking to upskill.",
-                rating: 4,
-              },
-            ].map((testimonial, i) => (
-              <Card key={i} className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden">
-                      <img
-                        src={testimonial.avatar}
-                        alt={testimonial.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{testimonial.name}</CardTitle>
-                      <CardDescription>{testimonial.role}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex mb-4">
-                    {Array(5)
-                      .fill(0)
-                      .map((_, index) => (
-                        <svg
-                          key={index}
-                          className={`w-5 h-5 ${
-                            index < testimonial.rating ? "text-yellow-400" : "text-gray-300"
-                          }`}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                  </div>
-                  <p className="text-sm italic">"{testimonial.content}"</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Popular Instructors */}
-      <TopCreators />
-
-      <section className="py-16 px-4 md:px-6 bg-primary text-primary-foreground">
+      <section className="py-20 px-4 md:px-6 bg-gradient-to-b from-indigo-900/20 to-purple-900/20 relative overflow-hidden">
+        <div className="absolute inset-0 dot-pattern opacity-5"></div>
         <div className="container mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Teaching?</h2>
-          <p className="max-w-2xl mx-auto mb-8 text-primary-foreground/90">
-            Join thousands of creators who are sharing their knowledge with the world. No technical skills required. 
-            No video hosting costs. Start teaching today and reach students globally.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto">
-            <Button asChild size="lg" variant="secondary" className="w-full">
-              <Link href="/auth/signin">
-                Start Teaching <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="w-full border-white text-white hover:bg-white/20">
-              <Link href="/explore">
-                Browse Courses
-              </Link>
-            </Button>
-          </div>
-          <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
-            <div className="flex flex-col items-center">
-              <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mb-3">
-                <Video className="h-8 w-8" />
-              </div>
-              <p>Unlimited Video Hosting</p>
+          <AnimatedSection animation="fade-up">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-indigo-400 to-purple-500 text-transparent bg-clip-text">Ready to Transform Your Teaching?</h2>
+            <p className="max-w-2xl mx-auto mb-8 text-muted-foreground">
+              Join thousands of creators who are sharing their knowledge with the world. No technical skills required. 
+              No video hosting costs. Start teaching today and reach students globally.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto">
+              <AnimatedButton variant="glow" size="lg" asChild>
+                <Link href="/auth/signin">
+                  Start Teaching <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </AnimatedButton>
+              <AnimatedButton variant="outline" size="lg" asChild>
+                <Link href="/explore">
+                  Browse Courses
+                </Link>
+              </AnimatedButton>
             </div>
-            <div className="flex flex-col items-center">
-              <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mb-3">
-                <Users className="h-8 w-8" />
+          </AnimatedSection>
+          
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+            <AnimatedSection animation="fade-up" delay={0.1} className="flex flex-col items-center">
+              <div className="bg-indigo-500/20 rounded-full w-16 h-16 flex items-center justify-center mb-3 ring-4 ring-indigo-500/10">
+                <Video className="h-8 w-8" style={{ color: 'var(--indigo-500, #6366f1)' }} />
               </div>
-              <p>Global Student Reach</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mb-3">
-                <TrendingUp className="h-8 w-8" />
+              <p className="text-muted-foreground">Unlimited Video Hosting</p>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.2} className="flex flex-col items-center">
+              <div className="bg-purple-500/20 rounded-full w-16 h-16 flex items-center justify-center mb-3 ring-4 ring-purple-500/10">
+                <Users className="h-8 w-8" style={{ color: 'var(--purple-500, #a855f7)' }} />
               </div>
-              <p>Growth Analytics</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mb-3">
-                <Award className="h-8 w-8" />
+              <p className="text-muted-foreground">Global Student Reach</p>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.3} className="flex flex-col items-center">
+              <div className="bg-blue-500/20 rounded-full w-16 h-16 flex items-center justify-center mb-3 ring-4 ring-blue-500/10">
+                <TrendingUp className="h-8 w-8" style={{ color: 'var(--blue-500, #3b82f6)' }} />
               </div>
-              <p>Creator Recognition</p>
-            </div>
+              <p className="text-muted-foreground">Growth Analytics</p>
+            </AnimatedSection>
+            
+            <AnimatedSection animation="fade-up" delay={0.4} className="flex flex-col items-center">
+              <div className="bg-violet-500/20 rounded-full w-16 h-16 flex items-center justify-center mb-3 ring-4 ring-violet-500/10">
+                <Award className="h-8 w-8" style={{ color: 'var(--violet-500, #8b5cf6)' }} />
+              </div>
+              <p className="text-muted-foreground">Creator Recognition</p>
+            </AnimatedSection>
           </div>
         </div>
       </section>
+      
+      {/* Add client-side script for scroll animations */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          document.addEventListener('DOMContentLoaded', function() {
+            const fadeElements = document.querySelectorAll('.fade-in-up');
+            const blurElements = document.querySelectorAll('.blur-load');
+            
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('active');
+                  observer.unobserve(entry.target);
+                }
+              });
+            }, { threshold: 0.1 });
+            
+            fadeElements.forEach(el => observer.observe(el));
+            blurElements.forEach(el => observer.observe(el));
+            
+            // Parallax effect
+            const parallaxElements = document.querySelectorAll('.parallax');
+            
+            window.addEventListener('scroll', () => {
+              const scrollY = window.scrollY;
+              
+              parallaxElements.forEach(el => {
+                const speed = el.dataset.speed || 0.2;
+                el.style.transform = \`translateY(\${scrollY * speed}px)\`;
+              });
+            });
+          });
+        `
+      }} />
     </div>
   )
 }

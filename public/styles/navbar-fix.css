@@ -1,0 +1,24 @@
+/* Creator Role-Based Navigation Fixes */
+
+/* Hide student elements for creators in mobile view */
+body[data-role="creator"] .mobile-nav-student-item {
+  display: none !important;
+}
+
+/* Hide creator elements for students in mobile view */
+body[data-role="student"] .mobile-nav-creator-item {
+  display: none !important;
+}
+
+/* Ensure proper navigation for creators */
+body[data-role="creator"] .student-link,
+body[data-role="creator"] .student-route {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Apply specific styling for creator tools */
+body[data-role="creator"] .creator-tools {
+  background-color: rgba(var(--primary-rgb), 0.05);
+  border-left: 2px solid rgba(var(--primary-rgb), 0.3);
+}

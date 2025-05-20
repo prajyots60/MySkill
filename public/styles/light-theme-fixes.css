@@ -1,0 +1,104 @@
+/* Light Theme Improvements */
+
+/* Adjust glass effects for light mode */
+:root.light .glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+:root.light .glass-dark {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Define color values for light/dark theme compatibility */
+:root {
+  --indigo-500: #6366f1;
+  --blue-500: #3b82f6;
+  --cyan-500: #06b6d4;
+  --purple-500: #a855f7;
+  --pink-500: #ec4899;
+  --violet-500: #8b5cf6;
+}
+
+:root.light {
+  --indigo-500: #4f46e5;
+  --blue-500: #2563eb;
+  --cyan-500: #0891b2;
+  --purple-500: #9333ea;
+  --pink-500: #db2777;
+  --violet-500: #7c3aed;
+}
+
+/* Adjust gradient backgrounds for light theme */
+:root.light .animated-gradient-dark {
+  background: linear-gradient(-45deg, #f8fafc, #f1f5f9, #f8fafc, #f1f5f9);
+}
+
+/* Improve text contrast in light mode */
+:root.light .neon-text {
+  text-shadow: none;
+  font-weight: 700;
+}
+
+/* Fix text colors in light theme */
+:root.light .text-muted-foreground {
+  color: rgba(15, 23, 42, 0.75);
+}
+
+/* Adjust shadow effects for cards in light mode */
+:root.light .premium-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+:root.light .premium-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+/* Fix dot patterns in light mode */
+:root.light .dot-pattern {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Shimmer effect for light mode */
+:root.light .shimmer {
+  background: linear-gradient(90deg, 
+    rgba(0, 0, 0, 0) 0%, 
+    rgba(0, 0, 0, 0.05) 25%, 
+    rgba(0, 0, 0, 0.05) 50%, 
+    rgba(0, 0, 0, 0) 100%);
+}
+
+/* Fix color for specific sections in light mode */
+:root.light section.bg-gradient-to-r.from-indigo-600.to-purple-600 {
+  color: white;
+}
+
+:root.light section.bg-gradient-to-b.from-indigo-900\/20.to-purple-900\/20 {
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+}
+
+/* Fix wave animation in light mode */
+:root.light .wave-animation .wave {
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0));
+  opacity: 0.5;
+}
+
+/* Fix banner in light mode */
+:root.light section.bg-gradient-to-r.from-indigo-600.to-purple-600 {
+  background: linear-gradient(to right, #4f46e5, #9333ea);
+}
+
+/* Adjust glow effects */
+:root.light .glow-blue,
+:root.light .glow-purple,
+:root.light .glow-teal {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
