@@ -834,7 +834,12 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                     lectureId={currentLecture.id}
                     title={currentLecture.title}
                     videoId={currentLecture.videoId || ""}
-                    videoSource={currentLecture.videoSource}
+                    videoSource={
+                      (currentLecture.videoSource === "YOUTUBE" || 
+                       currentLecture.videoSource === "ODYSEE") 
+                        ? currentLecture.videoSource 
+                        : undefined
+                    }
                     claimId={currentLecture.claimId}
                     claimName={currentLecture.claimName}
                     streamData={currentLecture.streamData}
