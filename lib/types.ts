@@ -91,7 +91,7 @@ export interface Lecture {
   order: number
   type: LectureType
   videoId?: string | null
-  videoSource?: 'YOUTUBE' | 'ODYSEE' | 'VIMEO' | null
+  videoSource?: 'YOUTUBE' | 'ODYSEE' | 'VIMEO' | 'WASABI' | null
   claimId?: string | null     // For Odysee videos
   claimName?: string | null   // For Odysee videos
   duration?: number | null
