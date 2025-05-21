@@ -27,7 +27,7 @@ import { useCourseStore } from "@/lib/store/course-store"
 import YouTubeDirectUploader from "@/components/youtube-direct-uploader"
 import { OdyseeVideoUploader } from "@/components/odysee-components"
 import WasabiVideoUploader from "@/components/wasabi-video-uploader"
-import { BackgroundWasabiUploader } from "@/components/background-wasabi-uploader"
+import { NextGenWasabiUploader } from "@/components/next-gen-wasabi-uploader"
 
 export default function UploadContent() {
   const router = useRouter()
@@ -809,9 +809,12 @@ export default function UploadContent() {
                               onChange={() => setVideoSource("wasabi")}
                             />
                             <Label htmlFor="sourceWasabi" className="cursor-pointer flex items-center">
-                              <Cloud className="h-4 w-4 mr-1" /> Secure Storage
+                              <Cloud className="h-4 w-4 mr-1" /> Advanced Secure Storage
                               <span className="ml-1 p-1 bg-green-100 text-green-800 text-xs rounded-md flex items-center">
-                                <ShieldCheck className="h-3 w-3 mr-0.5" /> Encrypted
+                                <ShieldCheck className="h-3 w-3 mr-0.5" /> Enhanced Encryption
+                              </span>
+                              <span className="ml-1 p-1 bg-blue-100 text-blue-800 text-xs rounded-md flex items-center">
+                                NEW
                               </span>
                             </Label>
                           </div>
@@ -836,7 +839,8 @@ export default function UploadContent() {
                             {videoSource === "wasabi" ? (
                               <>
                                 Supported formats: MP4, MOV, AVI, etc. 
-                                <span className="font-medium text-green-600 dark:text-green-400"> Videos will be encrypted and stored securely. Up to 10GB supported.</span>
+                                <span className="font-medium text-green-600 dark:text-green-400"> Videos use AES-GCM encryption with resumable uploads. </span>
+                                <span className="font-medium text-blue-600 dark:text-blue-400">Network-aware chunking & adaptive concurrency for large files up to 20GB.</span>
                               </>
                             ) : (
                               <>
@@ -886,9 +890,9 @@ export default function UploadContent() {
                       />
                     )}
                     
-                    {/* Show the Wasabi video uploader when a file is selected */}
+                    {/* Show the optimized NextGen Wasabi uploader when a file is selected */}
                     {videoForm.file && videoSource === "wasabi" && (
-                      <BackgroundWasabiUploader
+                      <NextGenWasabiUploader
                         sectionId={selectedSection}
                         title={videoForm.title}
                         description={videoForm.description}
@@ -915,9 +919,12 @@ export default function UploadContent() {
                           setUploadProgress(0);
                           
                           toast({
-                            title: "Upload Started in Background",
-                            description: "Your video is now uploading in the background. You can monitor progress in the upload manager.",
+                            title: "Optimized Upload Complete",
+                            description: "Your video has been uploaded with advanced encryption and optimized chunking.",
                           });
+                        }}
+                        onUploadProgress={(progress) => {
+                          setUploadProgress(progress);
                         }}
                       />
                     )}
@@ -1017,7 +1024,7 @@ export default function UploadContent() {
                           ) : (
                             <>
                               <Upload className="mr-2 h-4 w-4" />
-                              {videoSource === "wasabi" ? "Select Video to Upload" : "Upload Video"}
+                              {videoSource === "wasabi" ? "Select Video for Optimized Upload" : "Upload Video"}
                             </>
                           )}
                         </Button>
