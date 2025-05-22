@@ -22,7 +22,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import  VideoPlayer  from "@/components/video-player"
+import VideoPlayer from "@/components/video-player";
+import SampleVideoPlayer from '@/components/sample-video-player';
+import WasabiLecturePlayer from "@/components/wasabi-lecture-player"
 import { LectureComments } from "@/components/lecture-comments"
 import { LiveChat } from "@/components/live-chat"
 import { useToast } from "@/hooks/use-toast"
@@ -829,24 +831,32 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
             {hasAccess ? (
               <div className="w-full" style={{ position: 'relative' }}>
                 <div className="video-wrapper w-full h-full">
-                  <VideoPlayer
-                    courseId={contentId}
-                    lectureId={currentLecture.id}
-                    title={currentLecture.title}
-                    videoId={currentLecture.videoId || ""}
-                    videoSource={
-                      (currentLecture.videoSource === "YOUTUBE" || 
-                       currentLecture.videoSource === "ODYSEE") 
-                        ? currentLecture.videoSource 
-                        : undefined
-                    }
-                    claimId={currentLecture.claimId}
-                    claimName={currentLecture.claimName}
-                    streamData={currentLecture.streamData}
-                    onComplete={handleVideoComplete}
-                    onProgress={handleVideoProgress}
-                    isCompleted={completedLectures[currentLecture.id] || false}
-                  />
+                  {currentLecture.videoSource === "WASABI" ? (
+                    <WasabiLecturePlayer
+                      videoId={currentLecture.videoId || ""}
+                      title={currentLecture.title}
+                      isEncrypted={(currentLecture as any).secureMetadata?.isEncrypted}
+                      encryptionKey={(currentLecture as any).secureMetadata?.encryptionKey}
+                      className="w-full h-full"
+                      autoplay={false}
+                      onProgress={handleVideoProgress}
+                      onComplete={handleVideoComplete}
+                    />
+                  ) : (
+                    <VideoPlayer
+                      courseId={contentId}
+                      lectureId={currentLecture.id}
+                      title={currentLecture.title}
+                      videoId={currentLecture.videoId || ""}
+                      videoSource={currentLecture.videoSource as "YOUTUBE" | "ODYSEE"}
+                      claimId={currentLecture.claimId || undefined}
+                      claimName={currentLecture.claimName || undefined}
+                      streamData={currentLecture.streamData}
+                      onComplete={handleVideoComplete}
+                      onProgress={handleVideoProgress}
+                      isCompleted={completedLectures[currentLecture.id] || false}
+                    />
+                  )}
                 </div>
                 
               </div>
