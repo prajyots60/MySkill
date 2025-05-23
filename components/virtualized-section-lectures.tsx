@@ -164,6 +164,7 @@ export function VirtualizedSectionLectures({
       lectureItems.push({
         type: "add-lecture",
         sectionId: section.id,
+        data: {} as any, // Add empty data object to satisfy type requirements
       })
     }
 
@@ -215,7 +216,7 @@ export function VirtualizedSectionLectures({
               {item.type === "section" && (
                 <Card>
                   <SectionHeader
-                    section={item.data}
+                    section={item.data as Section}
                     isExpanded={expandedSections[item.data.id]}
                     isCreator={isCreator}
                     onToggle={() => toggleSection(item.data.id)}
@@ -228,7 +229,7 @@ export function VirtualizedSectionLectures({
               {item.type === "section-edit" && (
                 <Card>
                   <SectionEditForm
-                    section={item.data}
+                    section={item.data as Section}
                     onSave={(title, description) => handleEditSection(item.data.id, title, description)}
                     onCancel={() => setEditingSectionId(null)}
                   />
@@ -238,7 +239,7 @@ export function VirtualizedSectionLectures({
               {item.type === "lecture" && (
                 <div className="p-2">
                   <LectureCard
-                    lecture={item.data}
+                    lecture={item.data as any}
                     isCreator={isCreator}
                     courseId={courseId}
                     onEdit={() => onEditLecture?.(item.data.id)}
@@ -252,7 +253,7 @@ export function VirtualizedSectionLectures({
                     <Button
                       variant="outline"
                       className="w-full h-full flex flex-col gap-4 hover:border-primary"
-                      onClick={() => onAddLecture?.(item.sectionId)}
+                      onClick={() => onAddLecture?.((item as { sectionId: string }).sectionId)}
                     >
                       <Plus className="h-8 w-8" />
                       <span>Add Lecture</span>

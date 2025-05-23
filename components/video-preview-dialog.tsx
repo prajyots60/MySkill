@@ -1,8 +1,10 @@
 "use client"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { VideoPlayer } from "@/components/video-player"
+
 import type { Lecture } from "@/lib/types"
+
+import { SecureVideoPlayer } from "./secure-video-player"
 
 interface VideoPreviewDialogProps {
   lecture: Lecture | null
@@ -22,7 +24,7 @@ export function VideoPreviewDialog({ lecture, open, onOpenChange }: VideoPreview
 
         <div className="aspect-video">
           {lecture.videoId && (
-            <VideoPlayer lectureId={lecture.id} title={lecture.title} onEnded={() => onOpenChange(false)} />
+            <SecureVideoPlayer lectureId={lecture.id} title={lecture.title} onEnded={() => onOpenChange(false)} />
           )}
         </div>
       </DialogContent>
