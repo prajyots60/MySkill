@@ -1105,48 +1105,6 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmation !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteConfirmation(null)
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this {deleteConfirmation?.type}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="font-medium">{deleteConfirmation?.title}</p>
-            {deleteConfirmation?.type === "course" && (
-              <p className="text-sm text-destructive mt-2">
-                This will permanently delete the course and all its content, including sections, lectures, and
-                documents.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmation(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
