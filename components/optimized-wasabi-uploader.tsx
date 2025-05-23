@@ -184,7 +184,10 @@ export function OptimizedWasabiUploader({
       };
       
       if (description) metadata.description = description;
-      if (encryptionKey) metadata.isEncrypted = 'true';
+      if (encryptionKey) {
+        metadata.isEncrypted = 'true';
+        metadata.encryptionAlgorithm = 'aes-gcm';
+      }
       
       // Use chunked upload for all files
       const category = `courses/videos/${sectionId}`;

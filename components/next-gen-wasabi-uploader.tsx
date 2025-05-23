@@ -268,6 +268,7 @@ export function NextGenWasabiUploader({
       if (encryptionKey) {
         metadata.isEncrypted = 'true';
         metadata.encryptionAlgorithm = 'aes-gcm';
+        metadata.encryptionAlgorithm = 'aes-gcm';
       }
       
       // Use resumable upload with the file

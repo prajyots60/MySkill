@@ -1,0 +1,54 @@
+[
+    {
+        "AllowedHeaders": [
+            "*",
+            "Range",
+            "x-amz-*",
+            "Accept",
+            "Accept-Ranges",
+            "Content-Range",
+            "Content-Type",
+            "Content-Length",
+            "Content-MD5",
+            "Authorization",
+            "x-amz-content-sha256",
+            "x-amz-date",
+            "x-amz-acl",
+            "x-amz-security-token",
+            "x-amz-meta-*"
+        ],
+        "AllowedMethods": [
+            "GET",
+            "HEAD",
+            "PUT",
+            "POST",
+            "DELETE"
+        ],
+        "AllowedOrigins": [
+            "*"
+        ],
+        "ExposeHeaders": [
+            "ETag",
+            "x-amz-delete-marker",
+            "x-amz-id-2",
+            "x-amz-request-id",
+            "x-amz-version-id",
+            "Content-Range",
+            "Content-Length",
+            "Content-Type",
+            "Accept-Ranges",
+            "x-amz-checksum-mode",
+            "x-amz-meta-title",
+            "x-amz-meta-description",
+            "x-amz-meta-contenttype",
+            "x-amz-meta-isencrypted",
+            "x-amz-meta-sectionid",
+            "x-amz-meta-videosource",
+            "x-amz-server-side-encryption",
+            "x-amz-checksum-sha256",
+            "x-amz-checksum-crc32",
+            "x-amz-checksum-crc32c"
+        ],
+        "MaxAgeSeconds": 3600
+    }
+]

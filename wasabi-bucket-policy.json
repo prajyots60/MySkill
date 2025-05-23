@@ -1,0 +1,44 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowVideoAccess",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::edutube/courses/videos/*"
+        },
+        {
+            "Sid": "AllowEncryptedVideoAccess",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::edutube/courses/videos/*.encrypted"
+        },
+        {
+            "Sid": "AllowCORSAndUploads",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": "arn:aws:s3:::edutube/*",
+            "Condition": {
+                "StringLike": {
+                    "aws:Referer": [
+                        "http://localhost:*/*",
+                        "http://127.0.0.1:*/*"
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -95,7 +95,10 @@ export default function WasabiVideoUploader({
       };
       
       if (description) metadata.description = description;
-      if (useEncryption) metadata.isEncrypted = 'true';
+      if (useEncryption) {
+        metadata.isEncrypted = 'true';
+        metadata.encryptionAlgorithm = 'aes-gcm';
+      }
       
       // Add to upload store
       uploadStore.useUploadStore.getState().addUpload({
@@ -161,7 +164,7 @@ export default function WasabiVideoUploader({
         if (onUploadProgress) onUploadProgress(15);
         
         // Generate a secure encryption key
-        const keyArray = new Uint8Array(16); // 128-bit key for AES-128
+        const keyArray = new Uint8Array(32); // 256-bit key for AES-256
         window.crypto.getRandomValues(keyArray);
         encryptionKey = Array.from(keyArray)
           .map(b => b.toString(16).padStart(2, '0'))
@@ -198,7 +201,10 @@ export default function WasabiVideoUploader({
       };
       
       if (description) metadata.description = description;
-      if (encryptionKey) metadata.isEncrypted = 'true';
+      if (encryptionKey) {
+        metadata.isEncrypted = 'true';
+        metadata.encryptionAlgorithm = 'aes-gcm';
+      }
       // We don't store the encryption key in the metadata for security reasons
       // It will be stored in our database instead
 
@@ -436,7 +442,7 @@ export default function WasabiVideoUploader({
   );
 }
 
-// Helper function to encrypt a file
+// Helper function to encrypt a file using AES-GCM (matched with API configuration)
 async function encryptFile(file: File, key: string): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -445,45 +451,68 @@ async function encryptFile(file: File, key: string): Promise<Blob> {
         if (!event.target?.result) {
           throw new Error('Failed to read file');
         }
+
+        // Convert hex key to bytes (must be 32 bytes for AES-256)
+        const keyBytes = new Uint8Array(32);
+        const hexKey = key.padEnd(64, '0').slice(0, 64);
+        for (let i = 0; i < 32; i++) {
+            keyBytes[i] = parseInt(hexKey.substr(i * 2, 2), 16);
+        }
         
-        // Convert hex key to ArrayBuffer
-        const keyBytes = new Uint8Array(key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        // Generate random IV (12 bytes for GCM)
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        console.log('Generated IV (GCM):', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '));
         
-        // Import the key for use with AES-CBC
+        // For IV storage pad to 16 bytes for compatibility
+        const storedIv = new Uint8Array(16);
+        storedIv.set(iv);
+        
+        // Import the key for AES-GCM
         const cryptoKey = await window.crypto.subtle.importKey(
           'raw',
           keyBytes,
-          { name: 'AES-CBC' },
+          { 
+            name: 'AES-GCM',
+            length: 256
+          },
           false,
           ['encrypt']
         );
         
-        // Generate an initialization vector
-        const iv = window.crypto.getRandomValues(new Uint8Array(16));
-        
-        // Encrypt the file data
+        // Get file data as ArrayBuffer
         const fileData = event.target.result as ArrayBuffer;
+        console.log('Original file size:', fileData.byteLength);
+        
+        // Encrypt the file data with AES-GCM
         const encryptedData = await window.crypto.subtle.encrypt(
           {
-            name: 'AES-CBC',
-            iv
+            name: 'AES-GCM',
+            iv: iv,
+            tagLength: 128
           },
           cryptoKey,
           fileData
         );
         
-        // Combine IV and encrypted data
-        const combinedData = new Uint8Array(iv.length + encryptedData.byteLength);
-        combinedData.set(iv, 0);
-        combinedData.set(new Uint8Array(encryptedData), iv.length);
+        // Combine IV (padded to 16 bytes) and encrypted data
+        const combinedData = new Uint8Array(storedIv.length + encryptedData.byteLength);
+        combinedData.set(storedIv, 0);
+        combinedData.set(new Uint8Array(encryptedData), storedIv.length);
         
-        // Create a new Blob with the encrypted data
-        resolve(new Blob([combinedData], { type: file.type }));
+        console.log('Encrypted size:', combinedData.length);
+        
+        // Create new blob with encrypted data
+        resolve(new Blob([combinedData], { type: 'application/octet-stream' }));
+        
       } catch (error) {
+        console.error('Encryption error:', error);
         reject(error);
       }
     };
-    reader.onerror = reject;
+    reader.onerror = (event) => {
+      console.error('FileReader error:', event);
+      reject(new Error('Failed to read file for encryption'));
+    };
     reader.readAsArrayBuffer(file);
   });
 }

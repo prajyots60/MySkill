@@ -7,12 +7,13 @@
     "socket": "ts-node --project socket-server/tsconfig.json socket-server/index.ts",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy:cors": "node scripts/deploy-wasabi-cors.js"
   },
   "dependencies": {
     "@auth/core": "latest",
     "@auth/prisma-adapter": "latest",
-    "@aws-sdk/client-s3": "^3.815.0",
+    "@aws-sdk/client-s3": "^3.816.0",
     "@aws-sdk/s3-request-presigner": "^3.815.0",
     "@googleapis/forms": "^2.0.0",
     "@hookform/resolvers": "^3.9.1",
@@ -87,6 +88,7 @@
     "@upstash/redis": "latest",
     "@videojs/http-streaming": "^3.17.0",
     "autoprefixer": "^10.4.20",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.9.0",
     "bufferutil": "latest",
     "class-variance-authority": "^0.7.1",

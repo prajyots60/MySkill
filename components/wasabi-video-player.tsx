@@ -180,52 +180,152 @@ export default function WasabiVideoPlayer({
   );
 }
 
-// Helper function to decrypt a file
+// Helper function to decrypt a file with multi-algorithm support (AES-GCM preferred, AES-CBC as fallback)
 async function decryptFile(encryptedBlob: Blob, keyString: string): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         if (!event.target?.result) {
-          throw new Error('Failed to read file');
+          throw new Error('Failed to read encrypted file');
         }
         
-        // Get the data as ArrayBuffer
         const data = event.target.result as ArrayBuffer;
         
-        // Extract IV (first 16 bytes) and encrypted data
+        if (data.byteLength < 16) {
+          throw new Error('File is too small to be a valid encrypted video');
+        }
+
+        // Convert the hex key string to bytes (must be 32 bytes for AES-256)
+        const keyBytes = new Uint8Array(32);
+        const hexKey = keyString.padEnd(64, '0').slice(0, 64);
+        for (let i = 0; i < 32; i++) {
+          keyBytes[i] = parseInt(hexKey.substr(i * 2, 2), 16);
+        }
+
+        // Extract IV from first 16 bytes
         const iv = new Uint8Array(data.slice(0, 16));
-        const encryptedData = data.slice(16);
+        console.log('IV:', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+        let decryptedData: ArrayBuffer;
         
-        // Convert the hex key string to bytes
-        const keyBytes = new Uint8Array(keyString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        // Try AES-GCM first (matches API configuration in wasabi-multipart-init)
+        try {
+          console.log('Attempting AES-GCM decryption');
+          
+          // Import the key for AES-GCM
+          const gcmKey = await window.crypto.subtle.importKey(
+            'raw', 
+            keyBytes, 
+            { 
+              name: 'AES-GCM',
+              length: 256
+            }, 
+            false, 
+            ['decrypt']
+          );
+          
+          // For GCM, use only the first 12 bytes of IV
+          const gcmIv = iv.slice(0, 12);
+          
+          // Decrypt with AES-GCM
+          decryptedData = await window.crypto.subtle.decrypt(
+            {
+              name: 'AES-GCM',
+              iv: gcmIv,
+              tagLength: 128
+            },
+            gcmKey,
+            data.slice(16) // Skip IV bytes
+          );
+          
+          console.log('AES-GCM decryption successful!');
+        } catch (gcmError) {
+          console.log('AES-GCM decryption failed, trying AES-CBC:', gcmError);
+          
+          // Fall back to AES-CBC if GCM fails
+          // Import the key for AES-CBC
+          const cbcKey = await window.crypto.subtle.importKey(
+            'raw',
+            keyBytes,
+            { 
+              name: 'AES-CBC',
+              length: 256
+            },
+            false,
+            ['decrypt']
+          );
+
+          // Decrypt the data with AES-CBC (using full 16-byte IV)
+          decryptedData = await window.crypto.subtle.decrypt(
+            {
+              name: 'AES-CBC',
+              iv
+            },
+            cbcKey,
+            data.slice(16) // Skip IV bytes
+          );
+          
+          console.log('AES-CBC decryption successful!');
+        }
+
+        // Log the decrypted header for debugging
+        const header = new Uint8Array(decryptedData.slice(0, 32));
+        console.log('Decrypted header:', Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' '));
         
-        // Import the key
-        const cryptoKey = await window.crypto.subtle.importKey(
-          'raw',
-          keyBytes,
-          { name: 'AES-CBC' },
-          false,
-          ['decrypt']
-        );
+        // Check for MP4 signature (ftyp)
+        const ftypSignature = [0x66, 0x74, 0x79, 0x70]; // "ftyp"
+        let hasFtyp = false;
         
-        // Decrypt the data
-        const decryptedData = await window.crypto.subtle.decrypt(
-          {
-            name: 'AES-CBC',
-            iv
-          },
-          cryptoKey,
-          encryptedData
-        );
+        // Look for ftyp signature anywhere in first 32 bytes
+        for (let i = 0; i < 16; i++) {
+          if (i + 4 < header.length) {
+            if (header[i] === ftypSignature[0] && 
+                header[i+1] === ftypSignature[1] && 
+                header[i+2] === ftypSignature[2] && 
+                header[i+3] === ftypSignature[3]) {
+              hasFtyp = true;
+              console.log('Found MP4 ftyp signature at offset:', i);
+              break;
+            }
+          }
+        }
         
-        // Create a new Blob with the decrypted data
-        resolve(new Blob([decryptedData], { type: encryptedBlob.type }));
+        // Create blob with decrypted data and proper MIME type
+        const mimeType = hasFtyp ? 'video/mp4' : 'video/mp4';  // Default to mp4 even if no signature found
+        resolve(new Blob([decryptedData], { type: mimeType }));
+
       } catch (error) {
+        console.error('Decryption error:', error);
         reject(error);
       }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('Failed to read encrypted file'));
     reader.readAsArrayBuffer(encryptedBlob);
   });
+}
+
+// Helper function to detect video format from header
+function detectVideoFormat(header: Uint8Array): string {
+  try {
+    // First check for MP4 signatures
+    const mp4Sigs = ['ftyp', 'moov', 'mdat'];
+    const headerStr = String.fromCharCode(...header);
+    for (const sig of mp4Sigs) {
+      if (headerStr.includes(sig)) {
+        return 'video/mp4';
+      }
+    }
+
+    // Fixed signature lookup for other formats
+    if (headerStr.startsWith('RIFF')) return 'video/x-msvideo';  // AVI
+    if (headerStr.startsWith('OggS')) return 'video/ogg';        // OGG
+    if (headerStr.startsWith('WEBM')) return 'video/webm';       // WebM
+    if (headerStr.includes('matroska')) return 'video/x-matroska'; // MKV
+    
+    return 'video/mp4'; // Default to MP4
+  } catch (e) {
+    console.warn('Error detecting format:', e);
+    return 'video/mp4';
+  }
 }
