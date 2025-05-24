@@ -16,6 +16,7 @@ import { PerformanceOptimizedLayout } from "@/components/performance-optimized-l
 import { NavigationOptimizer } from "@/components/navigation-optimizer"
 import { UploadManagerProvider } from "@/components/upload-manager-provider"
 import { UserRoleHandler } from "@/components/user-role-handler"
+import { ServiceWorkerProvider } from "@/components/service-worker-provider"
 import Script from "next/script"
 
 const inter = Inter({
@@ -82,8 +83,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ReactQueryProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <AuthProvider>                <SidebarProvider>
+            <AuthProvider>
+              <SidebarProvider>
                 <UserRoleHandler />
+                {/* Service Worker Registration */}
+                <ServiceWorkerProvider />
                 <SidebarTouchHandler>
                   <div className="flex min-h-screen w-full overflow-hidden">
                     <AppSidebar />
@@ -130,28 +134,6 @@ export default function RootLayout({
                 document.documentElement.classList.add('dark');
               }
             } catch (e) {}
-            
-            // Register and optimize service worker
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                  .then(registration => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                    
-                    // Enable navigation preload if supported
-                    if (registration.navigationPreload) {
-                      registration.navigationPreload.enable().then(() => {
-                        console.log('Navigation Preload enabled');
-                      }).catch(err => {
-                        console.error('Navigation Preload error:', err);
-                      });
-                    }
-                  })
-                  .catch(error => {
-                    console.error('Service Worker registration failed:', error);
-                  });
-              });
-            }
           `}
         </Script>
       </body>

@@ -1,79 +1,38 @@
 /**
- * Register the service worker for offline support and performance optimization
+ * Service worker utilities
+ * 
+ * Note: This file is kept for compatibility purposes.
+ * Actual service worker registration is handled by the ServiceWorkerProvider component.
  */
 
+// This export is maintained for compatibility with existing imports
 export function registerServiceWorker() {
+  console.log("Service worker registration is now handled by ServiceWorkerProvider")
+  return
+}
+
+// This function can be used to request an update check for the service worker
+export function checkForUpdate() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-    return
+    return Promise.reject("Service workers not supported")
   }
-
-  // Only register in production
-  if (process.env.NODE_ENV !== "production") {
-    return
-  }
-
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((registration) => {
-        console.log("Service Worker registered with scope:", registration.scope)
-
-        // Check for updates
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                // New service worker available
-                showUpdateNotification()
-              }
-            })
-          }
-        })
-      })
-      .catch((error) => {
-        console.error("Service Worker registration failed:", error)
-      })
-
-    // Handle controller change
-    let refreshing = false
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return
-      refreshing = true
-      window.location.reload()
-    })
+  
+  return navigator.serviceWorker.ready.then(registration => {
+    return registration.update()
   })
 }
 
-// Show notification when a new version is available
-function showUpdateNotification() {
-  const notification = document.createElement("div")
-  notification.className =
-    "fixed bottom-4 right-4 bg-primary text-primary-foreground p-4 rounded-md shadow-lg z-50 flex items-center gap-2"
-  notification.innerHTML = `
-    <div>New version available!</div>
-    <button class="bg-primary-foreground text-primary px-2 py-1 rounded text-sm">Refresh</button>
-  `
-
-  document.body.appendChild(notification)
-
-  // Add click handler
-  const button = notification.querySelector("button")
-  if (button) {
-    button.addEventListener("click", () => {
-      window.location.reload()
-    })
+// This function forces the waiting service worker to become active
+export function skipWaiting() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return Promise.reject("Service workers not supported")
   }
-
-  // Auto-remove after 10 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.parentNode.removeChild(notification)
+  
+  return navigator.serviceWorker.ready.then(registration => {
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+      return true
     }
-  }, 10000)
-}
-
-// Register service worker
-if (typeof window !== "undefined") {
-  registerServiceWorker()
+    return false
+  })
 }
