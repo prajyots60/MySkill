@@ -67,8 +67,11 @@ function validateEncryptionKey(key: string | undefined): { isValid: boolean; err
 
   const keyValidation = {
     isHex: /^[0-9a-fA-F]+$/.test(key),
-    validLength: key.length === 64 || key.length === 32, // Support both 256-bit and 128-bit keys
-    nonHexChars: key.match(/[^0-9a-fA-F]/g)
+    // For AES-GCM, we standardize on 256-bit keys (64 hex chars) 
+    // but still accept 128-bit keys (32 hex chars) for backward compatibility
+    validLength: key.length === 64 || key.length === 32,
+    nonHexChars: key.match(/[^0-9a-fA-F]/g),
+    preferred: key.length === 64 // 256-bit keys are preferred
   };
 
   if (!keyValidation.isHex) {
@@ -81,8 +84,12 @@ function validateEncryptionKey(key: string | undefined): { isValid: boolean; err
   if (!keyValidation.validLength) {
     return { 
       isValid: false, 
-      error: `Invalid encryption key length: expected 32 or 64 hex characters, got ${key.length}` 
+      error: `Invalid encryption key length: expected 64 hex characters (256-bit key), got ${key.length}` 
     };
+  }
+
+  if (!keyValidation.preferred) {
+    console.warn('Using 128-bit key for AES-GCM; 256-bit keys are recommended for best security');
   }
 
   return { isValid: true };
@@ -422,14 +429,42 @@ export default function VideoJsWasabiPlayer({
         // Check explicitly if the video is encrypted before attempting decryption
         if (isEncrypted === true && encryptionKey) {
           console.log('Fetching encrypted video...');
+          // Attempt to fetch metadata first to get IV if available
+          let metadataIV: string | undefined;
+          try {
+            // Extract lectureId from fileUrl if possible (optional)
+            const urlMatch = fileUrl.match(/lectures\/([a-zA-Z0-9-]+)/);
+            const lectureId = urlMatch ? urlMatch[1] : null;
+            
+            if (lectureId) {
+              const metadataResponse = await fetch(`/api/lectures/${lectureId}/wasabi-metadata`);
+              if (metadataResponse.ok) {
+                const metadata = await metadataResponse.json();
+                // Extract the IV from the metadata response
+                metadataIV = metadata.encryptionInfo?.encryptionIV;
+                console.log('Successfully retrieved metadata IV:', { 
+                  ivLength: metadataIV?.length,
+                  ivSample: metadataIV ? metadataIV.substring(0, 6) + '...' : undefined,
+                  fullMetadata: metadata
+                });
+              }
+            }
+          } catch (metadataError) {
+            // If metadata fetch fails, we'll fall back to IV in the file
+            console.warn('Failed to fetch metadata IV, will use IV from file:', metadataError);
+          }
+          
           const response = await fetch(fileUrl);
           if (!response.ok) {
             throw new Error(`Failed to fetch video: ${response.status}`);
           }
           
           const encryptedBlob = await response.blob();
-          console.log('Decrypting video...', { size: encryptedBlob.size });
-          let decryptedBlob = await decryptFile(encryptedBlob, encryptionKey);
+          console.log('Decrypting video...', { 
+            size: encryptedBlob.size,
+            hasMetadataIV: !!metadataIV
+          });
+          let decryptedBlob = await decryptFile(encryptedBlob, encryptionKey, metadataIV);
           
           // Validate the decrypted video is playable
           console.log('Validating decrypted video...', { size: decryptedBlob.size, type: decryptedBlob.type });
@@ -546,97 +581,87 @@ export default function VideoJsWasabiPlayer({
   );
 }
 
-// Helper function to normalize encryption key
+// Helper function to normalize encryption key - standardized for AES-GCM 256-bit keys
 function normalizeEncryptionKey(key: string): Uint8Array {
-  // Convert string to bytes if needed
+  // For AES-GCM, we always use a 256-bit key (32 bytes)
+  const targetKeyLength = 32; // 256 bits
   let bytes: Uint8Array;
   
-  console.log('Normalizing key of length:', key.length, 'format:', 
-    key.length === 32 ? 'Raw 32-byte string' :
-    (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) ? 'Hex string' :
-    (key.length === 44 && /^[A-Za-z0-9+/=]+$/.test(key)) ? 'Base64' :
-    'Unknown format'
-  );
+  console.log('Normalizing encryption key:', {
+    length: key.length,
+    format: key.length === 64 && /^[0-9a-fA-F]+$/.test(key) 
+      ? 'Standard 256-bit hex' 
+      : 'Non-standard format'
+  });
   
   try {
-    if (key.length === 32) { // Raw 32-byte key
-      bytes = new TextEncoder().encode(key);
-    } else if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) { // Hex string
-      bytes = new Uint8Array(32);
-      for (let i = 0; i < 32; i++) {
+    // Standard format: 64 hex characters representing a 256-bit key
+    if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
+      bytes = new Uint8Array(targetKeyLength);
+      for (let i = 0; i < targetKeyLength; i++) {
         bytes[i] = parseInt(key.substr(i * 2, 2), 16);
       }
-      console.log('Key parsed from hex string, first 4 bytes:', Array.from(bytes.slice(0, 4)));
-    } else if (key.length === 44 && /^[A-Za-z0-9+/=]+$/.test(key)) { // Base64
-      try {
-        const binary = atob(key);
-        bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        console.log('Key parsed from base64, length:', bytes.length);
-      } catch (e) {
-        console.error('Base64 decoding failed:', e);
-        throw new Error('Invalid base64 encoding in encryption key');
-      }
-    } else if (/^[0-9a-fA-F]+$/.test(key)) { // Any hex string, not just 64 chars
+      console.log('Parsed standard 256-bit hex key');
+      
+      return bytes; // Return early for the standard case
+    }
+    
+    // For non-standard cases, try to adapt:
+    
+    // Case 1: Other hex string (of any length)
+    if (/^[0-9a-fA-F]+$/.test(key)) {
       // Ensure we have an even number of hex chars
       const normalizedHex = key.length % 2 === 0 ? key : '0' + key;
       const byteLength = normalizedHex.length / 2;
-      bytes = new Uint8Array(byteLength);
-      for (let i = 0; i < byteLength; i++) {
-        bytes[i] = parseInt(normalizedHex.substr(i * 2, 2), 16);
-      }
-      console.log('Key parsed from variable-length hex string, length:', bytes.length, 'bytes');
       
-      // Ensure proper key size (32 bytes for AES-256)
-      if (bytes.length < 32) {
-        // If key is too short, extend it by repeating
-        const extendedBytes = new Uint8Array(32);
-        for (let i = 0; i < 32; i++) {
-          extendedBytes[i] = bytes[i % bytes.length];
-        }
-        bytes = extendedBytes;
-        console.log('Key extended to 32 bytes');
-      } else if (bytes.length > 32) {
-        // If key is too long, truncate
-        bytes = bytes.slice(0, 32);
-        console.log('Key truncated to 32 bytes');
+      // Create initial byte array
+      const initialBytes = new Uint8Array(byteLength);
+      for (let i = 0; i < byteLength; i++) {
+        initialBytes[i] = parseInt(normalizedHex.substr(i * 2, 2), 16);
       }
-    } else {
-      // Convert to SHA-256 hash if not in any standard format
-      console.log('Converting non-standard key to SHA-256 hash');
-      // Use a simpler approach for hash calculation to avoid recursion
+      
+      // Ensure it's exactly 32 bytes
+      bytes = new Uint8Array(targetKeyLength);
+      
+      // If original is shorter, repeat it. If longer, truncate it.
+      for (let i = 0; i < targetKeyLength; i++) {
+        bytes[i] = initialBytes[i % byteLength];
+      }
+      
+      console.log('Adapted non-standard hex key to 256 bits');
+    } 
+    // Case 2: Raw string - convert to fixed-length bytes
+    else {
+      // Hash the string to get consistent output size
+      console.log('Converting string to hash-derived key');
+      
+      // Use a simple hashing approach to get consistent key
       const encoder = new TextEncoder();
       const data = encoder.encode(key);
       
-      // Simple string-based hash for now (this is not secure, just for format conversion)
-      let hash = 0;
-      for (let i = 0; i < data.length; i++) {
-        hash = ((hash << 5) - hash) + data[i];
-        hash |= 0;
+      // Simple deterministic key derivation (this is not secure, but ensures consistency)
+      bytes = new Uint8Array(targetKeyLength);
+      let acc = 0;
+      
+      for (let i = 0; i < targetKeyLength; i++) {
+        // Mix in position and previous values to distribute entropy
+        acc = ((acc << 5) - acc + (i * 65537)) & 0xFFFFFFFF;
+        
+        for (let j = 0; j < data.length; j++) {
+          acc = ((acc << 5) - acc + data[j]) & 0xFFFFFFFF;
+        }
+        
+        bytes[i] = acc % 256;
       }
       
-      // Convert hash to byte array and extend to 32 bytes
-      bytes = new Uint8Array(32);
-      let tempHash = Math.abs(hash);
-      for (let i = 0; i < 32; i++) {
-        bytes[i] = tempHash % 256;
-        tempHash = Math.floor(tempHash / 256) + (i * 11);
-      }
-      
-      console.log('Generated key from hash, first 4 bytes:', Array.from(bytes.slice(0, 4)));
+      console.log('Created 256-bit key from string input');
     }
-
-    // Ensure key is exactly 32 bytes (256 bits)
-    if (bytes.length !== 32) {
-      console.warn(`Key length mismatch after normalization: ${bytes.length} bytes, adjusting to 32 bytes`);
-      const adjustedBytes = new Uint8Array(32);
-      for (let i = 0; i < 32; i++) {
-        adjustedBytes[i] = i < bytes.length ? bytes[i] : bytes[i % bytes.length];
-      }
-      bytes = adjustedBytes;
+    
+    // Verify final key length
+    if (bytes.length !== targetKeyLength) {
+      throw new Error(`Key normalization failed: incorrect output length ${bytes.length}`);
     }
+    
   } catch (error) {
     console.error('Key normalization error:', error);
     throw new Error(`Failed to normalize encryption key: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -732,8 +757,8 @@ function detectVideoFormat(header: Uint8Array): string {
   return 'video/mp4';
 }
 
-// Helper function to decrypt a file
-function decryptFile(encryptedBlob: Blob, keyString: string): Promise<Blob> {
+// Helper function to decrypt a file using standardized AES-GCM with 12-byte IV
+function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
@@ -745,197 +770,157 @@ function decryptFile(encryptedBlob: Blob, keyString: string): Promise<Blob> {
           
           const data = event.target.result as ArrayBuffer;
           
-          if (data.byteLength < 16) {
+          if (data.byteLength < 12) {
             throw new Error('File is too small to be a valid encrypted video');
           }
 
-          const keyBytes = normalizeEncryptionKey(keyString);
+          console.log('Decrypting video...', { 
+            size: encryptedBlob.size, 
+            hasMetadataIV: !!metadataIV 
+          });
+
+          // Convert hex key to bytes - specifically for 256-bit AES-GCM key
+          let keyBytes: Uint8Array;
+          try {
+            if (/^[0-9a-fA-F]+$/.test(keyString) && keyString.length === 64) {
+              // Handle standard 256-bit hex key (64 hex characters)
+              keyBytes = new Uint8Array(32);
+              for (let i = 0; i < 32; i++) {
+                keyBytes[i] = parseInt(keyString.substr(i * 2, 2), 16);
+              }
+            } else {
+              // Fallback to the normalize function for non-standard keys
+              keyBytes = normalizeEncryptionKey(keyString);
+            }
+          } catch (keyError) {
+            console.error('Key normalization error:', keyError);
+            throw new Error(`Invalid encryption key: ${keyError instanceof Error ? keyError.message : 'Could not process key'}`);
+          }
+          
           console.log('Using encryption key:', {
             originalLength: keyString.length,
             normalizedLength: keyBytes.length,
-            firstFewBytes: Array.from(keyBytes.slice(0, 4))
+            keyBits: keyBytes.length * 8
           });
 
-          // Extract IV (first 16 bytes) from the encrypted data
-          const iv = new Uint8Array(data.slice(0, 16));
+          // Get IV from the file - ALWAYS use the IV prepended to the encrypted data
+          // The encryption worker ALWAYS prepends the IV to the file
+          const iv = new Uint8Array(data.slice(0, 12));
+          const contentStartOffset = 12; // IV is always prepended to content (12 bytes)
+          const extractedIvHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          console.log('Using IV from file header:', extractedIvHex);
+          
+          // Compare with metadata IV if available (for debugging only)
+          if (metadataIV && metadataIV !== extractedIvHex) {
+            console.warn('Warning: Metadata IV differs from file IV. Always using file IV for decryption:', {
+              fileIV: extractedIvHex,
+              metadataIV
+            });
+          }
 
           console.log('Decryption parameters:', {
-            ivHex: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' ')
+            algorithm: 'AES-GCM',
+            ivLength: iv.length,
+            ivHex: extractedIvHex,
+            ivSource: metadataIV ? 'metadata' : 'prepended'
           });
 
-          let decryptedData: ArrayBuffer | undefined;
+          // Verify IV content - should not be all zeros or a pattern
+          const isIVAllZeros = iv.every(b => b === 0);
+          if (isIVAllZeros) {
+            console.warn('Warning: IV contains all zeros, which is insecure for AES-GCM');
+          }
+
+          let decryptedData: ArrayBuffer;
           let format: string;
           
-          // Try AES-GCM first (matches API configuration)
+          // Import the key for AES-GCM (256-bit)
           try {
-            console.log('Attempting AES-GCM decryption');
-            
-            // Import the key for AES-GCM
-            const gcmKey = await window.crypto.subtle.importKey(
+            // Import the key for AES-GCM - we standardize on 256-bit keys for AES-GCM
+            const cryptoKey = await window.crypto.subtle.importKey(
               'raw', 
               keyBytes, 
               { 
                 name: 'AES-GCM',
-                length: 256
+                length: keyBytes.length * 8 // Use actual key length (256 or 128 bits)
               }, 
               false, 
               ['decrypt']
             );
             
-            // For GCM, use only the first 12 bytes of IV
-            const gcmIv = iv.slice(0, 12);
-            console.log('GCM IV (12 bytes):', Array.from(gcmIv).map(b => b.toString(16).padStart(2, '0')).join(' '));
-            
-            // Check if there's an authentication tag at the end of the data
-            // The encrypted data might have the auth tag appended at the end
-            // Standard format: IV (16 bytes) + Encrypted content + Auth Tag (16 bytes)
-            // Try decrypting with auth tag expected to be part of the ciphertext
-            try {
-              // Decrypt with AES-GCM
-              decryptedData = await window.crypto.subtle.decrypt(
-                {
-                  name: 'AES-GCM',
-                  iv: gcmIv,
-                  tagLength: 128
-                },
-                gcmKey,
-                data.slice(16) // Skip IV bytes
-              );
-              
-              console.log('AES-GCM decryption successful!');
-            } catch (innerError) {
-              console.log('Standard AES-GCM failed, trying different tag handling:', innerError);
-              
-              // Try with different lengths of IV or different interpretations of the data structure
-              // Some implementations may store the tag differently or use different IV sizes
-              
-              // Alternative 1: Try using full 16-byte IV for GCM
-              decryptedData = await window.crypto.subtle.decrypt(
-                {
-                  name: 'AES-GCM',
-                  iv: iv, // Use full 16 bytes
-                  tagLength: 128
-                },
-                gcmKey,
-                data.slice(16) // Skip IV bytes
-              );
-              
-              console.log('AES-GCM with full IV decryption successful!');
+            // Simple validation - IV must be exactly 12 bytes for AES-GCM
+            if (iv.length !== 12) {
+              throw new Error(`Invalid IV length: expected 12 bytes for AES-GCM, got ${iv.length}`);
             }
-          } catch (gcmError) {
-            console.log('AES-GCM decryption failed, trying AES-CBC:', gcmError);
             
-            try {
-              // Fall back to CBC if GCM fails
-              const cbcKey = await window.crypto.subtle.importKey(
-                'raw', 
-                keyBytes, 
-                { 
-                  name: 'AES-CBC',
-                  length: 256
-                }, 
-                false, 
-                ['decrypt']
-              );
-
-              console.log('CBC IV (16 bytes):', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '));
-              console.log('Encrypted data first 32 bytes:', Array.from(new Uint8Array(data.slice(16, 48))).map(b => b.toString(16).padStart(2, '0')).join(' '));
-              
-              // Decrypt the data with AES-CBC (using full 16-byte IV)
-              try {
-                decryptedData = await window.crypto.subtle.decrypt(
-                  {
-                    name: 'AES-CBC',
-                    iv
-                  },
-                  cbcKey,
-                  data.slice(16) // Skip IV bytes
-                );
-                
-                console.log('AES-CBC decryption successful!');
-              } catch (standardCbcError) {
-                console.log('Standard AES-CBC failed, trying padding variations:', standardCbcError);
-                
-                // Try different binary structures - some implementations have different formats
-                // Some might include mode prefix in first few bytes or padding info
-                // Try with offset IV positions
-                const alternativeIv = new Uint8Array(data.slice(0, 16));
-                
-                // Try different positions for IV
-                for (let offset of [8, 4, 12]) {
-                  try {
-                    console.log(`Trying CBC with ${offset}-byte offset IV`);
-                    const offsetIv = new Uint8Array(data.slice(offset, offset + 16));
-                    
-                    decryptedData = await window.crypto.subtle.decrypt(
-                      {
-                        name: 'AES-CBC',
-                        iv: offsetIv
-                      },
-                      cbcKey,
-                      data.slice(offset + 16) // Skip offset + IV bytes
-                    );
-                    
-                    console.log(`AES-CBC with ${offset}-byte offset IV successful!`);
-                    break;
-                  } catch (offsetError) {
-                    console.log(`AES-CBC with ${offset}-byte offset failed:`, offsetError);
-                  }
-                }
-                
-                if (!decryptedData) {
-                  throw new Error('All CBC variations failed');
-                }
+            // Key must be 32 bytes (256 bits) or 16 bytes (128 bits)
+            if (keyBytes.length !== 32 && keyBytes.length !== 16) {
+              throw new Error(`Invalid key length: expected 32 bytes (256 bits) or 16 bytes (128 bits) for AES-GCM, got ${keyBytes.length}`);
+            }
+            
+            // Log detailed decryption parameters
+            console.log('Decryption attempt with parameters:', {
+              algorithm: 'AES-GCM',
+              ivLength: iv.length,
+              keyBits: keyBytes.length * 8,
+              dataLength: data.byteLength,
+              contentStartOffset,
+              contentLength: data.byteLength - contentStartOffset
+            });
+            
+            // Decrypt with AES-GCM using the standard 12-byte IV and 128-bit tag
+            decryptedData = await window.crypto.subtle.decrypt(
+              {
+                name: 'AES-GCM',
+                iv,
+                tagLength: 128
+              },
+              cryptoKey,
+              data.slice(contentStartOffset) // Skip IV bytes if prepended, use full data if IV from metadata
+            );
+            
+            console.log('AES-GCM decryption successful!');
+          } catch (error) {
+            console.error('AES-GCM decryption failed:', error);
+            
+            // Add detailed diagnostic information for troubleshooting
+            console.error('Decryption diagnostic information:', {
+              ivLength: iv.length,
+              dataLength: data.byteLength,
+              contentOffset: contentStartOffset,
+              keyLength: keyBytes.length * 8 + ' bits',
+              ivHex: extractedIvHex,
+              error: error instanceof Error ? error.message : String(error)
+            });
+            
+            // Provide specific error messages for common decryption issues
+            if (error instanceof Error) {
+              const errorMessage = error.message.toLowerCase();
+              if (errorMessage.includes('tag')) {
+                throw new Error(`AES-GCM authentication tag verification failed: data may be corrupted or tampered with`);
+              } else if (errorMessage.includes('bad key')) {
+                throw new Error(`Invalid encryption key: the provided key cannot decrypt this content`);
+              } else if (errorMessage.includes('iv')) {
+                throw new Error(`IV error: the initialization vector may be incorrect for this content`);
+              } else {
+                throw new Error(`AES-GCM decryption failed: ${error.message}`);
               }
-            } catch (cbcError) {
-              console.error('Both AES-GCM and AES-CBC decryption failed:', cbcError);
-              
-              // Add more diagnostic information before giving up
-              console.error('Encryption diagnostic information:', {
-                ivLength: iv.length,
-                dataLength: data.byteLength,
-                keyLength: keyBytes.length * 8 + ' bits'
-              });
-              
-              // As a last resort, try without IV (some systems use fixed/derived IVs)
-              try {
-                console.log('Last resort: Trying AES-CBC with zero IV');
-                const zeroIv = new Uint8Array(16); // All zeros
-                
-                const lastResortKey = await window.crypto.subtle.importKey(
-                  'raw', 
-                  keyBytes, 
-                  { 
-                    name: 'AES-CBC',
-                    length: 256
-                  }, 
-                  false, 
-                  ['decrypt']
-                );
-                
-                decryptedData = await window.crypto.subtle.decrypt(
-                  {
-                    name: 'AES-CBC',
-                    iv: zeroIv
-                  },
-                  lastResortKey,
-                  data
-                );
-                
-                console.log('Zero IV decryption successful (unusual)!');
-              } catch (finalError) {
-                throw new Error('Unable to decrypt video with either AES-GCM or AES-CBC - tried multiple methods');
-              }
+            } else {
+              throw new Error(`AES-GCM decryption failed: Unknown error`);
             }
           }
           
           // Log the first bytes of the decrypted data for debugging
-          const headerBytes = new Uint8Array(decryptedData.slice(0, 32));
-          console.log('Decrypted header:', Array.from(headerBytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
+          const decryptedHeaderBytes = new Uint8Array(decryptedData.slice(0, 32));
+          console.log('Decrypted header:', Array.from(decryptedHeaderBytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
           
           // Check for MP4 signature in the first 32 bytes (ftyp)
           const ftypSignature = [0x66, 0x74, 0x79, 0x70]; // "ftyp"
           let hasFtyp = false;
+          
+          // Fix: headerBytes was undefined, create it from decryptedHeaderBytes
+          const headerBytes = decryptedHeaderBytes;
           
           for (let i = 0; i < 16; i++) {
             if (i + 4 < headerBytes.length) {

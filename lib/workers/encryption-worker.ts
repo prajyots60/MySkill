@@ -9,10 +9,18 @@ self.onmessage = async (event) => {
     // Handle different operations
     switch (operation) {
       case 'encrypt':
-        const encryptedData = await encryptFile(data.fileBuffer, data.key);
+        const encryptionResult = await encryptFile(data.fileBuffer, data.key);
+        // CRITICAL: Must include IV in the message for decryption to work later
+        if (!encryptionResult.iv) {
+          throw new Error('No IV generated during encryption - this will break decryption!');
+        }
+        console.log('Worker generated IV:', encryptionResult.iv);
         self.postMessage({ 
           status: 'success', 
-          result: encryptedData,
+          result: encryptionResult.data,
+          iv: encryptionResult.iv, // CRITICAL: This must be passed back and saved in the database
+          ivLength: encryptionResult.ivLength,
+          encryptionTimestamp: encryptionResult.timestamp,
           operation: 'encrypt'
         });
         break;
@@ -47,34 +55,28 @@ self.onmessage = async (event) => {
   }
 };
 
-// Generate a secure encryption key
+// Generate a secure encryption key for AES-GCM
 async function generateEncryptionKey() {
   // Generate key (32 bytes/256-bits for AES-256)
   const keyArray = new Uint8Array(32);
   crypto.getRandomValues(keyArray);
   
-  // Generate IV (16 bytes/128-bits for AES-CBC)
-  const iv = crypto.getRandomValues(new Uint8Array(16));
-  
+  // Convert to hex string
   return {
     key: Array.from(keyArray).map(b => b.toString(16).padStart(2, '0')).join(''),
-    iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('')
+    keyLength: keyArray.length * 8 // Key length in bits (256)
   };
 }
 
-// Encrypt a file using AES-GCM (matching API configuration)
+// Encrypt a file using AES-GCM
 async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
-  // Convert hex key to Uint8Array
+  // Convert hex key to Uint8Array (256 bits / 32 bytes)
   const keyBytes = new Uint8Array(
     key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
   );
   
-  // Generate an initialization vector - 12 bytes for AES-GCM
+  // Generate an initialization vector - exactly 12 bytes for AES-GCM (standard size)
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  
-  // For storage and compatibility, pad IV to 16 bytes
-  const storedIv = new Uint8Array(16);
-  storedIv.set(iv);
   
   // Import the key for AES-GCM
   const cryptoKey = await crypto.subtle.importKey(
@@ -88,8 +90,6 @@ async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
     ['encrypt']
   );
   
-  // No padding needed for GCM mode
-  
   // Encrypt the file data
   const encryptedData = await crypto.subtle.encrypt(
     {
@@ -101,94 +101,53 @@ async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
     fileBuffer
   );
   
-  // Combine IV (padded to 16 bytes) and encrypted data
-  const combinedData = new Uint8Array(storedIv.length + encryptedData.byteLength);
-  combinedData.set(storedIv, 0);
-  combinedData.set(new Uint8Array(encryptedData), storedIv.length);
+  // Combine IV and encrypted data
+  const combinedData = new Uint8Array(iv.length + encryptedData.byteLength);
+  combinedData.set(iv, 0);
+  combinedData.set(new Uint8Array(encryptedData), iv.length);
   
-  return combinedData;
+  // Convert IV to hex string for storage in metadata
+  const ivHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return {
+    data: combinedData,
+    iv: ivHex,
+    ivLength: iv.length,
+    timestamp: Date.now()
+  };
 }
 
-// Decrypt a file
+// Decrypt a file using AES-GCM only
 async function decryptFile(fileBuffer: ArrayBuffer, key: string) {
-  // Convert hex key string to Uint8Array 
+  // Convert hex key string to Uint8Array (256 bits / 32 bytes)
   const keyBytes = new Uint8Array(
     key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
   );
   
-  // Extract IV (first 16 bytes) and encrypted data
-  const storedIv = new Uint8Array(fileBuffer.slice(0, 16));
-  const encryptedData = fileBuffer.slice(16);
+  // Extract IV (first 12 bytes) and encrypted data
+  const iv = new Uint8Array(fileBuffer.slice(0, 12));
+  const encryptedData = fileBuffer.slice(12);
   
-  // Try AES-GCM first (matching our API configuration)
-  try {
-    // For GCM, use only first 12 bytes of IV
-    const iv = storedIv.slice(0, 12);
-    
-    // Import the key for AES-GCM
-    const gcmKey = await crypto.subtle.importKey(
-      'raw',
-      keyBytes,
-      { 
-        name: 'AES-GCM',
-        length: 256
-      },
-      false,
-      ['decrypt']
-    );
-    
-    // Decrypt with AES-GCM
-    return await crypto.subtle.decrypt(
-      {
-        name: 'AES-GCM',
-        iv,
-        tagLength: 128
-      },
-      gcmKey,
-      encryptedData
-    );
-  } catch (gcmError) {
-    console.log('GCM decryption failed, trying CBC:', gcmError);
-    
-    // Fall back to AES-CBC for backwards compatibility
-    // Import the key for AES-CBC
-    const cbcKey = await crypto.subtle.importKey(
-      'raw',
-      keyBytes,
-      { 
-        name: 'AES-CBC',
-        length: 256
-      },
-      false,
-      ['decrypt']
-    );
-    
-    // Decrypt the data with CBC
-    const decryptedDataWithPadding = await crypto.subtle.decrypt(
-      {
-        name: 'AES-CBC',
-        iv: storedIv
-      },
-      cbcKey,
-      encryptedData
-    );
-    
-    // Remove PKCS7 padding
-    const decryptedArray = new Uint8Array(decryptedDataWithPadding);
-    const paddingSize = decryptedArray[decryptedArray.length - 1];
-    
-    // Validate padding is correct
-    const isPaddingValid = paddingSize <= 16 && paddingSize > 0;
-    if (isPaddingValid) {
-      // Verify all padding bytes have the same value
-      const padding = decryptedArray.slice(-paddingSize);
-      const isValidPadding = padding.every(byte => byte === paddingSize);
-      if (isValidPadding) {
-        return decryptedDataWithPadding.slice(0, decryptedDataWithPadding.byteLength - paddingSize);
-      }
-    }
-    
-    // If padding appears invalid, return data as is
-    return decryptedDataWithPadding;
-  }
+  // Import the key for AES-GCM
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { 
+      name: 'AES-GCM',
+      length: 256
+    },
+    false,
+    ['decrypt']
+  );
+  
+  // Decrypt with AES-GCM
+  return await crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+      tagLength: 128
+    },
+    cryptoKey,
+    encryptedData
+  );
 }

@@ -119,6 +119,9 @@ export function OptimizedWasabiUploader({
       }
       
       let encryptionKey: string | null = null;
+      let encryptionIV: string | null = null;
+      let encryptionIVLength: number | null = null;
+      let encryptionTimestamp: number | null = null;
       let processedFile = file;
       
       // Step 1: Encrypt file if enabled
@@ -136,19 +139,29 @@ export function OptimizedWasabiUploader({
           if (onUploadProgress) onUploadProgress(10);
           
           // Encrypt the file using the web worker
-          const encryptedBlob = await encryptFile(file, encryptionKey, (progress) => {
+          const encryptionResult = await encryptFile(file, encryptionKey, (progress) => {
             // Map progress to 10-30% range
             const scaledProgress = Math.floor(10 + (progress * 0.2));
             setUploadProgress(scaledProgress);
             if (onUploadProgress) onUploadProgress(scaledProgress);
           });
           
+          // Store encryption metadata
+          encryptionIV = encryptionResult.iv;
+          encryptionIVLength = encryptionResult.ivLength;
+          encryptionTimestamp = encryptionResult.encryptionTimestamp;
+          
+          console.log('CRITICAL - ENCRYPTION IV CAPTURED:', encryptionIV);
+          if (!encryptionIV) {
+            throw new Error('No encryption IV returned from worker - this will cause decryption to fail!');
+          }
+          
           // Convert Blob back to File to maintain file metadata
           processedFile = new File(
-            [encryptedBlob], 
+            [encryptionResult.blob], 
             file.name, 
             { 
-              type: encryptedBlob.type || file.type,
+              type: encryptionResult.blob.type || file.type,
               lastModified: file.lastModified 
             }
           );
@@ -186,7 +199,11 @@ export function OptimizedWasabiUploader({
       if (description) metadata.description = description;
       if (encryptionKey) {
         metadata.isEncrypted = 'true';
-        metadata.encryptionAlgorithm = 'aes-gcm';
+        metadata.encryptionAlgorithm = 'AES-GCM'; // Standardized uppercase name
+        metadata.encryptionKeyLength = '256'; // Standard key length in bits
+        if (encryptionIV) metadata.encryptionIV = encryptionIV;
+        metadata.encryptionIVLength = '12'; // Standard IV length for AES-GCM in bytes
+        if (encryptionTimestamp) metadata.encryptionTimestamp = encryptionTimestamp.toString();
       }
       
       // Use chunked upload for all files
@@ -236,6 +253,11 @@ export function OptimizedWasabiUploader({
           fileType: file.type,
           isEncrypted: !!encryptionKey,
           encryptionKey: encryptionKey,
+          encryptionIV: encryptionIV,
+          encryptionIVLength: 12, // Standard fixed value for AES-GCM
+          encryptionKeyLength: 256, // Standard fixed value (always 256-bit)
+          encryptionAlgorithm: encryptionKey ? 'AES-GCM' : undefined, // Standardized uppercase format
+          encryptionTimestamp: encryptionTimestamp,
           uploadJobId: uploadId
         })
       });

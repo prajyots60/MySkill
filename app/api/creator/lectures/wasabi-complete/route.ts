@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
       fileType,
       isEncrypted,
       encryptionKey,
+      encryptionIV,
+      encryptionIVLength,
+      encryptionKeyLength,
+      encryptionAlgorithm,
+      encryptionTimestamp,
       uploadJobId,
       securityToken // Add security token parameter
     } = await req.json();
@@ -148,9 +153,29 @@ export async function POST(req: NextRequest) {
     // Store encryption details securely if the video is encrypted
     let secureMetadata = null;
     if (isEncrypted && encryptionKey) {
+      // Log encryption data for debugging
+      console.log('Encryption data received:', {
+        hasIV: !!encryptionIV,
+        ivLength: encryptionIV?.length,
+        ivFirstChars: encryptionIV ? encryptionIV.substring(0, 8) + '...' : 'null',
+        keyLength: encryptionKey.length,
+        algorithm: encryptionAlgorithm || 'AES-GCM',
+      });
+      
+      // CRITICAL FIX: NEVER generate a random IV - always use the one from encryption worker
+      // The encryption worker creates the IV and prepends it to the encrypted file
+      // If no IV is provided, log a warning but DO NOT create a new random one!
+      if (!encryptionIV) {
+        console.warn('WARNING: No encryption IV provided for encrypted video. Decryption may fail!');
+      }
+      
       secureMetadata = {
         encryptionKey,
-        encryptionMethod: 'AES-128',
+        encryptionAlgorithm: encryptionAlgorithm || 'AES-GCM', // Standardized uppercase name
+        encryptionKeyLength: encryptionKeyLength || '256', // Standard for AES-GCM
+        encryptionIV: encryptionIV, // MUST STORE THE EXACT IV USED DURING ENCRYPTION
+        encryptionIVLength: encryptionIVLength || '12', // Standard for AES-GCM
+        encryptionTimestamp: encryptionTimestamp || Date.now(),
         isEncrypted: true
       };
     }

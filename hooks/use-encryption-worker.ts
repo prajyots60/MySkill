@@ -107,7 +107,7 @@ export function useEncryptionWorker() {
     file: File, 
     key: string, 
     onProgress?: (progress: number) => void
-  ): Promise<Blob> => {
+  ): Promise<{blob: Blob, iv: string, ivLength: number, encryptionTimestamp: number}> => {
     if (!workerRef.current) {
       throw new Error('Encryption worker not available');
     }
@@ -127,13 +127,33 @@ export function useEncryptionWorker() {
     return new Promise((resolve, reject) => {
       const operation: EncryptionOperation = 'encrypt';
       callbacksRef.current.set(operation, { 
-        resolve: (result: ArrayBuffer) => {
+        resolve: (result: any) => {
           setProgress(100);
           onProgress?.(100);
           
           // Create a new blob with the encrypted data
-          const blob = new Blob([result], { type: file.type });
-          resolve(blob);
+          const blob = new Blob([result.data], { type: file.type });
+          
+          // Extract encryption metadata directly from worker result
+          const iv = result.iv;
+          const ivLength = result.ivLength || 12; // Standard fixed size for AES-GCM
+          const encryptionTimestamp = result.timestamp || Date.now();
+          
+          console.log('Encryption complete with IV:', iv);
+          
+          // CRITICAL - This IV must be saved and used for decryption later
+          if (!iv) {
+            console.error('CRITICAL ERROR: No IV returned from encryption worker!');
+            reject(new Error('No IV returned from encryption worker - decryption will fail'));
+            return;
+          }
+          
+          resolve({
+            blob,
+            iv,
+            ivLength,
+            encryptionTimestamp
+          });
         }, 
         reject 
       });
