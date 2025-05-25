@@ -106,6 +106,7 @@ export function useEncryptionWorker() {
   const encryptFile = async (
     file: File, 
     key: string, 
+    iv?: string, // Optional IV - if provided, will be used instead of generating a new one
     onProgress?: (progress: number) => void
   ): Promise<{blob: Blob, iv: string, ivLength: number, encryptionTimestamp: number}> => {
     if (!workerRef.current) {
@@ -158,10 +159,10 @@ export function useEncryptionWorker() {
         reject 
       });
       
-      // Post message to worker
+      // Post message to worker with optional IV parameter
       workerRef.current!.postMessage({
         operation,
-        data: { fileBuffer, key }
+        data: { fileBuffer, key, iv }
       });
       
       setProgress(50);
@@ -174,10 +175,15 @@ export function useEncryptionWorker() {
     encryptedFile: File,
     key: string,
     originalType: string,
+    iv: string, // Added IV parameter
     onProgress?: (progress: number) => void
   ): Promise<Blob> => {
     if (!workerRef.current) {
       throw new Error('Encryption worker not available');
+    }
+    
+    if (!iv) {
+      throw new Error('IV is required for decryption');
     }
     
     setIsProcessing(true);

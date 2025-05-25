@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { VideoSource } from '@prisma/client';
+import { VideoSource, Prisma } from '@prisma/client';
 import { wasabiClientMinimal } from '@/lib/wasabi-minimal';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     const newOrder = maxOrderResult ? maxOrderResult.order + 1 : 1;
 
     // Store encryption details securely if the video is encrypted
-    let secureMetadata = null;
+    let secureMetadata: any = null;
     if (isEncrypted && encryptionKey) {
       // Log encryption data for debugging
       console.log('Encryption data received:', {
@@ -163,23 +163,54 @@ export async function POST(req: NextRequest) {
       });
       
       // CRITICAL FIX: NEVER generate a random IV - always use the one from encryption worker
-      // The encryption worker creates the IV and prepends it to the encrypted file
-      // If no IV is provided, log a warning but DO NOT create a new random one!
+      // The encryption worker creates the IV and passes it in the API call
+      // If no IV is provided, reject the request as decryption will definitely fail
       if (!encryptionIV) {
-        console.warn('WARNING: No encryption IV provided for encrypted video. Decryption may fail!');
+        console.error('ERROR: No encryption IV provided for encrypted video. Rejecting request.');
+        return NextResponse.json(
+          { success: false, message: 'Missing required encryption IV for encrypted video' },
+          { status: 400 }
+        );
       }
+      
+      // Ensure IV is in string format
+      const ivString = encryptionIV && typeof encryptionIV === 'string' ? encryptionIV : null;
+      
+      // Log the exact IV we're going to store
+      console.log('Storing encryption IV in secureMetadata:', { 
+        iv: ivString ? `${ivString.substring(0, 8)}...` : 'null',
+        length: ivString?.length
+      });
       
       secureMetadata = {
         encryptionKey,
         encryptionAlgorithm: encryptionAlgorithm || 'AES-GCM', // Standardized uppercase name
         encryptionKeyLength: encryptionKeyLength || '256', // Standard for AES-GCM
-        encryptionIV: encryptionIV, // MUST STORE THE EXACT IV USED DURING ENCRYPTION
+        encryptionIV: ivString, // MUST STORE THE EXACT IV USED DURING ENCRYPTION
         encryptionIVLength: encryptionIVLength || '12', // Standard for AES-GCM
         encryptionTimestamp: encryptionTimestamp || Date.now(),
         isEncrypted: true
       };
+      
+      // Validate that we have all the required data before proceeding
+      if (!secureMetadata.encryptionIV) {
+        console.error('CRITICAL ERROR: No encryptionIV in secureMetadata!');
+        return NextResponse.json(
+          { success: false, message: 'Missing required encryption IV for encrypted video' },
+          { status: 400 }
+        );
+      }
     }
 
+    // Debug check before creating
+    if (isEncrypted && secureMetadata) {
+      console.log('Final secureMetadata check before DB insert:', {
+        hasIV: 'encryptionIV' in secureMetadata,
+        ivFirstChars: secureMetadata.encryptionIV ? secureMetadata.encryptionIV.substring(0, 8) + '...' : 'NULL',
+        ivLength: secureMetadata.encryptionIV?.length || 0
+      });
+    }
+    
     // Create the lecture
     const lecture = await prisma.lecture.create({
       data: {
@@ -209,6 +240,32 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // Add extra debug info for encrypted videos
+    let debugInfo = {};
+    if (isEncrypted) {
+      // Check if secureMetadata was stored correctly in lecture
+      const storedLecture = await prisma.lecture.findUnique({
+        where: { id: lecture.id },
+        select: { 
+          id: true,
+          secureMetadata: true
+        }
+      });
+      
+      // Extract safe info for debugging
+      if (storedLecture?.secureMetadata) {
+        const sm = storedLecture.secureMetadata as any;
+        debugInfo = {
+          secureMetadataStored: true,
+          hasIV: !!sm.encryptionIV,
+          ivLength: sm.encryptionIV?.length || 0,
+          algorithm: sm.encryptionAlgorithm || 'unknown'
+        };
+      } else {
+        debugInfo = { secureMetadataStored: false };
+      }
+    }
+    
     // Return the created lecture with course ID for redirection
     return NextResponse.json({
       success: true,
@@ -218,7 +275,9 @@ export async function POST(req: NextRequest) {
         type: lecture.type,
         videoSource: lecture.videoSource,
         fileKey,
-        courseId: section.content.id
+        courseId: section.content.id,
+        isEncrypted: isEncrypted,
+        ...(isEncrypted ? { encryptionDebug: debugInfo } : {})
       }
     });
   } catch (error) {

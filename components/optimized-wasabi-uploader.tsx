@@ -133,37 +133,43 @@ export function OptimizedWasabiUploader({
           
           // Generate secure encryption key
           const keyData = await generateKey();
+          if (!keyData || !keyData.key) {
+            throw new Error('Failed to generate encryption key');
+          }
           encryptionKey = keyData.key;
+          
+          // Generate IV for encryption (12 bytes for AES-GCM)
+          const iv = crypto.getRandomValues(new Uint8Array(12));
+          encryptionIV = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
+          encryptionIVLength = 12;
+          encryptionTimestamp = Date.now();
+          
+          // Validate key format before proceeding
+          if (!/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+            throw new Error('Invalid key format - must be 64 hex characters (256-bit key)');
+          }
           
           setUploadProgress(10);
           if (onUploadProgress) onUploadProgress(10);
           
-          // Encrypt the file using the web worker
-          const encryptionResult = await encryptFile(file, encryptionKey, (progress) => {
-            // Map progress to 10-30% range
-            const scaledProgress = Math.floor(10 + (progress * 0.2));
-            setUploadProgress(scaledProgress);
-            if (onUploadProgress) onUploadProgress(scaledProgress);
-          });
-          
-          // Store encryption metadata
-          encryptionIV = encryptionResult.iv;
-          encryptionIVLength = encryptionResult.ivLength;
-          encryptionTimestamp = encryptionResult.encryptionTimestamp;
-          
-          console.log('CRITICAL - ENCRYPTION IV CAPTURED:', encryptionIV);
-          if (!encryptionIV) {
-            throw new Error('No encryption IV returned from worker - this will cause decryption to fail!');
-          }
+          // Encrypt the file - passing IV to ensure consistent encryption
+          const encryptionResult = await encryptFile(
+            file,
+            encryptionKey,
+            encryptionIV,
+            (progress) => {
+              // Map progress to 10-30% range
+              const scaledProgress = Math.floor(10 + (progress * 0.2));
+              setUploadProgress(scaledProgress);
+              if (onUploadProgress) onUploadProgress(scaledProgress);
+            }
+          );
           
           // Convert Blob back to File to maintain file metadata
           processedFile = new File(
             [encryptionResult.blob], 
             file.name, 
-            { 
-              type: encryptionResult.blob.type || file.type,
-              lastModified: file.lastModified 
-            }
+            { type: 'application/octet-stream' }
           );
           
           setUploadProgress(30);
@@ -180,6 +186,7 @@ export function OptimizedWasabiUploader({
           
           // Fall back to non-encrypted upload
           encryptionKey = null;
+          encryptionIV = null;
           processedFile = file;
         }
       }
@@ -187,7 +194,7 @@ export function OptimizedWasabiUploader({
       // Step 2: Upload the file
       setUploadPhase('uploading');
       
-      // Prepare metadata
+      // Prepare metadata - now including IV explictly
       const metadata: Record<string, string> = {
         title,
         sectionId,
@@ -199,11 +206,11 @@ export function OptimizedWasabiUploader({
       if (description) metadata.description = description;
       if (encryptionKey) {
         metadata.isEncrypted = 'true';
-        metadata.encryptionAlgorithm = 'AES-GCM'; // Standardized uppercase name
-        metadata.encryptionKeyLength = '256'; // Standard key length in bits
-        if (encryptionIV) metadata.encryptionIV = encryptionIV;
-        metadata.encryptionIVLength = '12'; // Standard IV length for AES-GCM in bytes
-        if (encryptionTimestamp) metadata.encryptionTimestamp = encryptionTimestamp.toString();
+        metadata.encryptionAlgorithm = 'AES-GCM';
+        metadata.encryptionKeyLength = '256';
+        metadata.encryptionIV = encryptionIV!;
+        metadata.encryptionIVLength = '12';
+        metadata.encryptionTimestamp = encryptionTimestamp?.toString() || '';
       }
       
       // Use chunked upload for all files

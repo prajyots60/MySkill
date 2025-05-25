@@ -9,12 +9,12 @@ self.onmessage = async (event) => {
     // Handle different operations
     switch (operation) {
       case 'encrypt':
-        const encryptionResult = await encryptFile(data.fileBuffer, data.key);
+        const encryptionResult = await encryptFile(data.fileBuffer, data.key, data.iv);
         // CRITICAL: Must include IV in the message for decryption to work later
         if (!encryptionResult.iv) {
           throw new Error('No IV generated during encryption - this will break decryption!');
         }
-        console.log('Worker generated IV:', encryptionResult.iv);
+        console.log('Worker using IV:', encryptionResult.iv);
         self.postMessage({ 
           status: 'success', 
           result: encryptionResult.data,
@@ -26,7 +26,8 @@ self.onmessage = async (event) => {
         break;
         
       case 'decrypt':
-        const decryptedData = await decryptFile(data.fileBuffer, data.key);
+        // Now using IV from metadata
+        const decryptedData = await decryptFile(data.fileBuffer, data.key, data.iv);
         self.postMessage({ 
           status: 'success', 
           result: decryptedData,
@@ -69,14 +70,28 @@ async function generateEncryptionKey() {
 }
 
 // Encrypt a file using AES-GCM
-async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
+async function encryptFile(fileBuffer: ArrayBuffer, key: string, ivString?: string) {
   // Convert hex key to Uint8Array (256 bits / 32 bytes)
   const keyBytes = new Uint8Array(
     key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
   );
   
-  // Generate an initialization vector - exactly 12 bytes for AES-GCM (standard size)
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  // Use provided IV or generate one - exactly 12 bytes for AES-GCM (standard size)
+  let iv: Uint8Array;
+  if (ivString) {
+    // Convert hex IV to bytes
+    iv = new Uint8Array(
+      ivString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+    );
+    
+    // Validate the provided IV length
+    if (iv.length !== 12) {
+      throw new Error(`Invalid IV length: provided IV must be exactly 12 bytes (24 hex chars)`);
+    }
+  } else {
+    // Generate new IV
+    iv = crypto.getRandomValues(new Uint8Array(12));
+  }
   
   // Import the key for AES-GCM
   const cryptoKey = await crypto.subtle.importKey(
@@ -101,16 +116,12 @@ async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
     fileBuffer
   );
   
-  // Combine IV and encrypted data
-  const combinedData = new Uint8Array(iv.length + encryptedData.byteLength);
-  combinedData.set(iv, 0);
-  combinedData.set(new Uint8Array(encryptedData), iv.length);
-  
   // Convert IV to hex string for storage in metadata
   const ivHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
   
+  // Return encrypted data and IV separately - IV will be stored in metadata
   return {
-    data: combinedData,
+    data: new Uint8Array(encryptedData),
     iv: ivHex,
     ivLength: iv.length,
     timestamp: Date.now()
@@ -118,15 +129,24 @@ async function encryptFile(fileBuffer: ArrayBuffer, key: string) {
 }
 
 // Decrypt a file using AES-GCM only
-async function decryptFile(fileBuffer: ArrayBuffer, key: string) {
+async function decryptFile(fileBuffer: ArrayBuffer, key: string, ivString?: string) {
   // Convert hex key string to Uint8Array (256 bits / 32 bytes)
   const keyBytes = new Uint8Array(
     key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
   );
   
-  // Extract IV (first 12 bytes) and encrypted data
-  const iv = new Uint8Array(fileBuffer.slice(0, 12));
-  const encryptedData = fileBuffer.slice(12);
+  // Use IV from metadata or fail
+  if (!ivString) {
+    throw new Error('No IV provided for decryption');
+  }
+  
+  // Convert hex IV string to Uint8Array (12 bytes)
+  const iv = new Uint8Array(
+    ivString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+  );
+  
+  // Use the entire buffer as encrypted data (no IV prepended)
+  const encryptedData = fileBuffer;
   
   // Import the key for AES-GCM
   const cryptoKey = await crypto.subtle.importKey(

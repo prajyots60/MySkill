@@ -275,6 +275,14 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
       refetchOnWindowFocus: false, // Disable refetch on window focus
       onSuccess: (data) => {
         if (data && data.lecture) {
+          console.log('Lecture data received:', {
+            id: data.lecture.id,
+            title: data.lecture.title,
+            isEncrypted: !!(data.lecture.secureMetadata?.isEncrypted),
+            hasEncryptionKey: !!(data.lecture.secureMetadata?.encryptionKey),
+            hasEncryptionIV: !!(data.lecture.secureMetadata?.encryptionIV),
+            secureMetadataKeys: data.lecture.secureMetadata ? Object.keys(data.lecture.secureMetadata) : [],
+          });
           setCurrentLecture(data.lecture)
         } 
       },
@@ -832,16 +840,33 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
               <div className="w-full" style={{ position: 'relative' }}>
                 <div className="video-wrapper w-full h-full">
                   {currentLecture.videoSource === "WASABI" ? (
-                    <WasabiLecturePlayer
-                      videoId={currentLecture.videoId || ""}
-                      title={currentLecture.title}
-                      isEncrypted={(currentLecture as any).secureMetadata?.isEncrypted}
-                      encryptionKey={(currentLecture as any).secureMetadata?.encryptionKey}
-                      className="w-full h-full"
-                      autoplay={false}
-                      onProgress={handleVideoProgress}
-                      onComplete={handleVideoComplete}
-                    />
+                    (() => {
+                      // Check if we have the required encryption data and log it
+                      const secureMetadata = (currentLecture as any).secureMetadata || {};
+                      const hasEncryptionData = secureMetadata.isEncrypted && secureMetadata.encryptionKey;
+                      
+                      console.log('WASABI video encryption details:', {
+                        isEncrypted: !!secureMetadata.isEncrypted,
+                        hasKey: !!secureMetadata.encryptionKey,
+                        hasIV: !!secureMetadata.encryptionIV,
+                        ivLength: secureMetadata.encryptionIV?.length,
+                        ivFirstChars: secureMetadata.encryptionIV ? secureMetadata.encryptionIV.substring(0, 8) + '...' : 'NULL'
+                      });
+
+                      return (
+                        <WasabiLecturePlayer
+                          videoId={currentLecture.videoId || ""}
+                          title={currentLecture.title}
+                          isEncrypted={!!secureMetadata.isEncrypted}
+                          encryptionKey={secureMetadata.encryptionKey}
+                          encryptionIV={secureMetadata.encryptionIV}
+                          className="w-full h-full"
+                          autoplay={false}
+                          onProgress={handleVideoProgress}
+                          onComplete={handleVideoComplete}
+                        />
+                      );
+                    })()
                   ) : (
                     <VideoPlayer
                       courseId={contentId}

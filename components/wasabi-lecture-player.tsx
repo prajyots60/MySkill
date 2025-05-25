@@ -12,6 +12,7 @@ interface WasabiLecturePlayerProps {
   title?: string;
   isEncrypted?: boolean;
   encryptionKey?: string; // Encryption key for decryption
+  encryptionIV?: string;  // Added encryptionIV property
   className?: string;
   autoplay?: boolean;
   onProgress?: (progress: number) => void;
@@ -31,6 +32,7 @@ export default function WasabiLecturePlayer({
   title,
   isEncrypted,
   encryptionKey: providedKey,
+  encryptionIV: providedIV,
   className = '',
   autoplay = false,
   onProgress,
@@ -48,7 +50,7 @@ export default function WasabiLecturePlayer({
         setLoading(true);
         setError(null);
 
-        // Log encryption key validation early
+        // Log encryption key and IV validation early
         console.log('WasabiLecturePlayer encryption validation:', {
           isEncrypted,
           hasKey: !!providedKey,
@@ -58,13 +60,22 @@ export default function WasabiLecturePlayer({
             length: providedKey.length,
             firstFewChars: providedKey.substring(0, 8) + '...',
             containsNonHex: providedKey.match(/[^0-9a-fA-F]/g)
+          } : null,
+          hasIV: !!providedIV,
+          ivLength: providedIV?.length,
+          ivFormat: providedIV ? {
+            isHex: /^[0-9a-fA-F]+$/.test(providedIV),
+            length: providedIV.length,
+            firstFewChars: providedIV.substring(0, 8) + '...',
+            containsNonHex: providedIV.match(/[^0-9a-fA-F]/g)
           } : null
         });
         
         console.log('Loading encrypted video:', {
           videoId,
           isEncrypted,
-          hasKey: !!providedKey
+          hasKey: !!providedKey,
+          hasIV: !!providedIV
         });
         
         // Simple path construction
@@ -112,7 +123,7 @@ export default function WasabiLecturePlayer({
     return () => {
       isMounted = false;
     };
-  }, [videoId, isEncrypted, providedKey]);
+  }, [videoId, isEncrypted, providedKey, providedIV]);
 
   if (loading) {
     return (
@@ -141,6 +152,7 @@ export default function WasabiLecturePlayer({
       title={title}
       isEncrypted={isEncrypted}
       encryptionKey={providedKey}
+      encryptionIV={providedIV}
       className={className}
     />
   );

@@ -200,6 +200,7 @@ export function NextGenWasabiUploader({
       }
       
       let encryptionKey: string | null = null;
+      let encryptionIV: string | null = null; // Add IV variable to store the encryption IV
       let processedFile = file;
       
       // Step 1: Encrypt file if enabled
@@ -228,6 +229,14 @@ export function NextGenWasabiUploader({
             throw new Error(encryptionResult.error || "Encryption failed");
           }
           
+          // Store the encryption IV from metadata
+          if (encryptionResult.metadata?.iv) {
+            encryptionIV = encryptionResult.metadata.iv;
+            console.log('Encryption IV captured:', encryptionIV.substring(0, 8) + '...');
+          } else {
+            console.warn('No IV found in encryption result!');
+          }
+          
           processedFile = new File(
             [encryptionResult.data], 
             `${file.name}.encrypted`,
@@ -248,6 +257,7 @@ export function NextGenWasabiUploader({
           
           // Fall back to non-encrypted upload
           encryptionKey = null;
+          encryptionIV = null;
           processedFile = file;
         }
       }
@@ -268,7 +278,14 @@ export function NextGenWasabiUploader({
       if (encryptionKey) {
         metadata.isEncrypted = 'true';
         metadata.encryptionAlgorithm = 'aes-gcm';
-        metadata.encryptionAlgorithm = 'aes-gcm';
+        
+        // Include IV in metadata if we have it
+        if (encryptionIV) {
+          metadata.encryptionIV = encryptionIV;
+          metadata.encryptionIVLength = '12'; // Standard for AES-GCM
+        } else {
+          console.warn('Warning: Encryption IV missing, decryption may fail');
+        }
       }
       
       // Use resumable upload with the file
@@ -448,7 +465,10 @@ export function NextGenWasabiUploader({
           fileType: file.type,
           isEncrypted: !!encryptionKey,
           encryptionKey: encryptionKey,
+          encryptionIV: encryptionIV,
+          encryptionIVLength: encryptionIV ? 12 : undefined,
           encryptionAlgorithm: encryptionKey ? 'aes-gcm' : undefined,
+          encryptionTimestamp: Date.now(),
           uploadJobId: uploadId
         })
       });

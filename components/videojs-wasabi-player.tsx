@@ -12,6 +12,7 @@ interface VideoJsWasabiPlayerProps {
   title?: string;
   isEncrypted?: boolean;
   encryptionKey?: string;
+  encryptionIV?: string;  // Add IV prop to receive directly from parent
   posterUrl?: string;
   autoplay?: boolean;
   className?: string;
@@ -100,6 +101,7 @@ export default function VideoJsWasabiPlayer({
   title,
   isEncrypted = false,
   encryptionKey,
+  encryptionIV,  // Add encryptionIV to the destructured props
   className = ''
 }: VideoJsWasabiPlayerProps) {
   const videoRef = useRef<HTMLDivElement>(null);
@@ -429,29 +431,121 @@ export default function VideoJsWasabiPlayer({
         // Check explicitly if the video is encrypted before attempting decryption
         if (isEncrypted === true && encryptionKey) {
           console.log('Fetching encrypted video...');
-          // Attempt to fetch metadata first to get IV if available
-          let metadataIV: string | undefined;
-          try {
-            // Extract lectureId from fileUrl if possible (optional)
+          
+          // If encryptionIV is provided directly from props, use that
+          let metadataIV: string | undefined = encryptionIV || undefined;
+          
+          // If no IV is provided via prop, try to fetch it from metadata
+          if (!metadataIV) {
+            console.log('No encryptionIV provided via props, will attempt to fetch from metadata');
+            
+            // Extract lectureId from fileUrl if possible (optional) - moved outside try block to make it available in scope
             const urlMatch = fileUrl.match(/lectures\/([a-zA-Z0-9-]+)/);
             const lectureId = urlMatch ? urlMatch[1] : null;
             
-            if (lectureId) {
-              const metadataResponse = await fetch(`/api/lectures/${lectureId}/wasabi-metadata`);
-              if (metadataResponse.ok) {
-                const metadata = await metadataResponse.json();
-                // Extract the IV from the metadata response
-                metadataIV = metadata.encryptionInfo?.encryptionIV;
-                console.log('Successfully retrieved metadata IV:', { 
-                  ivLength: metadataIV?.length,
-                  ivSample: metadataIV ? metadataIV.substring(0, 6) + '...' : undefined,
-                  fullMetadata: metadata
-                });
+            try {
+              if (lectureId) {
+                const metadataResponse = await fetch(`/api/lectures/${lectureId}/wasabi-metadata`);
+                if (metadataResponse.ok) {
+                  const metadata = await metadataResponse.json();
+                  
+                  // Let's dump the actual response structure for debugging
+                  console.log('Raw metadata response structure:', JSON.stringify(metadata, null, 2));
+                  
+                  // Check the top-level encryptionIV field first (new consistent location)
+                  metadataIV = metadata.encryptionIV;
+                  
+                  // If not found, try the encryptionInfo location
+                  if (!metadataIV) {
+                    metadataIV = metadata.encryptionInfo?.encryptionIV;
+                  }
+                  
+                  // Check for IV in all possible locations in the metadata structure
+                  if (!metadataIV) {
+                    // Check in secureMetadata directly
+                    if (metadata.secureMetadata?.encryptionIV) {
+                      metadataIV = metadata.secureMetadata.encryptionIV;
+                    }
+                    // Check in lecture.videoMetadata.secureMetadata
+                    else if (metadata.lecture?.videoMetadata?.secureMetadata?.encryptionIV) {
+                      metadataIV = metadata.lecture.videoMetadata.secureMetadata.encryptionIV;
+                    }
+                    // Check in lecture.videoMetadata directly (in case it's structured differently)
+                    else if (metadata.lecture?.videoMetadata) {
+                      try {
+                        const videoMeta = metadata.lecture.videoMetadata;
+                        
+                        // Handle both primitive and object types
+                        if (typeof videoMeta === 'object' && videoMeta !== null) {
+                          // Direct properties
+                          metadataIV = videoMeta.encryptionIV || videoMeta.secureMetadata?.encryptionIV;
+                          
+                          // Try to parse string metadata if needed
+                          if (!metadataIV && typeof videoMeta === 'string') {
+                            try {
+                              const parsedMeta = JSON.parse(videoMeta);
+                              metadataIV = parsedMeta.encryptionIV || parsedMeta.secureMetadata?.encryptionIV;
+                            } catch (e) {
+                              console.log('Failed to parse videoMetadata as JSON string');
+                            }
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Error trying to extract IV from videoMetadata:', err);
+                      }
+                    }
+                  }
+                  
+                  // Add detailed diagnostic logging for the IV search
+                  const diagnostics = {
+                    ivSource: encryptionIV ? 'props' : 'metadata',
+                    ivFound: !!metadataIV,
+                    ivLength: metadataIV?.length,
+                    ivSample: metadataIV ? metadataIV.substring(0, 6) + '...' : 'MISSING',
+                    searchLocations: {
+                      topLevel: !!metadata.encryptionIV,
+                      encryptionInfo: !!metadata.encryptionInfo?.encryptionIV,
+                      secureMetadata: !!metadata.secureMetadata?.encryptionIV,
+                      lectureVideoMetadata: !!metadata.lecture?.videoMetadata?.secureMetadata?.encryptionIV
+                    },
+                    // Include sample of metadata structure for debugging
+                    metadataKeys: Object.keys(metadata),
+                    lecture: metadata.lecture ? {
+                      id: metadata.lecture.id,
+                      hasVideoMetadata: !!metadata.lecture.videoMetadata
+                    } : null
+                  };
+                  
+                  console.log('Metadata IV search results:', diagnostics);
+                  
+                  if (!metadataIV) {
+                    console.error('Failed to find IV in metadata response', diagnostics);
+                  }
+                }
+              }
+            } catch (metadataError) {
+              // Only throw if we don't have an IV from props
+              if (!encryptionIV) {
+                console.error('Failed to fetch metadata IV - decryption cannot proceed without IV:', metadataError);
+                throw new Error('Failed to fetch required encryption IV from metadata');
               }
             }
-          } catch (metadataError) {
-            // If metadata fetch fails, we'll fall back to IV in the file
-            console.warn('Failed to fetch metadata IV, will use IV from file:', metadataError);
+          } else if (encryptionIV) {
+            console.log('Using encryptionIV provided via props:', {
+              ivLength: encryptionIV.length, 
+              ivSample: encryptionIV.substring(0, 6) + '...'
+            });
+          } else {
+            console.log('No IV provided in props, but this should never happen as we checked earlier');
+          }
+          
+          // After all attempts, if the IV is still not found, throw a more detailed error
+          if (!metadataIV) {
+            console.error('No IV found in props or metadata', {
+              hasPropsIV: !!encryptionIV,
+              fileUrl
+            });
+            throw new Error('No IV provided in props or metadata. Cannot decrypt video without initialization vector.');
           }
           
           const response = await fetch(fileUrl);
@@ -462,7 +556,9 @@ export default function VideoJsWasabiPlayer({
           const encryptedBlob = await response.blob();
           console.log('Decrypting video...', { 
             size: encryptedBlob.size,
-            hasMetadataIV: !!metadataIV
+            hasMetadataIV: !!metadataIV,
+            ivLength: metadataIV?.length,
+            ivFirstChars: metadataIV?.substring(0, 8)
           });
           let decryptedBlob = await decryptFile(encryptedBlob, encryptionKey, metadataIV);
           
@@ -533,7 +629,7 @@ export default function VideoJsWasabiPlayer({
       mountedRef.current = false;
       cleanup();
     };
-  }, [fileUrl, isEncrypted, encryptionKey, handleInitializePlayer, cleanup]); // Stable dependencies
+  }, [fileUrl, isEncrypted, encryptionKey, encryptionIV, handleInitializePlayer, cleanup]); // Stable dependencies
 
   // We'll keep the player visible while loading so video.js can handle the loading state
   // This prevents the player from being torn down and recreated which can cause issues
@@ -757,7 +853,7 @@ function detectVideoFormat(header: Uint8Array): string {
   return 'video/mp4';
 }
 
-// Helper function to decrypt a file using standardized AES-GCM with 12-byte IV
+// Helper function to decrypt a file using standardized AES-GCM with 12-byte IV from metadata
 function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -768,9 +864,9 @@ function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string
             throw new Error('Failed to read encrypted file');
           }
           
-          const data = event.target.result as ArrayBuffer;
+          let data = event.target.result as ArrayBuffer;
           
-          if (data.byteLength < 12) {
+          if (data.byteLength < 1) {
             throw new Error('File is too small to be a valid encrypted video');
           }
 
@@ -803,27 +899,37 @@ function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string
             keyBits: keyBytes.length * 8
           });
 
-          // Get IV from the file - ALWAYS use the IV prepended to the encrypted data
-          // The encryption worker ALWAYS prepends the IV to the file
-          const iv = new Uint8Array(data.slice(0, 12));
-          const contentStartOffset = 12; // IV is always prepended to content (12 bytes)
-          const extractedIvHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
-          
-          console.log('Using IV from file header:', extractedIvHex);
-          
-          // Compare with metadata IV if available (for debugging only)
-          if (metadataIV && metadataIV !== extractedIvHex) {
-            console.warn('Warning: Metadata IV differs from file IV. Always using file IV for decryption:', {
-              fileIV: extractedIvHex,
-              metadataIV
-            });
+          // Use IV from metadata, it should no longer be prepended to file
+          if (!metadataIV) {
+            throw new Error('No IV provided in metadata. Cannot proceed with decryption.');
           }
 
+          // Validate the IV format - should be 24 hex chars (12 bytes)
+          if (!/^[0-9a-fA-F]{24}$/.test(metadataIV)) {
+            console.error('Invalid IV format:', metadataIV);
+            throw new Error(`Invalid IV format: expected 24 hex chars, got ${metadataIV.length} chars. IV: ${metadataIV.substring(0, 10)}...`);
+          }
+
+          // Convert hex IV from metadata to bytes
+          const iv = new Uint8Array(12);
+          try {
+            for (let i = 0; i < 12; i++) {
+              iv[i] = parseInt(metadataIV.substr(i * 2, 2), 16);
+            }
+            console.log('Using IV from metadata:', {
+              ivHex: metadataIV,
+              ivBytes: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' ')
+            });
+          } catch (ivParseError) {
+            console.error('Failed to parse IV from metadata:', ivParseError);
+            throw new Error(`Failed to parse IV from metadata: ${metadataIV.substring(0, 10)}... is not valid hex`);
+          }
+          
           console.log('Decryption parameters:', {
             algorithm: 'AES-GCM',
             ivLength: iv.length,
-            ivHex: extractedIvHex,
-            ivSource: metadataIV ? 'metadata' : 'prepended'
+            ivHex: metadataIV,
+            ivSource: 'metadata'
           });
 
           // Verify IV content - should not be all zeros or a pattern
@@ -832,11 +938,43 @@ function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string
             console.warn('Warning: IV contains all zeros, which is insecure for AES-GCM');
           }
 
+          // Check the first few bytes of the data and compare with the IV
+          const header = new Uint8Array(data.slice(0, 16));
+          console.log('Data header:', Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' '));
+          
+          // Compare the first 12 bytes of data with the IV
+          const firstTwelveBytes = new Uint8Array(data.slice(0, 12));
+          const matchesIV = Array.from(firstTwelveBytes).every((byte, index) => byte === iv[index]);
+          
+          if (matchesIV) {
+            console.warn('IMPORTANT: First 12 bytes of data match the IV - this indicates the IV might be prepended to the encrypted data');
+            // However, we'll still use the IV from metadata as that's more reliable
+          }
+          
+          console.log('Using complete data with IV from metadata/props');
+          
           let decryptedData: ArrayBuffer;
           let format: string;
           
-          // Import the key for AES-GCM (256-bit)
+          // Import the key for AES-GCM - we standardize on 256-bit keys for AES-GCM
           try {
+            // Check if data appears to already contain the IV - this could explain the decryption failures
+            // First 12 bytes matching the IV would indicate the IV is prepended to the data
+            const firstBytes = new Uint8Array(data.slice(0, 12));
+            const ivArray = Array.from(iv);
+            const firstBytesArray = Array.from(firstBytes);
+            
+            const isPossiblyPrepended = firstBytesArray.every((byte, index) => byte === ivArray[index]);
+            if (isPossiblyPrepended) {
+              console.warn('DETECTED POSSIBLE PREPENDED IV! First 12 bytes of data match IV:', {
+                ivHex: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''),
+                firstBytesHex: Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+              });
+              // In this case, we need to skip the first 12 bytes when decrypting
+              data = data.slice(12);
+              console.log('Adjusted data for decryption, removing prepended IV. New data length:', data.byteLength);
+            }
+            
             // Import the key for AES-GCM - we standardize on 256-bit keys for AES-GCM
             const cryptoKey = await window.crypto.subtle.importKey(
               'raw', 
@@ -864,12 +1002,22 @@ function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string
               algorithm: 'AES-GCM',
               ivLength: iv.length,
               keyBits: keyBytes.length * 8,
-              dataLength: data.byteLength,
-              contentStartOffset,
-              contentLength: data.byteLength - contentStartOffset
+              dataLength: data.byteLength
             });
             
-            // Decrypt with AES-GCM using the standard 12-byte IV and 128-bit tag
+            // Check if data might have authentication tag included
+            // AES-GCM tag is typically 16 bytes (128 bits)
+            const possibleAuthTagIncluded = data.byteLength > 16 && 
+              (data.byteLength % 16 === 0 || (data.byteLength - 12) % 16 === 0);
+              
+            if (possibleAuthTagIncluded) {
+              console.log('Data size suggests possible authentication tag inclusion - this is normal for AES-GCM');
+            }
+            
+            // Simple direct decryption with the provided IV
+            console.log('Starting decryption with provided IV...', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '));
+            
+            // Always use the provided IV and decrypt the full data
             decryptedData = await window.crypto.subtle.decrypt(
               {
                 name: 'AES-GCM',
@@ -877,37 +1025,75 @@ function decryptFile(encryptedBlob: Blob, keyString: string, metadataIV?: string
                 tagLength: 128
               },
               cryptoKey,
-              data.slice(contentStartOffset) // Skip IV bytes if prepended, use full data if IV from metadata
+              data // Use the full data without any slicing
             );
             
             console.log('AES-GCM decryption successful!');
           } catch (error) {
             console.error('AES-GCM decryption failed:', error);
             
-            // Add detailed diagnostic information for troubleshooting
-            console.error('Decryption diagnostic information:', {
+            // Add clear diagnostic information
+            console.error('Decryption failed. Diagnostic information:', {
               ivLength: iv.length,
               dataLength: data.byteLength,
-              contentOffset: contentStartOffset,
               keyLength: keyBytes.length * 8 + ' bits',
-              ivHex: extractedIvHex,
-              error: error instanceof Error ? error.message : String(error)
+              ivHex: metadataIV,
+              ivBytes: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '),
+              errorName: error instanceof Error ? error.name : 'Unknown',
+              errorMessage: error instanceof Error ? error.message : String(error),
+              dataHeader: Array.from(new Uint8Array(data.slice(0, 16))).map(b => b.toString(16).padStart(2, '0')).join(' ')
             });
             
-            // Provide specific error messages for common decryption issues
-            if (error instanceof Error) {
-              const errorMessage = error.message.toLowerCase();
-              if (errorMessage.includes('tag')) {
-                throw new Error(`AES-GCM authentication tag verification failed: data may be corrupted or tampered with`);
-              } else if (errorMessage.includes('bad key')) {
-                throw new Error(`Invalid encryption key: the provided key cannot decrypt this content`);
-              } else if (errorMessage.includes('iv')) {
-                throw new Error(`IV error: the initialization vector may be incorrect for this content`);
-              } else {
-                throw new Error(`AES-GCM decryption failed: ${error.message}`);
+            // Try again with a slightly different approach if it's specifically an OperationError
+            if (error instanceof Error && error.name === 'OperationError') {
+              console.log('Detected OperationError - trying alternative approach with CBC mode...');
+              
+              try {
+                // Try with AES-CBC as fallback (this requires handling padding)
+                const cbcKey = await window.crypto.subtle.importKey(
+                  'raw',
+                  keyBytes,
+                  {
+                    name: 'AES-CBC',
+                    length: keyBytes.length * 8
+                  },
+                  false,
+                  ['decrypt']
+                );
+                
+                // Use the first 16 bytes of the IV or pad it if needed
+                let cbcIv;
+                if (iv.length === 16) {
+                  cbcIv = iv;
+                } else {
+                  cbcIv = new Uint8Array(16);
+                  // Copy the original IV bytes and pad with zeros
+                  cbcIv.set(iv);
+                }
+                
+                console.log('Attempting AES-CBC decryption with IV:', 
+                  Array.from(cbcIv).map(b => b.toString(16).padStart(2, '0')).join(' '));
+                
+                decryptedData = await window.crypto.subtle.decrypt(
+                  {
+                    name: 'AES-CBC',
+                    iv: cbcIv
+                  },
+                  cbcKey,
+                  data
+                );
+                console.log('AES-CBC decryption successful!');
+                return;
+              } catch (cbcError) {
+                console.error('AES-CBC fallback also failed:', cbcError);
               }
+            }
+            
+            // Provide clear error message
+            if (error instanceof Error) {
+              throw new Error(`AES-GCM decryption failed: ${error.message}`);
             } else {
-              throw new Error(`AES-GCM decryption failed: Unknown error`);
+              throw new Error('AES-GCM decryption failed: Unknown error');
             }
           }
           
@@ -1016,4 +1202,9 @@ async function validateVideoPlayability(blob: Blob): Promise<{ isValid: boolean;
     const error = err as Error;
     return { isValid: false, error: `Validation error: ${error.message}` };
   }
+}
+
+// Simple helper function for logging purposes
+function logIVInfo(iv: Uint8Array, label: string) {
+  console.log(`${label} IV:`, Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' '));
 }

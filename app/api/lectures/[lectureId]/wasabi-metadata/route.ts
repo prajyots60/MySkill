@@ -74,6 +74,17 @@ export async function GET(
       }
     }
     
+    // Make sure we always provide the IV in a consistent top-level location if available
+    let topLevelIV = null;
+    if (encryptionInfo?.encryptionIV) {
+      topLevelIV = encryptionInfo.encryptionIV;
+    } else if (lecture.videoMetadata && typeof lecture.videoMetadata === 'object') {
+      const metadata = lecture.videoMetadata as Record<string, any>;
+      if (metadata.secureMetadata?.encryptionIV) {
+        topLevelIV = metadata.secureMetadata.encryptionIV;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       lecture: {
@@ -82,7 +93,9 @@ export async function GET(
         videoSource: lecture.videoSource,
         isEncrypted: !!encryptionInfo?.isEncrypted
       },
-      encryptionInfo
+      encryptionInfo,
+      // Always include the IV at the top level if we have it
+      ...(topLevelIV ? { encryptionIV: topLevelIV } : {})
     });
     
   } catch (error) {
