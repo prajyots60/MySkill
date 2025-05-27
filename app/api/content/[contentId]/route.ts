@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth"
 import createBatch from "@/lib/utils/db-batch"
-import { db } from "@/lib/db"
+
 import dbMonitoring from "@/lib/db-monitoring"
 
 export async function GET(

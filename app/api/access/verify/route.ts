@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth"
 import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
     // Check if user is the creator or an admin
     const isCreator = content.creatorId === session.user.id
-    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN"
+    const isAdmin = session.user.role === "ADMIN" 
 
     // Check if content is published
     if (!content.isPublished && !isCreator && !isAdmin) {

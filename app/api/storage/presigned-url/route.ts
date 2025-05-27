@@ -49,7 +49,6 @@ export async function POST(request: Request) {
     const presignedData = await generatePresignedUploadUrl(key, contentType, expiresIn);
 
     return NextResponse.json({
-      success: true,
       ...presignedData,
       // Add additional useful information for the client
       filename,

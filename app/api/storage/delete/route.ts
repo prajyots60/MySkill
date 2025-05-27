@@ -36,8 +36,8 @@ export async function POST(request: Request) {
     const result = await deleteFromWasabi(key);
 
     return NextResponse.json({
-      success: true,
       ...result,
+      success: true,
     });
   } catch (error) {
     console.error("Error deleting file from Wasabi:", error);

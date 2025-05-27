@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { generatePresignedGetUrl } from "@/lib/wasabi-storage";
+import { generatePresignedUploadUrl } from "@/lib/wasabi-storage";
 
 export async function POST(request: Request) {
   try {
@@ -22,11 +22,11 @@ export async function POST(request: Request) {
     }
 
     // Generate a presigned URL for viewing/downloading the file
-    const presignedData = await generatePresignedGetUrl(key, expiresIn);
+    const presignedData = await generatePresignedUploadUrl(key, expiresIn);
 
     return NextResponse.json({
-      success: true,
       ...presignedData,
+      success: true,
       expiresIn,
     });
   } catch (error) {

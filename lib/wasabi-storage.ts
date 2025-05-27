@@ -1,5 +1,7 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 // S3 client for Wasabi
 let s3Client: S3Client;
@@ -166,4 +168,85 @@ export async function generatePresignedDownloadUrl(
     console.error('Error generating pre-signed download URL:', error);
     throw error;
   }
+}
+
+/**
+ * Delete a file from Wasabi storage
+ * @param key The key (path) of the file to delete
+ * @returns Object with success status and metadata
+ */
+export async function deleteFromWasabi(key: string) {
+  try {
+    const client = getS3Client();
+    const bucket = process.env.WASABI_BUCKET;
+
+    if (!bucket) {
+      throw new Error('Wasabi bucket is not configured');
+    }
+
+    // Create the command for deleting the object
+    const command = new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+
+    // Execute the delete command
+    const response = await client.send(command);
+
+    return {
+      success: true,
+      key,
+      deleted: true,
+      deleteMarker: response.DeleteMarker,
+      versionId: response.VersionId,
+    };
+  } catch (error) {
+    console.error('Error deleting file from Wasabi:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a storage key (path) for a file in Wasabi
+ * @param category The category/folder for the file (e.g., 'images', 'videos', 'documents')
+ * @param filename The original filename
+ * @param userId The ID of the user who owns the file
+ * @param useOriginalName Whether to use the original filename or generate a UUID (default: false)
+ * @returns A unique storage key for the file
+ */
+export function generateStorageKey(
+  category: string,
+  filename: string,
+  userId: string,
+  useOriginalName: boolean = false
+): string {
+  // Sanitize the category and ensure it doesn't contain path traversal
+  const sanitizedCategory = category.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+  
+  // Get the file extension
+  const ext = path.extname(filename);
+  
+  // Generate a unique filename or use the original
+  const uniqueFilename = useOriginalName
+    ? sanitizeFilename(filename)
+    : `${uuidv4()}${ext}`;
+  
+  // Format: users/{userId}/{category}/{uniqueFilename}
+  return `users/${userId}/${sanitizedCategory}/${uniqueFilename}`;
+}
+
+/**
+ * Sanitize a filename to be safe for storage
+ * @param filename The original filename
+ * @returns A sanitized version of the filename
+ */
+function sanitizeFilename(filename: string): string {
+  // Remove any path components and keep only the base filename
+  const basename = path.basename(filename);
+  
+  // Replace any potentially problematic characters
+  return basename
+    .replace(/[^\w\s.-]/g, '') // Remove special characters except dots, hyphens, and underscores
+    .replace(/\s+/g, '-')      // Replace spaces with hyphens
+    .toLowerCase();            // Convert to lowercase
 }

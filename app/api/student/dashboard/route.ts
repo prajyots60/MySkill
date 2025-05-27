@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import createBatch from "@/lib/utils/db-batch"
+import { authOptions } from "@/lib/auth" 
 import { db } from "@/lib/db"
 import dbMonitoring from "@/lib/db-monitoring"
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
+import { Enrollment, Content, Bookmark } from "@prisma/client"
 
 // Maximum retry attempts for database operations
 const MAX_RETRIES = 3
@@ -63,10 +63,30 @@ export async function GET() {
       }
     }
     
+    // Define type for the enrollment results to avoid 'unknown' type issues
+    type EnrollmentWithContent = Enrollment & {
+      content: Content & {
+        creator: {
+          id: string;
+          name: string | null;
+          image: string | null;
+        };
+        sections: Array<{
+          lectures: Array<{
+            id: string;
+            progress: Array<{
+              isComplete: boolean;
+              percentage: number;
+            }>;
+          }>;
+        }>;
+      };
+    };
+
     // Fetch data with individual queries and retry logic instead of a single transaction
     try {
       // Get recent enrollments with course details and progress
-      const recentEnrollments = await retryOperation(() => db.enrollment.findMany({
+      const recentEnrollments = await retryOperation<EnrollmentWithContent[]>(() => db.prisma.enrollment.findMany({
         where: { userId },
         orderBy: { enrolledAt: "desc" },
         take: 6,
@@ -102,15 +122,15 @@ export async function GET() {
       }))
       
       // Process enrollments to calculate progress
-      dashboardData.enrollments = recentEnrollments.map(enrollment => {
+      dashboardData.enrollments = recentEnrollments.map((enrollment: EnrollmentWithContent) => {
         const content = enrollment.content
         
         // Calculate total lectures
         let totalLectures = 0
         let completedLectures = 0
         
-        content.sections.forEach(section => {
-          section.lectures.forEach(lecture => {
+        content.sections.forEach((section: {lectures: Array<{id: string; progress: Array<{isComplete: boolean; percentage: number}>}> }) => {
+          section.lectures.forEach((lecture: {id: string; progress: Array<{isComplete: boolean; percentage: number}>}) => {
             totalLectures++
             if (lecture.progress[0]?.isComplete) {
               completedLectures++
@@ -148,7 +168,7 @@ export async function GET() {
     
     try {
       // Get in-progress courses (optimized query)
-      dashboardData.inProgress = await retryOperation(() => db.enrollment.findMany({
+      dashboardData.inProgress = await retryOperation(() => db.prisma.enrollment.findMany({
         where: {
           userId,
           content: {
@@ -173,7 +193,9 @@ export async function GET() {
         },
         take: 4,
         orderBy: {
-          updatedAt: "desc" // Simplified ordering
+          // Using lastAccessed which should exist on the Enrollment model
+          // If this doesn't exist, you may need to use another field like enrolledAt
+          enrolledAt: "desc" 
         },
         include: {
           content: {
@@ -197,7 +219,7 @@ export async function GET() {
     // Fetch stats with parallel execution and individual error handling
     await Promise.allSettled([
       // Get total course count
-      retryOperation(() => db.enrollment.count({ where: { userId } }))
+      retryOperation(() => db.prisma.enrollment.count({ where: { userId } }))
         .then(count => { dashboardData.stats.totalCourses = count })
         .catch(error => {
           console.error("Error counting total courses:", error)
@@ -205,7 +227,7 @@ export async function GET() {
         }),
       
       // Get completed courses count (optimized query)
-      retryOperation(() => db.content.count({
+      retryOperation(() => db.prisma.content.count({
         where: {
           enrollments: {
             some: { userId }
@@ -233,7 +255,7 @@ export async function GET() {
         }),
       
       // Get bookmark count
-      retryOperation(() => db.bookmark.count({ where: { userId } }))
+      retryOperation(() => db.prisma.bookmark.count({ where: { userId } }))
         .then(count => { dashboardData.stats.bookmarkCount = count })
         .catch(error => {
           console.error("Error counting bookmarks:", error)

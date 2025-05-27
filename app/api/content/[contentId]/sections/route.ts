@@ -1,9 +1,34 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth" 
 import createBatch from "@/lib/utils/db-batch"
 import { db } from "@/lib/db"
 import dbMonitoring from "@/lib/db-monitoring"
+import { Prisma } from "@prisma/client"
+
+// Define types for our section and lecture data with progress information
+type LectureWithProgress = {
+  id: string;
+  title: string;
+  description: string | null;
+  order: number;
+  type: string;
+  duration: number | null;
+  isPreview: boolean;
+  progress?: Array<{
+    isComplete: boolean;
+    percentage: number;
+    timeSpentSeconds: number | null;
+  }>;
+}
+
+type SectionWithLectures = {
+  id: string;
+  title: string;
+  description: string | null;
+  order: number;
+  lectures: LectureWithProgress[];
+}
 
 export async function GET(
   request: Request,
@@ -89,8 +114,8 @@ export async function GET(
     }
     
     // Process sections to format output and include progress data
-    const processedSections = sections.map(section => {
-      const processedLectures = section.lectures.map(lecture => {
+    const processedSections = sections.map((section: SectionWithLectures) => {
+      const processedLectures = section.lectures.map((lecture: LectureWithProgress) => {
         const userProgress = lecture.progress?.[0] || null
         
         return {
