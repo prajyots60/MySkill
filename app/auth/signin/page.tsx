@@ -35,8 +35,25 @@ export default function SignIn() {
     setError(null)
 
     try {
-      await signIn("google", { callbackUrl })
+      // Explicitly set redirect to true to ensure client-side redirect happens
+      // This is crucial for properly transitioning to authenticated pages
+      const result = await signIn("google", { 
+        callbackUrl,
+        redirect: true,
+      })
+      
+      // This code will only run if redirect:true fails for some reason
+      if (!result?.ok) {
+        setError({ message: "Authentication failed. Please try again." })
+        toast({
+          title: "Error",
+          description: `Authentication error: ${result?.error || 'Unknown error'}`,
+          variant: "destructive",
+        })
+        setIsLoading(false)
+      }
     } catch (error) {
+      console.error("Sign-in error:", error)
       setError({ message: "Failed to sign in with Google. Please try again." })
       toast({
         title: "Error",

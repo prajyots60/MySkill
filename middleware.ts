@@ -23,16 +23,26 @@ const studentOnlyRoutes = [
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  const token = await getToken({ req: request as any })
+  // Securely retrieve the token with secure: true option which is important for cross-domain in production
+  const token = await getToken({ 
+    req: request as any,
+    secureCookie: process.env.NODE_ENV === 'production'
+  })
+
+  // Enhanced logging for debugging auth flow
+  console.log(`[Middleware] Path: ${pathname}, Has Token: ${!!token}, Role: ${token?.role || 'none'}`)
 
   // Redirect logged-in users from authentication pages to appropriate dashboard based on role
   if ((pathname === "/auth/signin" || pathname === "/auth/signup") && token) {
     const role = token.role as string
-    if (role === "CREATOR") {
-      return NextResponse.redirect(new URL("/dashboard/creator", request.url))
-    } else {
-      return NextResponse.redirect(new URL("/dashboard/student", request.url))
-    }
+    const destination = role === "CREATOR" ? "/dashboard/creator" : "/dashboard/student"
+    
+    // Create absolute URL for consistent behavior across environments
+    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
+    const redirectUrl = new URL(destination, baseUrl)
+    
+    console.log(`[Middleware] Redirecting to: ${redirectUrl.toString()}`)
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect logged-in users from home page to appropriate dashboard based on role
@@ -53,9 +63,14 @@ export async function middleware(request: NextRequest) {
     pathname?.startsWith("/api/student")
   ) {
     if (!token) {
-      const url = new URL("/auth/signin", request.url)
-      url.searchParams.set("callbackUrl", request.url)
-      return NextResponse.redirect(url)
+      // Create absolute URL for signin redirect
+      const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
+      const signinUrl = new URL("/auth/signin", baseUrl)
+      
+      // Encode the callback URL
+      signinUrl.searchParams.set("callbackUrl", request.url)
+      console.log(`[Middleware] Redirecting unauthenticated user to: ${signinUrl.toString()}`)
+      return NextResponse.redirect(signinUrl)
     }
   }
 

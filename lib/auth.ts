@@ -17,6 +17,18 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  // Cookie configuration - critical for production environment
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   pages: {
     signIn: "/auth/signin",
     signOut: "/auth/signout",
@@ -147,7 +159,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  // Enable debug in all environments temporarily to help troubleshoot
+  debug: true,
 }
 
 export const getAuthSession = () => getServerSession(authOptions)
