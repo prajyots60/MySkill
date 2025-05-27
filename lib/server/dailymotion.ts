@@ -10,7 +10,7 @@
 import axios from 'axios'
 import FormData from 'form-data'
 import { prisma } from "@/lib/db"
-import { decrypt } from "@/lib/encryption"
+import { decrypt, encrypt } from "@/lib/encryption"
 
 // Constants for Dailymotion API
 const DAILYMOTION_API_BASE = 'https://api.dailymotion.com'
@@ -137,20 +137,26 @@ export async function uploadVideo(
 
     const { upload_url } = await urlResponse.json()
 
-    // Step 2: Upload the video file
+    // Step 2: Upload the video file using axios for better FormData handling
     const formData = new FormData()
-    formData.append("file", new Blob([videoBuffer]), "video.mp4")
-
-    const uploadResponse = await fetch(upload_url, {
-      method: "POST",
-      body: formData,
+    formData.append('file', videoBuffer, {
+      filename: 'video.mp4',
+      contentType: 'video/mp4'
     })
 
-    if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload video: ${await uploadResponse.text()}`)
+    const uploadResponse = await axios.post(upload_url, formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    })
+
+    if (uploadResponse.status !== 200) {
+      throw new Error(`Failed to upload video: ${uploadResponse.data}`)
     }
 
-    const { url: fileUrl } = await uploadResponse.json()
+    const { url: fileUrl } = uploadResponse.data
 
     // Step 3: Create the video with the uploaded file
     const createParams = new URLSearchParams()
@@ -257,5 +263,77 @@ export async function updateVideoMetadata(
   } catch (error) {
     console.error(`Failed to update video metadata for ${videoId}:`, error)
     throw new Error('Failed to update video information')
+  }
+}
+
+/**
+ * Connects a user to Dailymotion by storing their API credentials
+ * This function creates the necessary database records for Dailymotion integration
+ */
+export async function connectUserToDailymotion(userId: string): Promise<any> {
+  try {
+    validateEnvironmentVariables()
+
+    // Check if user already has Dailymotion connection
+    const existingConnection = await prisma.dailymotionInfo.findUnique({
+      where: { userId },
+    })
+
+    if (existingConnection) {
+      return {
+        success: true,
+        message: "User already connected to Dailymotion",
+        connectionId: existingConnection.id,
+      }
+    }
+
+    // Get access token using client credentials (no user auth needed for public API)
+    const tokenResponse = await fetch(DAILYMOTION_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: DAILYMOTION_API_KEY!,
+        client_secret: DAILYMOTION_API_SECRET!,
+      }),
+    })
+
+    if (!tokenResponse.ok) {
+      throw new Error(`Failed to get access token: ${await tokenResponse.text()}`)
+    }
+
+    const tokenData = await tokenResponse.json()
+
+    // Create Dailymotion info record first
+    const dailymotionInfo = await prisma.dailymotionInfo.create({
+      data: {
+        userId,
+        dailymotionUserId: 'system', // Since we're using client credentials
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || '',
+        expiresAt: new Date(Date.now() + (tokenData.expires_in || 3600) * 1000),
+      },
+    })
+
+    // Create Dailymotion credentials record linked to the info
+    await prisma.dailymotionCredentials.create({
+      data: {
+        dailymotionInfoId: dailymotionInfo.id,
+        apiKey: encrypt(DAILYMOTION_API_KEY!),
+        apiSecret: encrypt(DAILYMOTION_API_SECRET!),
+      },
+    })
+
+    return {
+      success: true,
+      message: "Successfully connected to Dailymotion",
+      connectionId: dailymotionInfo.id,
+      expiresAt: dailymotionInfo.expiresAt,
+    }
+  } catch (error) {
+    console.error("Failed to connect user to Dailymotion:", error)
+    throw new Error(`Failed to connect to Dailymotion: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }

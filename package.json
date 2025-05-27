@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "socket": "ts-node --project socket-server/tsconfig.json socket-server/index.ts",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy:cors": "node scripts/deploy-wasabi-cors.js"
+    "deploy:cors": "node scripts/deploy-wasabi-cors.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/core": "latest",

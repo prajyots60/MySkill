@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import { parse } from "url"
 
 // List of routes that should be restricted based on user role
 const creatorOnlyRoutes = [
@@ -23,7 +22,7 @@ const studentOnlyRoutes = [
 ]
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = parse(request.url)
+  const pathname = request.nextUrl.pathname
   const token = await getToken({ req: request as any })
 
   // Redirect logged-in users from authentication pages to appropriate dashboard based on role
