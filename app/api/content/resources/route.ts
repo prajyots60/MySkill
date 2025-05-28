@@ -62,17 +62,50 @@ export async function GET(request: Request) {
     const isCreator = course.creatorId === session.user.id
     const isAdmin = session.user.role === "ADMIN"
     
-    // If not creator or admin, check if enrolled
+    // If not creator or admin, check if lecture is preview or user is enrolled
     if (!isCreator && !isAdmin) {
-      const enrollment = await prisma.enrollment.findFirst({
-        where: {
-          contentId: courseId, // Using contentId from the Enrollment model
-          userId: session.user.id
+      let hasAccess = false;
+
+      // If we have a lectureId, check if it's a preview lecture
+      if (lectureId) {
+        const lecture = await prisma.lecture.findUnique({
+          where: { id: lectureId },
+          select: { 
+            isPreview: true,
+            section: {
+              select: {
+                content: {
+                  select: {
+                    price: true
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+        // Allow access if:
+        // 1. It's a preview lecture
+        // 2. The course is free (price is 0 or null)
+        if (lecture?.isPreview || lecture?.section?.content?.price === 0 || lecture?.section?.content?.price === null) {
+          hasAccess = true;
         }
-      })
-      
-      if (!enrollment) {
-        return NextResponse.json({ message: "Not enrolled in this course" }, { status: 403 })
+      }
+
+      // If not a preview lecture, check enrollment
+      if (!hasAccess) {
+        const enrollment = await prisma.enrollment.findFirst({
+          where: {
+            contentId: courseId,
+            userId: session.user.id
+          }
+        });
+        
+        hasAccess = !!enrollment;
+      }
+
+      if (!hasAccess) {
+        return NextResponse.json({ message: "Not enrolled in this course" }, { status: 403 });
       }
     }
     

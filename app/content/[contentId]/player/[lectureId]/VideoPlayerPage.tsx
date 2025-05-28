@@ -102,6 +102,13 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   const [completedLectures, setCompletedLectures] = useState<Record<string, boolean>>({})
   const [currentProgress, setCurrentProgress] = useState(0)
 
+  // Access control state
+  const [hasAccess, setHasAccess] = useState(false)
+  const isCreator = session?.user?.id === course?.creatorId
+  const isAdmin = session?.user?.role === "ADMIN"
+  const isFreeCourse = course?.price === 0 || course?.price === null
+  const isPreviewLecture = currentLecture?.isPreview
+  const isLiveLecture = currentLecture?.type === "LIVE"
   
   // UI state
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -140,7 +147,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   const { data: enrollmentData, isLoading: enrollmentLoading } = useOptimizedQuery(
     enrollmentQueryKey,
     async () => {
-      const response = await fetch(`/api/courses/${contentId}/enrollment-status`, {
+      const response = await fetch(`/api/courses/${contentId}/enrollment-status?lectureId=${lectureId}`, {
         // Add cache headers to prevent browser caching issues
         headers: {
           'Cache-Control': 'no-cache',
@@ -338,7 +345,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   
   // Use the optimized query for lecture resources with improved caching - Added after enrollmentData is defined
   const { data: lectureResourcesData, isLoading: resourcesLoading } = useOptimizedQuery(
-    () => enrollmentData?.isEnrolled ? `lecture-resources-${lectureId}-${session?.user?.id || 'guest'}` : null, // Only fetch if enrolled
+    () => hasAccess ? `lecture-resources-${lectureId}-${session?.user?.id || 'guest'}` : null, // Only fetch if user has access
     async () => {
       const response = await fetch(`/api/content/resources?lectureId=${lectureId}`, {
         headers: {
@@ -347,6 +354,10 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
         }
       })
       if (!response.ok) {
+        // Don't throw error for 403 responses, just return empty resources
+        if (response.status === 403) {
+          return { resources: [] }
+        }
         throw new Error(`Failed to load lecture resources: ${response.statusText}`)
       }
       return response.json()
@@ -365,12 +376,17 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     }
   )
 
-  // Effect to update the isEnrolled state when enrollment data changes
+  // Effect to update access states when relevant data changes
   useEffect(() => {
     if (enrollmentData) {
-      setIsEnrolled(enrollmentData.isEnrolled)
+      setIsEnrolled(enrollmentData.isEnrolled || enrollmentData.isPreviewLecture)
     }
-  }, [enrollmentData])
+    
+    // Update hasAccess whenever relevant states change
+    const userHasAccess = isEnrolled || isCreator || isAdmin || isFreeCourse || isPreviewLecture || 
+                         (enrollmentData && enrollmentData.isPreviewLecture)
+    setHasAccess(userHasAccess)
+  }, [enrollmentData, isEnrolled, isCreator, isAdmin, isFreeCourse, isPreviewLecture])
   
   // Add event listeners to prevent right-click and F12 developer tools
   useEffect(() => {
@@ -690,14 +706,9 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     )
   }
 
-  const isCreator = session?.user?.id === course?.creatorId
-  const isAdmin = session?.user?.role === "ADMIN"
-  const isFreeCourse = course?.price === 0 || course?.price === null
-  const isPreviewLecture = currentLecture?.isPreview
+  
   // Define isLiveLecture variable to fix the ReferenceError
-  const isLiveLecture = currentLecture?.type === "LIVE"
-  // Allow lecture access if any of these conditions are true
-  const hasAccess = isEnrolled || isCreator || isAdmin || isFreeCourse || isPreviewLecture
+  // isLiveLecture is now defined at the top with other access control states
 
   if (loading) {
     return (

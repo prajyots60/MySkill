@@ -110,7 +110,7 @@ export function MobileNavigation() {
     },
     {
       label: "Upload",
-      href: "/dashboard/creator/courses/create",
+      href: "/dashboard/creator/content/upload",
       icon: Upload,
       ariaLabel: "Upload content",
       roles: ["CREATOR", "ADMIN"]
@@ -142,8 +142,8 @@ export function MobileNavigation() {
     }
     
     // Special case for upload content
-    if (path === "/dashboard/creator/courses/create" && 
-        (pathname.startsWith("/dashboard/creator/courses/create") || 
+    if (path === "/dashboard/creator/content/upload" && 
+        (pathname.startsWith("/dashboard/creator/content/upload") || 
          pathname.includes("/upload"))) {
       return true
     }

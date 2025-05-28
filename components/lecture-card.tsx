@@ -73,7 +73,7 @@ export function LectureCard({
   const [loading, setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Determine if the lecture is accessible
+  // Determine if the lecture is accessible - lecture.isPreview should grant access regardless of enrollment status
   const isAccessible = isCreator || lecture.isPreview || isEnrolled || isFreeCourse
 
   // Handle preview click
