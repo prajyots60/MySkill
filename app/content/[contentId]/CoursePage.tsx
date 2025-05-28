@@ -40,7 +40,7 @@ import {
 import Link from "next/link"
 import { SectionLectures } from "@/components/section-lectures"
 import { toast } from "@/hooks/use-toast"
-import type { Course, Section } from "@/lib/types"
+import type { User, Course, Section, Lecture, Document, Review, ReviewStats } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import dynamic from "next/dynamic"
@@ -549,13 +549,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">{course.description}</p>
               </div>
               
-              {/* Key stats banner */}
-              <div className="flex flex-wrap items-center gap-4 mt-2 bg-background/40 backdrop-blur-sm p-3 rounded-lg border border-border/30">
+              {/* Key stats banner */}                  <div className="flex flex-wrap items-center gap-4 mt-2 bg-background/40 backdrop-blur-sm p-3 rounded-lg border border-border/30">
                 <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">
                   <Star className="h-4 w-4 fill-current" />
-                  <span className="font-medium">{stats?.averageRating?.toFixed(1) || course.rating?.toFixed(1) || "0.0"}</span>
+                  <span className="font-medium">{stats?.averageRating?.toFixed(1) || "0.0"}</span>
                   <span className="text-sm text-muted-foreground ml-1">
-                    ({stats?.totalReviews || course.reviewCount || 0} reviews)
+                    ({stats?.totalReviews || 0} reviews)
                   </span>
                 </div>
 
@@ -666,11 +665,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <div className="flex justify-between items-center mb-2">
                         <div>
                           <p className="text-3xl font-bold">{course.price ? formatPrice(course.price) : "Free"}</p>
-                          {course.originalPrice && course.originalPrice > course.price && (
+                          {course.originalPrice && course.originalPrice > (course.price ?? 0) && (
                             <div className="flex items-center gap-2">
                               <span className="text-muted-foreground line-through">{formatPrice(course.originalPrice)}</span>
                               <Badge variant="destructive" className="bg-red-500">
-                                {Math.round((1 - (course.price || 0) / course.originalPrice) * 100)}% off
+                                {Math.round((1 - ((course.price ?? 0) / (course.originalPrice ?? 1))) * 100)}% off
                               </Badge>
                             </div>
                           )}
@@ -729,9 +728,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <div className="flex items-center gap-2">
                         <Languages className="h-4 w-4 text-primary" />
                         <span>
-                          {course.languages && course.languages.length > 0 
-                            ? course.languages.join(', ') 
-                            : "English"}
+                          {course.language ? course.language : "English"}
                         </span>
                       </div>
                       
@@ -742,12 +739,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </div>
                       )}
                       
-                      {course.certificateOfCompletion && (
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className="h-4 w-4 text-primary" />
-                          <span>Certificate of completion</span>
-                        </div>
-                      )}
+                     
                     </div>
 
                     {/* Call to action */}
@@ -877,12 +869,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                   <TabsTrigger 
                     value="resources" 
                     className="rounded-sm data-[state=active]:bg-background"
-                    disabled={course.price > 0 && !hasAccess}
+                    disabled={(course.price ?? 0) > 0 && !hasAccess}
                   >
                     <div className="flex items-center">
                       <FileText className="h-4 w-4 mr-2" />
                       Resources
-                      {course.price > 0 && !hasAccess && (
+                      {(course.price ?? 0) > 0 && !hasAccess && (
                         <Lock className="h-3 w-3 ml-2 text-muted-foreground" />
                       )}
                     </div>
@@ -932,9 +924,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                                     <Badge variant="outline">
                                       {section.lectures.length} {section.lectures.length === 1 ? "lecture" : "lectures"}
                                     </Badge>
-                                    {section.totalDuration && (
+                                    {section.lectures.length > 0 && (
                                       <div className="text-xs text-muted-foreground">
-                                        {Math.floor(section.totalDuration / 60)} min
+                                        {Math.floor(section.lectures.reduce((total, lecture) => total + (lecture.duration || 0), 0) / 60)} min
                                       </div>
                                     )}
                                   </div>
@@ -968,7 +960,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </TabsContent>
 
                 <TabsContent value="resources" className="space-y-6">
-                  {course.price > 0 && !hasAccess ? (
+                  {(course.price ?? 0) > 0 && !hasAccess ? (
                     <Card className="border-none shadow-md">
                       <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-4">
                         <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">

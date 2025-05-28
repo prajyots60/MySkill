@@ -45,6 +45,7 @@ export interface Course {
   thumbnail?: string | null
   type?: ContentType
   price?: number | null
+  originalPrice?: number | null
   isPublished?: boolean
   createdAt?: Date
   updatedAt?: Date

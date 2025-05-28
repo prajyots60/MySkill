@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useUploadStore, type UploadTask } from '@/lib/store/upload-store';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -28,8 +29,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 
 export function UploadManager() {
+  const { data: session } = useSession();
   const { uploads, removeUpload, updateUploadStatus, hasActiveUploads } = useUploadStore();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Return null if user is not a creator or admin
+  if (!session?.user?.role || (session.user.role !== 'CREATOR' && session.user.role !== 'ADMIN')) {
+    return null;
+  }
   
   // Check if there are any active uploads
   const activeUploads = Object.values(uploads).filter(
