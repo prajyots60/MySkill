@@ -24,8 +24,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Missing required parameters" }, { status: 400 })
     }
     
-    // Convert the File/Blob to ArrayBuffer for sending to YouTube
-    const binaryChunk = await chunk.arrayBuffer()
+    // Get binary chunk data - handle potential File, Blob, or Buffer types
+    let binaryData;
+    try {
+      if (chunk instanceof File || chunk instanceof Blob) {
+        const arrayBuffer = await chunk.arrayBuffer();
+        binaryData = new Uint8Array(arrayBuffer);
+      } else {
+        // If it's already a buffer or something else, try to use it directly
+        throw new Error("Unexpected chunk type");
+      }
+    } catch (error) {
+      console.error("Error processing chunk data:", error);
+      throw new Error("Failed to process chunk data");
+    }
 
     // Forward the chunk to YouTube (proxy the request)
     const response = await fetch(uploadUrl, {
@@ -35,7 +47,7 @@ export async function POST(request: Request) {
         "Content-Range": contentRange,
         "Authorization": `Bearer ${accessToken}`
       },
-      body: new Uint8Array(binaryChunk) // Convert ArrayBuffer to Uint8Array for fetch
+      body: binaryData // Send binary data to YouTube
     })
 
     // Get the response data

@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useState, useRef, useCallback } from "react"
+import React, { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { FileVideo, Upload, AlertCircle, Loader2 } from "lucide-react"
+import { FileVideo, Upload, AlertCircle, Loader2, Shield } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useCourseStore } from "@/lib/store/course-store"
 import { v4 as uuidv4 } from "uuid"
@@ -40,6 +40,7 @@ export default function YouTubeDirectUploader({
   const [uploadPhase, setUploadPhase] = useState<'preparing' | 'uploading' | 'processing' | 'finalizing'>('preparing')
   const uploadRef = useRef<{ abort: () => void } | null>(null)
   const { addUpload, updateUploadProgress, updateUploadStatus } = useCourseStore()
+  const [uploadMode, setUploadMode] = useState<'direct' | 'proxy'>('direct')
 
   const handleUpload = useCallback(async () => {
     if (!file || !sectionId || !title) {
@@ -68,7 +69,8 @@ export default function YouTubeDirectUploader({
         onUploadStart()
       }
 
-      // Step 1: Get upload URL from our server
+      // Step 1: Get upload URL from our server - THIS IS THE ONLY SERVER INTERACTION WE NEED
+      // We still need this to get an authenticated upload URL and token
       setUploadPhase('preparing')
       updateUploadProgress(uploadId, 10)
       const tokenResponse = await fetch("/api/creator/lectures/youtube-direct-token", {
@@ -89,8 +91,9 @@ export default function YouTubeDirectUploader({
       }
 
       const { uploadUrl, access_token } = await tokenResponse.json()
+      console.log("Got direct upload URL from YouTube", uploadUrl)
 
-      // Step 2: Upload the file directly to YouTube in chunks
+      // Step 2: Upload the file DIRECTLY to YouTube in chunks - NO SERVER PROXY
       setUploadPhase('uploading')
       updateUploadProgress(uploadId, 20)
 
@@ -114,36 +117,114 @@ export default function YouTubeDirectUploader({
         // Calculate content range header
         const contentRange = `bytes ${start}-${end - 1}/${fileSize}`
         
+        let responseStatus = 0
+        let responseData = null
+        let responseText = null
+        
         try {
-          // Use the proxy approach to avoid CORS issues
-          // Create a FormData object to efficiently send binary data
-          const formData = new FormData()
-          formData.append('chunk', chunk) // Send raw chunk as binary
-          formData.append('uploadUrl', uploadUrl)
-          formData.append('contentRange', contentRange)
-          formData.append('contentType', file.type)
-          formData.append('accessToken', access_token)
-          
-          // Use our proxy API to avoid CORS - using FormData instead of JSON to avoid base64 overhead
-          const uploadChunkResponse = await fetch("/api/creator/lectures/youtube-proxy-upload", {
-            method: "POST",
-            // No Content-Type header - browser will set it with proper boundary
-            body: formData
-          })
-
-          if (!uploadChunkResponse.ok) {
-            const errorData = await uploadChunkResponse.json()
-            throw new Error(errorData.message || "Failed to upload chunk")
+          // Try direct or proxy upload based on current mode
+          if (uploadMode === 'direct') {
+            try {
+              // ATTEMPT DIRECT UPLOAD TO YOUTUBE
+              console.log(`Trying direct upload for chunk ${chunkNumber}...`)
+              
+              const directResponse = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": file.type,
+                  "Content-Range": contentRange,
+                  "Authorization": `Bearer ${access_token}`
+                },
+                body: chunk, // Send chunk directly to YouTube
+                signal: abortController.signal
+              })
+              
+              // Get direct response info
+              responseStatus = directResponse.status
+              console.log(`Direct upload chunk ${chunkNumber} status:`, responseStatus)
+              
+              // Process successful responses
+              if (responseStatus === 200 || responseStatus === 201) {
+                try {
+                  responseData = await directResponse.json()
+                } catch (e) {
+                  responseText = await directResponse.text()
+                }
+              } else if (responseStatus !== 308) {
+                // If not a 308 Resume Incomplete, it's an error - fall back to proxy
+                throw new Error("Direct upload failed, trying proxy")
+              }
+              
+            } catch (directError) {
+              console.log("Direct upload failed, falling back to proxy:", directError)
+              // If direct upload fails with CORS or other error, fall back to proxy
+              setUploadMode('proxy')
+              
+              // Prepare FormData for proxy upload
+              const formData = new FormData()
+              formData.append('chunk', chunk)
+              formData.append('uploadUrl', uploadUrl)
+              formData.append('contentRange', contentRange)
+              formData.append('contentType', file.type)
+              formData.append('accessToken', access_token)
+              
+              // Use proxy API
+              const proxyResponse = await fetch("/api/creator/lectures/youtube-proxy-upload", {
+                method: "POST",
+                body: formData,
+                signal: abortController.signal
+              })
+              
+              if (!proxyResponse.ok) {
+                const errorData = await proxyResponse.json()
+                throw new Error(errorData.message || "Failed to upload chunk via proxy")
+              }
+              
+              // Get proxy response data
+              const proxyData = await proxyResponse.json()
+              responseStatus = proxyData.status
+              responseData = proxyData.data
+              responseText = proxyData.text
+              console.log(`Proxy upload chunk ${chunkNumber} status:`, responseStatus)
+            }
+          } else {
+            // PROXY UPLOAD (FALLBACK MODE)
+            console.log(`Using proxy upload for chunk ${chunkNumber}...`)
+            
+            // Prepare FormData for proxy upload
+            const formData = new FormData()
+            formData.append('chunk', chunk)
+            formData.append('uploadUrl', uploadUrl)
+            formData.append('contentRange', contentRange)
+            formData.append('contentType', file.type)
+            formData.append('accessToken', access_token)
+            
+            // Use proxy API
+            const proxyResponse = await fetch("/api/creator/lectures/youtube-proxy-upload", {
+              method: "POST",
+              body: formData,
+              signal: abortController.signal
+            })
+            
+            if (!proxyResponse.ok) {
+              const errorData = await proxyResponse.json()
+              throw new Error(errorData.message || "Failed to upload chunk via proxy")
+            }
+            
+            // Get proxy response data
+            const proxyData = await proxyResponse.json()
+            responseStatus = proxyData.status
+            responseData = proxyData.data
+            responseText = proxyData.text
+            console.log(`Proxy upload chunk ${chunkNumber} status:`, responseStatus)
           }
-
-          // Get the proxy response which contains YouTube's response
-          const proxyResponse = await uploadChunkResponse.json()
-          const responseStatus = proxyResponse.status
-          console.log(`Chunk ${chunkNumber} upload status:`, responseStatus)
           
-          // Extract the response data
-          const responseData = proxyResponse.data
-          const responseText = proxyResponse.text
+          if (responseStatus === 200 || responseStatus === 201) {
+            // Final chunk processing is the same for both methods
+          } else if (responseStatus !== 308) {
+            // If not 308 Resume Incomplete, it's an error
+            throw new Error(`Upload failed with status ${responseStatus}`)
+          }
           
           // For the final chunk, we get back the video ID
           if (responseStatus === 200 || responseStatus === 201) {
@@ -316,7 +397,8 @@ export default function YouTubeDirectUploader({
     onUploadComplete, 
     onUploadError, 
     onUploadStart, 
-    onUploadProgress
+    onUploadProgress,
+    uploadMode
   ])
 
   // Handle canceling upload
@@ -392,9 +474,14 @@ export default function YouTubeDirectUploader({
             <Progress value={uploadProgress} />
             
             {uploadPhase === 'uploading' && (
-              <p className="text-xs text-muted-foreground">
-                Uploading to YouTube. Do not close this window.
-              </p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Shield className="h-3 w-3 text-green-500" />
+                <p>
+                  {uploadMode === 'direct' 
+                    ? "Direct upload to YouTube - trying serverless mode. Do not close this window." 
+                    : "Uploading via secure proxy. Do not close this window."}
+                </p>
+              </div>
             )}
             
             {uploadPhase === 'finalizing' && (
