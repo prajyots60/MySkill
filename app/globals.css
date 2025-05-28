@@ -111,7 +111,7 @@
 }
 
 .sidebar-modern [data-sidebar="menu-button"][data-active="true"] {
-  @apply bg-primary/15 text-primary;
+  @apply bg-primary opacity-15 text-primary;
   position: relative;
 }
 

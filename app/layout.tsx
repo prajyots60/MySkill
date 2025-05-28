@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import React from "react"
 import { Inter } from "next/font/google"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -120,6 +121,8 @@ export default function RootLayout({
             </AuthProvider>
           </ThemeProvider>
         </ReactQueryProvider>
+
+        <SpeedInsights />
 
         {/* Inline critical JS for performance */}
         <Script id="performance-optimization" strategy="beforeInteractive">
