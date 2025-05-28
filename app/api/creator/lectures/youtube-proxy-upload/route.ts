@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     }
 
     // Decode the base64 chunk data
+    // Using Buffer for better server-side performance
     const binaryChunk = Buffer.from(chunk, 'base64')
 
     // Forward the chunk to YouTube (proxy the request)

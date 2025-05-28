@@ -9,6 +9,20 @@ import { toast } from "@/hooks/use-toast"
 import { useCourseStore } from "@/lib/store/course-store"
 import { v4 as uuidv4 } from "uuid"
 
+// Helper function to convert Blob to base64 string
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64String = reader.result as string
+      const base64Data = base64String.split(',')[1]
+      resolve(base64Data)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 interface YouTubeDirectUploaderProps {
   courseId?: string
   sectionId: string
@@ -115,32 +129,24 @@ export default function YouTubeDirectUploader({
         const contentRange = `bytes ${start}-${end - 1}/${fileSize}`
         
         try {
-          // Convert chunk to base64 for sending over JSON
-          const reader = new FileReader()
-          const chunkBase64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => {
-              // Get base64 string (remove the data URL prefix)
-              const base64String = reader.result as string
-              const base64Data = base64String.split(',')[1]
-              resolve(base64Data)
-            }
-            reader.onerror = reject
-          })
-          reader.readAsDataURL(chunk)
-          const chunkBase64 = await chunkBase64Promise
+          // Use the proxy approach to avoid CORS issues
+          // Create a FormData object to send binary data efficiently
+          const formData = new FormData()
+          formData.append('chunk', chunk) // Send raw binary data
           
-          // Use our proxy API instead of direct upload to avoid CORS
+          // Use our proxy API to avoid CORS
           const uploadChunkResponse = await fetch("/api/creator/lectures/youtube-proxy-upload", {
             method: "POST",
             headers: {
-              "Content-Type": "application/json"
+              // No need for Content-Type here, it'll be set automatically with multipart/form-data boundary
             },
             body: JSON.stringify({
               uploadUrl,
-              chunk: chunkBase64,
               contentRange,
               contentType: file.type,
-              accessToken: access_token
+              accessToken: access_token,
+              // Convert chunk to base64 for JSON transport
+              chunk: await blobToBase64(chunk)
             })
           })
 
@@ -149,36 +155,42 @@ export default function YouTubeDirectUploader({
             throw new Error(errorData.message || "Failed to upload chunk")
           }
 
+          // Get the proxy response which contains YouTube's response
           const proxyResponse = await uploadChunkResponse.json()
-          console.log(`Chunk ${chunkNumber} upload status:`, proxyResponse.status)
+          const responseStatus = proxyResponse.status
+          console.log(`Chunk ${chunkNumber} upload status:`, responseStatus)
+          
+          // Extract the response data
+          const responseData = proxyResponse.data
+          const responseText = proxyResponse.text
           
           // For the final chunk, we get back the video ID
-          if (proxyResponse.status === 200 || proxyResponse.status === 201) {
+          if (responseStatus === 200 || responseStatus === 201) {
             console.log("Final chunk upload completed successfully")
             let foundVideoId = null
             
             // Check if we have JSON data from the response
-            if (proxyResponse.data && proxyResponse.data.id) {
-              foundVideoId = proxyResponse.data.id
+            if (responseData && responseData.id) {
+              foundVideoId = responseData.id
               console.log("Found video ID in JSON response:", foundVideoId)
             } 
             // Otherwise check the text response
-            else if (proxyResponse.text) {
+            else if (responseText) {
               console.log("Parsing response text for video ID")
               // Try different regex patterns to extract video ID
-              let idMatch = proxyResponse.text.match(/"id"\s*:\s*"([^"]+)"/)
+              let idMatch = responseText.match(/"id"\s*:\s*"([^"]+)"/)
               if (idMatch && idMatch[1]) {
                 foundVideoId = idMatch[1]
                 console.log("Extracted video ID (pattern 1):", foundVideoId)
               } else {
                 // Try alternative formats
-                idMatch = proxyResponse.text.match(/videoId.*?:.*?['"](.*?)['"]/i)
+                idMatch = responseText.match(/videoId.*?:.*?['"](.*?)['"]/i)
                 if (idMatch && idMatch[1]) {
                   foundVideoId = idMatch[1]
                   console.log("Extracted video ID (pattern 2):", foundVideoId)
                 } else {
                   // Look for any 11-character ID that looks like a YouTube ID
-                  idMatch = proxyResponse.text.match(/[a-zA-Z0-9_-]{11}/)
+                  idMatch = responseText.match(/[a-zA-Z0-9_-]{11}/)
                   if (idMatch && idMatch[0]) {
                     foundVideoId = idMatch[0]
                     console.log("Extracted video ID (pattern 3):", foundVideoId)
@@ -196,11 +208,6 @@ export default function YouTubeDirectUploader({
             }
             
             break
-          } 
-          // For non-final chunks, we should get a 308 Resume Incomplete
-          else if (proxyResponse.status !== 308) {
-            console.error("Upload error response:", proxyResponse)
-            throw new Error(`Upload failed with status ${proxyResponse.status}: ${proxyResponse.statusText}`)
           }
         } catch (error) {
           console.error(`Error uploading chunk ${chunkNumber}:`, error)
@@ -405,7 +412,7 @@ export default function YouTubeDirectUploader({
             
             {uploadPhase === 'uploading' && (
               <p className="text-xs text-muted-foreground">
-                Uploading directly to YouTube. Do not close this window.
+                Uploading to YouTube. Do not close this window.
               </p>
             )}
             
