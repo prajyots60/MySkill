@@ -146,8 +146,12 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
       },
     })
 
-    // Invalidate cache
-    await redis.del(`student:enrollments:${session.user.id}`)
+    // Invalidate all relevant caches
+    await Promise.all([
+      redis.del(`student:enrollments:${session.user.id}`),
+      redis.del(`enrollment:${courseId}:${session.user.id}`),
+      redis.del(`enrollment:${session.user.id}:${courseId}`),
+    ])
 
     // Revalidate paths
     revalidatePath(`/content/${courseId}`)
