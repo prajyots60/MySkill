@@ -239,15 +239,15 @@ export default function UploadContent() {
     })
   }
 
-  // Update the handleVideoUpload function to properly upload videos to YouTube
+  // Update the handleVideoUpload function to properly upload videos
   const handleVideoUpload = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // For YouTube uploads, validate connection
+    // Only validate YouTube connection for YouTube uploads
     if (videoSource === "youtube" && !youtubeConnected) {
       toast({
         title: "YouTube Not Connected",
-        description: "Please connect your YouTube account before uploading videos",
+        description: "Please connect your YouTube account before uploading videos to YouTube",
         variant: "destructive",
       })
       router.push("/dashboard/creator/service-connections")
@@ -554,6 +554,7 @@ export default function UploadContent() {
   const handleLiveStreamCreate = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Live streams require YouTube connection
     if (!youtubeConnected) {
       toast({
         title: "YouTube Not Connected",
@@ -703,7 +704,8 @@ export default function UploadContent() {
           </Button>
         </div>
 
-        {!youtubeConnected && (
+        {/* Only show YouTube warning when YouTube is the selected video source */}
+        {videoSource === "youtube" && !youtubeConnected && uploadType === "video" && (
           <Card className="mb-8 overflow-hidden border border-amber-200/50 bg-gradient-to-r from-amber-50 to-amber-50/50 dark:from-amber-950/40 dark:to-amber-950/20 dark:border-amber-800/50 shadow-md">
             <div className="absolute inset-0 bg-amber-100/20 dark:bg-amber-900/10 z-0"></div>
             <CardContent className="p-6 flex items-start gap-4 relative z-10">
@@ -713,7 +715,33 @@ export default function UploadContent() {
               <div>
                 <h3 className="font-semibold text-lg text-amber-800 dark:text-amber-300 mb-1">YouTube Connection Required</h3>
                 <p className="text-amber-700 dark:text-amber-400 mb-4 leading-relaxed">
-                  To upload videos or create live streams, you need to connect your YouTube account first.
+                  To upload videos to YouTube, you need to connect your YouTube account first.
+                </p>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => router.push("/dashboard/creator/service-connections")}
+                  className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 dark:shadow-amber-900/30"
+                >
+                  <Link2 className="mr-2 h-4 w-4" /> Connect YouTube Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Show YouTube warning for live streams */}
+        {uploadType === "live" && !youtubeConnected && (
+          <Card className="mb-8 overflow-hidden border border-amber-200/50 bg-gradient-to-r from-amber-50 to-amber-50/50 dark:from-amber-950/40 dark:to-amber-950/20 dark:border-amber-800/50 shadow-md">
+            <div className="absolute inset-0 bg-amber-100/20 dark:bg-amber-900/10 z-0"></div>
+            <CardContent className="p-6 flex items-start gap-4 relative z-10">
+              <div className="p-2 bg-amber-100 rounded-full dark:bg-amber-900/40">
+                <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-amber-800 dark:text-amber-300 mb-1">YouTube Connection Required</h3>
+                <p className="text-amber-700 dark:text-amber-400 mb-4 leading-relaxed">
+                  To create live streams, you need to connect your YouTube account first.
                 </p>
                 <Button 
                   variant="default" 
@@ -1396,7 +1424,7 @@ export default function UploadContent() {
                     <div className="flex justify-end mt-6 pt-4 border-t border-primary/5">
                       <Button 
                         type="submit" 
-                        disabled={loading || !selectedSection || !youtubeConnected}
+                        disabled={loading || !selectedSection || (!youtubeConnected && uploadType === "live")}
                         className={`py-6 px-8 text-base transition-all duration-300 shadow-lg
                           ${liveForm.isScheduled ? 
                             "bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-purple-500/20" : 

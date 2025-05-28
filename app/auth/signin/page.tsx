@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -16,51 +16,55 @@ export default function SignIn() {
   const { toast } = useToast()
 
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   
-  // Improve error handling with more user-friendly messages
+  // Handle URL parameters and error messages
   const errorType = searchParams.get("error")
-  const [error, setError] = useState<{message: string, isWarning?: boolean} | null>(
-    errorType === "OAuthAccountNotLinked"
-      ? {
-          message: "It looks like you've previously signed up with a different method. Please use your original sign-in method.",
-          isWarning: true
-        }
-      : errorType ? { message: errorType } : null
-  )
+  const [error, setError] = useState<{message: string, isWarning?: boolean} | null>(null)
+  
+  // Handle error messages from URL parameters only after page loads completely
+  useEffect(() => {
+    if (errorType === "OAuthAccountNotLinked") {
+      setError({
+        message: "It looks like you've previously signed up with a different method. Please use your original sign-in method.",
+        isWarning: true
+      })
+    } else if (errorType) {
+      setError({ message: errorType })
+    }
+  }, [errorType])
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard/student"
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
     setError(null)
+    setIsRedirecting(true)
 
     try {
-      // Explicitly set redirect to true to ensure client-side redirect happens
-      // This is crucial for properly transitioning to authenticated pages
-      const result = await signIn("google", { 
-        callbackUrl,
-        redirect: true,
-      })
-      
-      // This code will only run if redirect:true fails for some reason
-      if (!result?.ok) {
-        setError({ message: "Authentication failed. Please try again." })
-        toast({
-          title: "Error",
-          description: `Authentication error: ${result?.error || 'Unknown error'}`,
-          variant: "destructive",
+      // Use a small timeout to ensure UI updates before redirect
+      setTimeout(() => {
+        // Explicitly set redirect to true to ensure client-side redirect happens
+        signIn("google", { 
+          callbackUrl,
+          redirect: true,
+        }).catch(err => {
+          console.error("Sign-in error:", err)
+          setIsRedirecting(false)
+          setIsLoading(false)
+          setError({ message: "Failed to sign in with Google. Please try again." })
         })
-        setIsLoading(false)
-      }
+      }, 100)
     } catch (error) {
       console.error("Sign-in error:", error)
+      setIsRedirecting(false)
+      setIsLoading(false)
       setError({ message: "Failed to sign in with Google. Please try again." })
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })
-      setIsLoading(false)
     }
   }
 
@@ -72,7 +76,12 @@ export default function SignIn() {
           <CardDescription className="text-slate-300">Sign in to your account to access your courses</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
+          {isRedirecting ? (
+            <div className="flex flex-col items-center justify-center py-4 text-center space-y-2">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+              <p className="text-slate-300">Redirecting to Google authentication...</p>
+            </div>
+          ) : error && (
             <Alert 
               variant={error.isWarning ? "default" : "destructive"} 
               className={error.isWarning 

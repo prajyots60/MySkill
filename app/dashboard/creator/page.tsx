@@ -12,8 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Loader2,
   AlertCircle,
-  Youtube,
-  CheckCircle2,
   BarChart3,
   Users,
   Video,
@@ -31,7 +29,6 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { useCreatorCourses } from "@/lib/react-query/queries"
-import { useYouTubeStore } from "@/lib/store/youtube-store"
 import Link from "next/link"
 import Image from "next/image"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
@@ -299,9 +296,6 @@ export default function CreatorDashboardPage() {
   // Use React Query for data fetching
   const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
 
-  // Use Zustand store for YouTube connection status
-  const { connected: youtubeConnected, checkConnectionStatus } = useYouTubeStore()
-
   // State for creator profile
   const [creatorProfile, setCreatorProfile] = useState<Record<string, any> | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -331,13 +325,6 @@ export default function CreatorDashboardPage() {
       fetchCreatorProfile()
     }
   }, [session?.user?.id, status])
-
-  // Check YouTube connection on mount
-  useEffect(() => {
-    if (status === "authenticated") {
-      checkConnectionStatus()
-    }
-  }, [status, checkConnectionStatus])
 
   // Function to check if profile is complete
   const isProfileComplete = (profile: Record<string, any> | null) => {
@@ -506,24 +493,6 @@ export default function CreatorDashboardPage() {
           </div>
         )}
       </div>
-
-      {!youtubeConnected && (
-        <Alert className="mb-6 border-primary/50 bg-primary/5">
-          <AlertCircle className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-medium">YouTube Connection Required</AlertTitle>
-          <AlertDescription>
-            To upload videos and create courses, you need to connect your YouTube account.
-            <div className="mt-2">
-              <Button asChild variant="default" size="sm">
-                <Link href="/dashboard/creator/service-connections">
-                  <Youtube className="mr-2 h-4 w-4" />
-                  Connect YouTube
-                </Link>
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full sm:w-auto flex flex-wrap">
@@ -716,16 +685,6 @@ export default function CreatorDashboardPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {youtubeConnected && (
-        <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 p-4 bg-success/10 rounded-md border border-success/20">
-          <CheckCircle2 className="h-5 w-5 text-success mt-0.5 sm:mt-0" />
-          <p className="text-sm">Your YouTube account is connected and ready to use for video uploads.</p>
-          <Button variant="link" size="sm" asChild className="ml-0 sm:ml-auto p-0 sm:p-2">
-            <Link href="/dashboard/creator/service-connections">Manage Connection</Link>
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
