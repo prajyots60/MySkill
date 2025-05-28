@@ -10,16 +10,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    // Extract parameters from the request
-    const { uploadUrl, chunk, contentRange, contentType, accessToken } = await request.json()
-
+    // Process FormData instead of JSON - more efficient for binary data
+    const formData = await request.formData()
+    
+    // Extract parameters from the form data
+    const uploadUrl = formData.get('uploadUrl') as string
+    const contentRange = formData.get('contentRange') as string
+    const contentType = formData.get('contentType') as string
+    const accessToken = formData.get('accessToken') as string
+    const chunk = formData.get('chunk') as File // This will be the raw binary file chunk
+    
     if (!uploadUrl || !chunk || !contentRange || !contentType || !accessToken) {
       return NextResponse.json({ message: "Missing required parameters" }, { status: 400 })
     }
-
-    // Decode the base64 chunk data
-    // Using Buffer for better server-side performance
-    const binaryChunk = Buffer.from(chunk, 'base64')
+    
+    // Convert the File/Blob to ArrayBuffer for sending to YouTube
+    const binaryChunk = await chunk.arrayBuffer()
 
     // Forward the chunk to YouTube (proxy the request)
     const response = await fetch(uploadUrl, {
@@ -29,7 +35,7 @@ export async function POST(request: Request) {
         "Content-Range": contentRange,
         "Authorization": `Bearer ${accessToken}`
       },
-      body: binaryChunk
+      body: new Uint8Array(binaryChunk) // Convert ArrayBuffer to Uint8Array for fetch
     })
 
     // Get the response data

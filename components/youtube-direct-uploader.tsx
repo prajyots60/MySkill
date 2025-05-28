@@ -9,20 +9,6 @@ import { toast } from "@/hooks/use-toast"
 import { useCourseStore } from "@/lib/store/course-store"
 import { v4 as uuidv4 } from "uuid"
 
-// Helper function to convert Blob to base64 string
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const base64String = reader.result as string
-      const base64Data = base64String.split(',')[1]
-      resolve(base64Data)
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
 interface YouTubeDirectUploaderProps {
   courseId?: string
   sectionId: string
@@ -36,7 +22,7 @@ interface YouTubeDirectUploaderProps {
   onUploadProgress?: (progress: number) => void
 }
 
-const CHUNK_SIZE = 1024 * 1024 * 5 // 5MB chunks
+const CHUNK_SIZE = 1024 * 1024 * 3 // 3MB chunks (to stay within Vercel's 4.5MB limit after base64 encoding)
 
 export default function YouTubeDirectUploader({
   sectionId,
@@ -130,24 +116,19 @@ export default function YouTubeDirectUploader({
         
         try {
           // Use the proxy approach to avoid CORS issues
-          // Create a FormData object to send binary data efficiently
+          // Create a FormData object to efficiently send binary data
           const formData = new FormData()
-          formData.append('chunk', chunk) // Send raw binary data
+          formData.append('chunk', chunk) // Send raw chunk as binary
+          formData.append('uploadUrl', uploadUrl)
+          formData.append('contentRange', contentRange)
+          formData.append('contentType', file.type)
+          formData.append('accessToken', access_token)
           
-          // Use our proxy API to avoid CORS
+          // Use our proxy API to avoid CORS - using FormData instead of JSON to avoid base64 overhead
           const uploadChunkResponse = await fetch("/api/creator/lectures/youtube-proxy-upload", {
             method: "POST",
-            headers: {
-              // No need for Content-Type here, it'll be set automatically with multipart/form-data boundary
-            },
-            body: JSON.stringify({
-              uploadUrl,
-              contentRange,
-              contentType: file.type,
-              accessToken: access_token,
-              // Convert chunk to base64 for JSON transport
-              chunk: await blobToBase64(chunk)
-            })
+            // No Content-Type header - browser will set it with proper boundary
+            body: formData
           })
 
           if (!uploadChunkResponse.ok) {
