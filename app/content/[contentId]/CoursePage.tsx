@@ -748,8 +748,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">{course.description}</p>
               </div>
               
-              {/* Key stats banner */}                  <div className="flex flex-wrap items-center gap-4 mt-2 bg-background/40 backdrop-blur-sm p-3 rounded-lg border border-border/30">
-                <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">
+              {/* Key stats banner */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-center gap-2 sm:gap-3 md:gap-4 mt-2 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-border/30 shadow-sm">
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 bg-amber-500/10 text-amber-500 px-3.5 py-2 rounded-full w-full sm:w-auto">
                   <Star className="h-4 w-4 fill-current" />
                   <span className="font-medium">{stats?.averageRating?.toFixed(1) || "0.0"}</span>
                   <span className="text-sm text-muted-foreground ml-1">
@@ -757,23 +758,23 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{course._count?.enrollments || 0} students enrolled</span>
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground bg-background/50 px-3.5 py-2 rounded-full w-full sm:w-auto">
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span className="text-sm">{course._count?.enrollments || 0} students enrolled</span>
                 </div>
 
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <BookOpen className="h-4 w-4" />
-                  <span>{getTotalLectures()} lectures</span>
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground bg-background/50 px-3.5 py-2 rounded-full w-full sm:w-auto">
+                  <BookOpen className="h-4 w-4 shrink-0" />
+                  <span className="text-sm">{getTotalLectures()} lectures</span>
                 </div>
 
               </div>
               
               {/* Instructor section */}
               <div className="bg-background/40 backdrop-blur-sm rounded-lg border border-border/30">
-                <div className="flex items-center justify-between p-3">
+                <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between p-3 gap-3 sm:gap-2">
                   <Link href={`/creators/${course.creatorId}`} className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 border-2 border-primary/20">
+                    <Avatar className="h-14 w-14 sm:h-12 sm:w-12 border-2 border-primary/20">
                       <AvatarImage
                         src={course.creator?.image || "/placeholder.svg"}
                         alt={course.creator?.name || ""}
@@ -781,22 +782,22 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       />
                       <AvatarFallback>{course.creator?.name?.charAt(0) || "C"}</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-0.5 text-center sm:text-left">
                       <span className="font-medium text-base leading-tight">{course.creator?.name}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 justify-center sm:justify-start">
                         <GraduationCap className="h-3 w-3" />
                         Course Instructor
                       </span>
                     </div>
                   </Link>
                   
-                  <div className="flex items-center gap-2">
-                    <div className="text-xs text-muted-foreground flex items-center border rounded-full px-2 py-1 bg-background/50">
+                  <div className="flex flex-wrap justify-center sm:flex-nowrap items-center gap-2">
+                    <div className="text-xs text-muted-foreground flex items-center border rounded-full px-2 py-1.5 bg-background/50 w-full sm:w-auto justify-center">
                       <Users2 className="h-3 w-3 mr-1" />
                       {followerCount} followers
                     </div>
 
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 w-full sm:w-auto justify-center">
                       {session?.user && course?.creatorId !== session.user.id && (
                         <FollowButton
                           creatorId={course.creatorId}
