@@ -37,6 +37,9 @@ import {
   Phone,
   Mail,
   Copy,
+  User2,
+  CheckCircle2,
+  Users2,
 } from "lucide-react"
 import Link from "next/link"
 import { SectionLectures } from "@/components/section-lectures"
@@ -767,67 +770,77 @@ export default function CoursePage({ contentId }: CoursePageProps) {
               </div>
               
               {/* Instructor section */}
-              <div className="flex items-center gap-4 bg-background/40 backdrop-blur-sm p-4 rounded-lg border border-border/30">
-                <Link href={`/creators/${course.creatorId}`} className="flex items-center gap-3">
-                  <Avatar className="h-14 w-14 border-2 border-primary/20">
-                    <AvatarImage
-                      src={course.creator?.image || "/placeholder.svg"}
-                      alt={course.creator?.name || ""}
-                      className="object-cover"
-                      width={56}
-                      height={56}
-                    />
-                    <AvatarFallback>{course.creator?.name?.charAt(0) || "C"}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium text-lg">{course.creator?.name}</div>
-                    <p className="text-sm text-muted-foreground">Course Instructor</p>
-                  </div>
-                </Link>
-                
-                <div className="ml-auto flex flex-col md:flex-row items-start md:items-center gap-3">
-                  <div className="text-sm text-muted-foreground flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    {followerCount} followers
-                  </div>
-                  
-                  {session?.user && course?.creatorId !== session.user.id && (
-                    <FollowButton
-                      creatorId={course.creatorId}
-                      onFollowChange={(isFollowing, count) => {
-                        setFollowerCount(count)
-                      }}
-                    />
-                  )}
-                  
-                  {/* Enrollment status badge for students */}
-                  {session?.user && effectivelyEnrolled && !isCreator && !isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-                        <UserCheck className="h-3.5 w-3.5 mr-1" />
-                        Enrolled
-                      </Badge>
+              <div className="bg-background/40 backdrop-blur-sm rounded-lg border border-border/30">
+                <div className="flex items-center justify-between p-3">
+                  <Link href={`/creators/${course.creatorId}`} className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border-2 border-primary/20">
+                      <AvatarImage
+                        src={course.creator?.image || "/placeholder.svg"}
+                        alt={course.creator?.name || ""}
+                        className="object-cover"
+                      />
+                      <AvatarFallback>{course.creator?.name?.charAt(0) || "C"}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-base leading-tight">{course.creator?.name}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <GraduationCap className="h-3 w-3" />
+                        Course Instructor
+                      </span>
                     </div>
-                  )}
+                  </Link>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-muted-foreground flex items-center border rounded-full px-2 py-1 bg-background/50">
+                      <Users2 className="h-3 w-3 mr-1" />
+                      {followerCount} followers
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      {session?.user && course?.creatorId !== session.user.id && (
+                        <FollowButton
+                          creatorId={course.creatorId}
+                          onFollowChange={(isFollowing, count) => {
+                            setFollowerCount(count)
+                          }}
+                          variant="secondary"
+                          className={cn(
+                            "h-6 px-2 py-0 text-xs font-medium transition-colors",
+                            "bg-purple-50 text-purple-600 hover:bg-purple-100 active:scale-95"
+                          )}
+                          iconClassName="h-3 w-3 mr-1"
+                          showIcon
+                          compact
+                        />
+                      )}
+                      
+                      {session?.user && effectivelyEnrolled && !isCreator && !isAdmin && (
+                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Enrolled
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               
               {/* What you'll learn section - preview on desktop */}
-              <div className="hidden md:block bg-background/40 backdrop-blur-sm p-4 rounded-lg border border-border/30">
-                <h3 className="text-lg font-medium mb-3 flex items-center">
-                  <CheckCircle className="h-5 w-5 text-primary mr-2" />
+              <div className="hidden md:block bg-background/40 backdrop-blur-sm p-6 rounded-lg border border-border/30">
+                <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
+                  <BookOpen className="h-6 w-6 mr-2.5" />
                   What you'll learn
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     "Understand the fundamentals of HTML, CSS, and JavaScript",
                     "Build responsive websites from scratch",
                     "Create interactive web pages with JavaScript",
                     "Implement modern CSS layouts using Flexbox and Grid",
                   ].slice(0, 4).map((item, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                      <span className="text-sm">{item}</span>
+                    <div key={i} className="flex items-start gap-3 bg-background/50 p-3 rounded-lg hover:bg-background/80 transition-colors">
+                      <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                      <span className="text-sm leading-tight text-foreground/90">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -1394,6 +1407,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 interface FollowButtonProps {
   creatorId?: string
   onFollowChange: (isFollowing: boolean, followerCount: number) => void
+  variant?: string
+  className?: string
+  iconClassName?: string
+  showIcon?: boolean
+  compact?: boolean
 }
 
 function FollowButton({ creatorId, onFollowChange }: FollowButtonProps) {
