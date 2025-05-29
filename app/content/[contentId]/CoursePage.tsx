@@ -113,6 +113,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
+  const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
 
   // Handle CTA button click
   const handleCTAClick = () => {
@@ -125,7 +126,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       return
     }
 
-    if (course?.price === 0) {
+    if (effectivelyEnrolled) {
+      // If already enrolled or creator/admin, go to the first lecture
+      if (sections.length > 0 && sections[0].lectures.length > 0) {
+        router.push(`/content/${contentId}/player/${sections[0].lectures[0].id}`)
+      }
+    } else if (course?.price === 0) {
       handleEnroll()
     } else {
       setShowPaymentModal(true)
@@ -173,6 +179,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
       // Update local state immediately
       setIsEnrolled(true)
+      setEffectivelyEnrolled(true)
       // Revalidate enrollment status
       checkEnrollmentStatus()
 
@@ -203,21 +210,45 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   // Check enrollment status
   const checkEnrollmentStatus = async () => {
+    if (!session?.user?.id) return;
+    
     try {
+      // Check if user is creator or admin first - they always have access
+      const isCreator = session.user.id === course?.creatorId;
+      const isAdmin = session.user.role === "ADMIN";
+      
+      if (isCreator || isAdmin) {
+        console.log(`User is ${isCreator ? 'creator' : 'admin'}, setting effective enrollment to true`);
+        setIsEnrolled(false); // They're not technically enrolled
+        setEffectivelyEnrolled(true); // But they effectively have access
+        return; // Skip API call for creators and admins
+      }
+      
       const response = await fetch(`/api/courses/${contentId}/enrollment`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
         },
-      })
+      });
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error("Failed to check enrollment status");
+      }
 
-      if (response.ok && data.success) {
-        setIsEnrolled(data.isEnrolled)
+      const data = await response.json();
+      
+      console.log("Enrollment check response:", data);
+      
+      if (data.success) {
+        console.log("Setting enrollment status to:", data.isEnrolled);
+        setIsEnrolled(data.isEnrolled);
+        setEffectivelyEnrolled(data.isEnrolled);
+      } else {
+        console.error("Enrollment check returned unsuccessful:", data);
       }
     } catch (error) {
-      console.error("Error checking enrollment status:", error)
+      console.error("Error checking enrollment status:", error);
     }
   }
 
@@ -287,7 +318,14 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         setLoading(true)
         const [courseResponse, enrollmentResponse, reviewsResponse] = await Promise.all([
           fetch(`/api/courses/${contentId}`),
-          fetch(`/api/courses/${contentId}/enrollment`),
+          session?.user ? fetch(`/api/courses/${contentId}/enrollment`, {
+            headers: {
+              "Cache-Control": "no-cache"
+            }
+          }) : Promise.resolve(new Response(JSON.stringify({ success: false, isEnrolled: false }), { 
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          })),
           fetch(`/api/courses/${contentId}/reviews`)
         ])
 
@@ -299,9 +337,18 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         setCourse(courseData.course)
         setSections(courseData.course.sections || [])
 
+        // Handle enrollment status
         if (enrollmentResponse.ok) {
           const enrollmentData = await enrollmentResponse.json()
+          console.log("Initial enrollment check:", enrollmentData)
+          
+          // Check if user is creator or admin
+          const isCreator = session?.user?.id === courseData.course.creatorId;
+          const isAdmin = session?.user?.role === "ADMIN";
+          
           setIsEnrolled(enrollmentData.isEnrolled)
+          // Set effective enrollment based on either actual enrollment or creator/admin status
+          setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
         }
 
         // Process reviews data
@@ -339,11 +386,14 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     }
   }, [contentId, session?.user?.role])
 
+  // Check enrollment status whenever session or contentId changes
   useEffect(() => {
-    if (session?.user && contentId) {
-      checkEnrollmentStatus()
+    if (session?.user && contentId && course) {
+      console.log("Checking enrollment status on session/contentId change");
+      // Always call checkEnrollmentStatus - it will handle creator/admin logic internally
+      checkEnrollmentStatus();
     }
-  }, [session, contentId])
+  }, [session?.user?.id, contentId, course?.creatorId, course])
 
   useEffect(() => {
     async function fetchFollowerCount() {
@@ -548,6 +598,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   const isCreator = session?.user?.id === course.creatorId
   const isAdmin = session?.user?.role === "ADMIN"
+  // Creators and admins always have access, so we should count them as enrolled too
   const hasAccess = isEnrolled || isCreator || isAdmin
 
   return (
@@ -792,7 +843,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Enrolling...
                         </>
-                      ) : isEnrolled ? (
+                      ) : effectivelyEnrolled ? (
                         <>
                           <Play className="h-4 w-4" />
                           Start Learning
@@ -804,6 +855,14 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </>
                       )}
                     </Button>
+                    {/* Debug info - will be removed after confirming fix */}
+                    <div className="text-xs text-muted-foreground mb-2 text-center">
+                      {effectivelyEnrolled ? 
+                        (isCreator ? "✅ You are the creator of this course" : 
+                         isAdmin ? "✅ You have admin access" : 
+                         "✅ You are enrolled in this course") 
+                        : "❌ Not enrolled yet"}
+                    </div>
 
                     {/* Action buttons - Share only */}
                     <DropdownMenu>
@@ -907,12 +966,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                   <TabsTrigger 
                     value="resources" 
                     className="rounded-sm data-[state=active]:bg-background"
-                    disabled={(course.price ?? 0) > 0 && !hasAccess}
+                    disabled={(course.price ?? 0) > 0 && !effectivelyEnrolled}
                   >
                     <div className="flex items-center">
                       <FileText className="h-4 w-4 mr-2" />
                       Resources
-                      {(course.price ?? 0) > 0 && !hasAccess && (
+                      {(course.price ?? 0) > 0 && !effectivelyEnrolled && (
                         <Lock className="h-3 w-3 ml-2 text-muted-foreground" />
                       )}
                     </div>
@@ -974,7 +1033,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                                 <SectionLectures
                                   section={section}
                                   courseId={contentId}
-                                  isEnrolled={isEnrolled || isCreator || isAdmin}
+                                  isEnrolled={effectivelyEnrolled}
                                   isFreeCourse={course.price === 0 || course.price === null}
                                   showEditControls={isCreator}
                                   onAddLecture={isCreator ? () => {/* ... */} : undefined}
@@ -998,7 +1057,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </TabsContent>
 
                 <TabsContent value="resources" className="space-y-6">
-                  {(course.price ?? 0) > 0 && !hasAccess ? (
+                  {(course.price ?? 0) > 0 && !effectivelyEnrolled ? (
                     <Card className="border-none shadow-md">
                       <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-4">
                         <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
