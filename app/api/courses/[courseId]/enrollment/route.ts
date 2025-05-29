@@ -180,75 +180,93 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
 // DELETE - Unenroll from a course
 export async function DELETE(req: NextRequest, { params }: { params: { courseId: string } }) {
   try {
-    const courseId = params.courseId
+    const { courseId } = params
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
-    // Use a transaction to handle the deletion of enrollment and progress
-    await prisma.$transaction(async (tx) => {
-      // Check if enrollment exists
-      const enrollment = await tx.enrollment.findFirst({
-        where: {
-          userId: session.user.id,
-          contentId: courseId,
-        },
-      })
+    try {
+      // Use a transaction to handle the deletion of enrollment and progress
+      await prisma.$transaction(async (tx) => {
+        // First check if enrollment exists
+        const existingEnrollment = await tx.enrollment.findFirst({
+          where: {
+            userId: session.user.id,
+            contentId: courseId,
+          }
+        });
 
-      if (!enrollment) {
-        throw new Error("Not enrolled in this course")
-      }
+        if (!existingEnrollment) {
+          throw new Error("Not enrolled in this course");
+        }
 
-      // Delete enrollment
-      await tx.enrollment.delete({
-        where: {
-          id: enrollment.id,
-        },
-      })
-
-      // Delete all progress for this course
-      await tx.progress.deleteMany({
-        where: {
-          userId: session.user.id,
-          lecture: {
-            section: {
+        // Delete enrollment using the compound key
+        await tx.enrollment.delete({
+          where: {
+            userId_contentId: {
+              userId: session.user.id,
               contentId: courseId,
+            }
+          }
+        });
+
+        // Then delete progress
+        await tx.progress.deleteMany({
+          where: {
+            userId: session.user.id,
+            lecture: {
+              section: {
+                contentId: courseId,
+              },
             },
           },
-        },
-      })
-    })
+        });
+      });
 
-    // Invalidate cache
-    await redis.del(`student:enrollments:${session.user.id}`)
+      // Invalidate all relevant caches consistently with POST/GET endpoints
+      await Promise.all([
+        redis.del(`student:enrollments:${session.user.id}`),
+        redis.del(`enrollment:${courseId}:${session.user.id}`),
+        redis.del(`enrollment:${session.user.id}:${courseId}`),
+      ]);
 
-    // Revalidate paths
-    revalidatePath(`/content/${courseId}`)
-    revalidatePath(`/dashboard/student`)
-    revalidatePath(`/dashboard/student/my-courses`)
+      // Revalidate paths
+      revalidatePath(`/content/${courseId}`);
+      revalidatePath(`/dashboard/student`);
+      revalidatePath(`/dashboard/student/my-courses`);
 
-    return NextResponse.json({
-      success: true,
-      message: "Successfully unenrolled from course",
-    })
+      return NextResponse.json({
+        success: true,
+        message: "Successfully unenrolled from course",
+      });
+    } catch (txError) {
+      if (txError instanceof Error) {
+        // Return 404 for "Not enrolled" error, otherwise 500
+        const status = txError.message === "Not enrolled in this course" ? 404 : 500;
+        throw new Error(txError.message, { cause: { status } });
+      }
+      throw txError;
+    }
   } catch (error) {
-    console.error("Error unenrolling from course:", error)
+    console.error("Error unenrolling from course:", error);
     
     // Track connection errors
     if (error instanceof Error && 
         (error.message.includes('connect') || 
          error.message.includes('Connection closed'))) {
-      dbMonitoring.trackError('enrollment_delete_connection_error')
+      dbMonitoring.trackError('enrollment_delete_connection_error');
     }
+    
+    const status = error instanceof Error && (error as any).cause?.status || 500;
     
     return NextResponse.json(
       { 
         success: false, 
         message: error instanceof Error ? error.message : "Failed to unenroll from course" 
       }, 
-      { status: 500 }
-    )
+      { status }
+    );
   }
 }

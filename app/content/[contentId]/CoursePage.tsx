@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import {
   BookOpen,
   Clock,
@@ -113,6 +114,8 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
+  const [isUnenrolling, setIsUnenrolling] = useState(false)
+  const [showUnenrollDialog, setShowUnenrollDialog] = useState(false)
   const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
 
   // Handle CTA button click
@@ -207,6 +210,75 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       setIsEnrolling(false)
     }
   }
+  
+  const handleUnenroll = async () => {
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to manage your course enrollments",
+      })
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
+      return
+    }
+
+    if (!effectivelyEnrolled) {
+      toast({
+        title: "Not Enrolled",
+        description: "You are not currently enrolled in this course",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsUnenrolling(true)
+      setShowUnenrollDialog(false) // Close dialog immediately
+
+      const response = await fetch(`/api/courses/${contentId}/enrollment`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache"
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to unenroll from course")
+      }
+
+      // Update local state after successful API call
+      setIsEnrolled(false)
+      setEffectivelyEnrolled(false)
+
+      toast({
+        title: "Successfully Unenrolled",
+        description: "You have been removed from this course",
+        variant: "default",
+      })
+
+      // Force router and page data refresh
+      router.refresh()
+      
+      // Redirect to explore page after unenroll
+      router.push("/explore")
+    } catch (error) {
+      console.error("Failed to unenroll:", error)
+      
+      // Revert state if unenroll failed
+      setIsEnrolled(true)
+      setEffectivelyEnrolled(true)
+      
+      toast({
+        title: "Action Failed",
+        description: error instanceof Error ? error.message : "Failed to unenroll from course",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUnenrolling(false)
+    }
+  }
 
   // Check enrollment status
   const checkEnrollmentStatus = async () => {
@@ -224,11 +296,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         return; // Skip API call for creators and admins
       }
       
-      const response = await fetch(`/api/courses/${contentId}/enrollment`, {
+      // Add timestamp to prevent browser caching
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/courses/${contentId}/enrollment?t=${timestamp}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
         },
       });
 
@@ -238,14 +314,17 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
       const data = await response.json();
       
-      console.log("Enrollment check response:", data);
-      
       if (data.success) {
-        console.log("Setting enrollment status to:", data.isEnrolled);
-        setIsEnrolled(data.isEnrolled);
-        setEffectivelyEnrolled(data.isEnrolled);
+        // Only update state if the enrollment status has changed
+        if (isEnrolled !== data.isEnrolled) {
+          setIsEnrolled(data.isEnrolled);
+          setEffectivelyEnrolled(data.isEnrolled);
+        }
       } else {
         console.error("Enrollment check returned unsuccessful:", data);
+        // Reset enrollment state on error
+        setIsEnrolled(false);
+        setEffectivelyEnrolled(false);
       }
     } catch (error) {
       console.error("Error checking enrollment status:", error);
@@ -603,6 +682,35 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   return (
     <div className="bg-background min-h-screen pb-12">
+      {/* Unenroll Confirmation Dialog */}
+      <AlertDialog open={showUnenrollDialog} onOpenChange={setShowUnenrollDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unenroll from this course?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove you from the course and delete your progress. You can re-enroll anytime, but your progress will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleUnenroll} 
+              className="bg-red-500 hover:bg-red-600 text-white"
+              disabled={isUnenrolling}
+            >
+              {isUnenrolling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Unenrolling...
+                </>
+              ) : (
+                "Yes, Unenroll"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       {/* Payment Modal */}
       {course && showPaymentModal && (
         <PaymentModal
@@ -690,6 +798,16 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         setFollowerCount(count)
                       }}
                     />
+                  )}
+                  
+                  {/* Enrollment status badge for students */}
+                  {session?.user && effectivelyEnrolled && !isCreator && !isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                        <UserCheck className="h-3.5 w-3.5 mr-1" />
+                        Enrolled
+                      </Badge>
+                    </div>
                   )}
                 </div>
               </div>
@@ -863,6 +981,21 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                          "✅ You are enrolled in this course") 
                         : "❌ Not enrolled yet"}
                     </div>
+
+                    {/* Unenroll option - only for non-creators/non-admins on free courses */}
+                    {effectivelyEnrolled && !isCreator && !isAdmin && (course.price === 0 || course.price === null) && (
+                      <div className="mb-4">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 flex items-center justify-center gap-2"
+                          onClick={() => setShowUnenrollDialog(true)}
+                        >
+                          <UserCheck className="h-4 w-4" />
+                          Unenroll from Course
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Action buttons - Share only */}
                     <DropdownMenu>
