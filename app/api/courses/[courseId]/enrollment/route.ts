@@ -69,7 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: { courseId: st
     const responseData = {
       success: true,
       isEnrolled: !!enrollment,
-      enrollmentDate: enrollment?.enrolledAt || null,
+      enrollmentDate: enrollment?.createdAt || null, // Using createdAt instead of enrolledAt
       progress: enrollment ? {
         totalLectures,
         completedLectures,

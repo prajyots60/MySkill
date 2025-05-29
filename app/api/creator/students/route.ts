@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         },
       },
       orderBy: {
-        enrolledAt: "desc",
+        createdAt: "desc", // Using createdAt instead of enrolledAt
       },
     })
     
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     const studentMap = new Map()
     
     for (const enrollment of enrollments) {
-      const { user, content, enrolledAt } = enrollment
+      const { user, content, createdAt } = enrollment // Using createdAt instead of enrolledAt
       
       if (!studentMap.has(user.id)) {
         studentMap.set(user.id, {
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
           name: user.name,
           email: user.email || "",
           image: user.image || "",
-          enrolledAt: enrolledAt,
+          enrolledAt: createdAt, // Using createdAt instead of enrolledAt
           coursesEnrolled: [],
           totalCoursesEnrolled: 0,
           lastActive: null,
@@ -91,12 +91,12 @@ export async function GET(request: Request) {
       student.coursesEnrolled.push({
         id: content.id,
         title: content.title,
-        enrolledAt: enrolledAt,
+        enrolledAt: createdAt, // Using createdAt instead of enrolledAt
       })
       
       // Update last enrolled date if this is more recent
-      if (new Date(enrolledAt) > new Date(student.enrolledAt)) {
-        student.enrolledAt = enrolledAt
+      if (new Date(createdAt) > new Date(student.enrolledAt)) {
+        student.enrolledAt = createdAt // Using createdAt instead of enrolledAt
       }
     }
     

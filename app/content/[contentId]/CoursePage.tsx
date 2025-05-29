@@ -51,6 +51,7 @@ import { useFollowData } from "@/hooks/use-follow-data"
 import CourseReviews from "@/components/course-reviews"
 import { CourseOverview } from "@/components/course-overview"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PaymentModal } from "@/components/payment-modal"
 
 interface CoursePageProps {
   contentId: string
@@ -106,11 +107,31 @@ const CourseResources = dynamic(() => import("@/components/course-resources").th
 export default function CoursePage({ contentId }: CoursePageProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   const [course, setCourse] = useState<Course | null>(null)
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [isEnrolling, setIsEnrolling] = useState(false)
+
+  // Handle CTA button click
+  const handleCTAClick = () => {
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to enroll in this course",
+      })
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
+      return
+    }
+
+    if (course?.price === 0) {
+      handleEnroll()
+    } else {
+      setShowPaymentModal(true)
+    }
+  }
+
   const [userReview, setUserReview] = useState<Review | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -124,7 +145,6 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   )
   const [followerCount, setFollowerCount] = useState(cachedFollowerData.followerCount)
 
-  // Handle enrollment
   const handleEnroll = async () => {
     if (!session) {
       toast({
@@ -532,6 +552,17 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   return (
     <div className="bg-background min-h-screen pb-12">
+      {/* Payment Modal */}
+      {course && showPaymentModal && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          courseId={course.id}
+          courseTitle={course.title}
+          price={course.price || 0}
+        />
+      )}
+      
       {/* Hero section with gradient background */}
       <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-background pt-6 md:pt-10 pb-12 border-b">
         <div className="container mx-auto px-4 md:px-6">
@@ -648,7 +679,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       className="object-cover transition-transform hover:scale-105 duration-700"
                       priority
                       placeholder="blur"
-                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQtJSAyVC08MTY3LjIyOkFTRjo9Tj4yMkhiSk46X2FfYDlMY1hgiV9fYW3/2wBDARUXFx4aHR4eHV9BNzJBX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX1//wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQtJSAyVC08MTY3LjIyOkFTRjo9Tj4yMkhiSk46X2FfYDlMY1hgiV9fYW3/2wBDARUXFx4aHR4eHV9BNzJBX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX1//wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                     />
                     
                     {/* Play preview button overlay */}
@@ -749,10 +780,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     </div>
 
                     {/* Call to action */}
-                    <Button
-                      size="lg"
+                    <Button 
+                      variant="default"
+                      size="lg" 
                       className="w-full gap-2 mb-4"
-                      onClick={course.price === 0 ? handleEnroll : () => router.push("/paid")}
+                      onClick={handleCTAClick}
                       disabled={isEnrolling}
                     >
                       {isEnrolling ? (
@@ -978,7 +1010,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </p>
                         <Button 
                           className="mt-2 gap-2"
-                          onClick={course.price === 0 ? handleEnroll : () => router.push("/paid")}
+                          onClick={handleCTAClick}
                         >
                           <BookOpen className="h-4 w-4" />
                           Enroll Now • {formatPrice(course.price)}

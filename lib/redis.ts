@@ -29,6 +29,9 @@ export const REDIS_KEYS = {
   TEMP_EMAIL: (email: string) => `temp:email:${email}`,
   USER_PROGRESS: (userId: string, courseId: string) => `progress:${userId}:${courseId}`,
   VIDEO_ACCESS: (userId: string, lectureId: string) => `video_access:${userId}:${lectureId}`,
+  // Adding missing enrollment-related keys with correct cache key formats
+  USER_ENROLLMENTS: (userId: string) => `student:enrollments:${userId}`,
+  COURSE_ENROLLMENTS: (courseId: string) => `course:enrollments:${courseId}`,
 }
 
 // Generic cache operations

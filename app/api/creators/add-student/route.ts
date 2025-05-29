@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import prisma from "@/lib/prisma";  // Fixed the import to use the correct path
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { invalidateCache, REDIS_KEYS } from "@/lib/redis";
@@ -70,7 +70,8 @@ export async function POST(req: NextRequest) {
       data: {
         userId: student.id,
         contentId: courseId,
-        enrolledAt: new Date(),
+        status: "ACTIVE",  // Adding status field which exists in the schema
+        price: course.price || 0,  // Include price information from the course
       },
     });
 

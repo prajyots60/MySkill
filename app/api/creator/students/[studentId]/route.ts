@@ -61,7 +61,7 @@ export async function GET(
         },
       },
       orderBy: {
-        enrolledAt: "desc",
+        createdAt: "desc", // Using createdAt instead of enrolledAt which doesn't exist in schema
       },
     })
     
@@ -102,11 +102,11 @@ export async function GET(
         title: enrollment.content.title,
         thumbnail: enrollment.content.thumbnail,
         type: enrollment.content.type,
-        enrolledAt: enrollment.enrolledAt,
+        enrolledAt: enrollment.createdAt, // Using createdAt instead of enrolledAt
         completedLectures: 0,
         totalLectures: 0,
         progress: 0,
-        lastAccessed: enrollment.enrolledAt,
+        lastAccessed: enrollment.createdAt, // Using createdAt instead of enrolledAt
       }
       
       // Count total lectures in this course
@@ -171,7 +171,7 @@ export async function GET(
       },
     })
     
-    const lastActive = latestProgress?.updatedAt || enrollments[0].enrolledAt
+    const lastActive = latestProgress?.updatedAt || enrollments[0].createdAt // Using createdAt instead of enrolledAt
     
     // Determine student status based on recent activity (active if activity in last 30 days)
     const isActive = new Date(lastActive) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -179,7 +179,7 @@ export async function GET(
     // Prepare the complete student data
     const studentData = {
       ...student,
-      enrolledAt: enrollments[0].enrolledAt,
+      enrolledAt: enrollments[0].createdAt, // Using createdAt instead of enrolledAt
       coursesEnrolled: enrollments.length,
       completionRate: overallCompletionRate,
       lastActive,

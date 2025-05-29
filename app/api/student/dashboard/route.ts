@@ -88,7 +88,7 @@ export async function GET() {
       // Get recent enrollments with course details and progress
       const recentEnrollments = await retryOperation<EnrollmentWithContent[]>(() => db.prisma.enrollment.findMany({
         where: { userId },
-        orderBy: { enrolledAt: "desc" },
+        orderBy: { createdAt: "desc" },
         take: 6,
         include: {
           content: {
@@ -145,7 +145,7 @@ export async function GET() {
         
         return {
           id: enrollment.id,
-          enrolledAt: enrollment.enrolledAt,
+          enrolledAt: enrollment.createdAt, // Using createdAt instead of enrolledAt
           content: {
             id: content.id,
             title: content.title,
@@ -194,8 +194,8 @@ export async function GET() {
         take: 4,
         orderBy: {
           // Using lastAccessed which should exist on the Enrollment model
-          // If this doesn't exist, you may need to use another field like enrolledAt
-          enrolledAt: "desc" 
+          // Using createdAt as the enrollment date
+          createdAt: "desc" 
         },
         include: {
           content: {

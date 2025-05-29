@@ -129,6 +129,7 @@
     "plyr-react": "^5.3.0",
     "prisma": "latest",
     "querystring-es3": "^0.2.1",
+    "razorpay": "^2.9.6",
     "react": "^19",
     "react-countup": "^6.5.3",
     "react-day-picker": "9.7.0",

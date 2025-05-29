@@ -86,6 +86,7 @@ model User {
   following              UserFollow[]            @relation("UserFollowing")
   userServiceConnections UserServiceConnection[]
   uploadedResources      CourseResource[]
+  payments               Payment[]          @relation("UserPayments")
 
   @@index([email])
 }
@@ -164,6 +165,7 @@ model Content {
   reviews         Review[]
   sections        Section[]
   courseResources CourseResource[] @relation("ContentToCourseResource")
+  payments        Payment[]        @relation("ContentPayments")
 
   @@index([creatorId])
   @@index([type])
@@ -221,16 +223,53 @@ model Lecture {
 }
 
 model Enrollment {
-  id         String   @id @default(cuid())
-  enrolledAt DateTime @default(now())
-  userId     String
-  contentId  String
-  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String           @id @default(cuid())
+  userId    String
+  contentId String
+  status    EnrollmentStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  price     Float?
+
+  // Payment related fields
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
   @@index([userId])
   @@index([contentId])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String        @unique
+  amount    Float
+  currency  String
+  status    PaymentStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Foreign Keys
+  userId    String
+  courseId  String
+  user      User     @relation("UserPayments", fields: [userId], references: [id])
+  course    Content  @relation("ContentPayments", fields: [courseId], references: [id])
+  enrollment Enrollment?
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([orderId])
 }
 
 model Progress {
@@ -546,6 +585,13 @@ enum VideoSource {
   YOUTUBE
   ODYSEE
   WASABI
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  SUSPENDED
+  COMPLETED
+  EXPIRED
 }
 
 enum ExamType {

@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
         authorized: true,
         enrollment: {
           id: enrollment.id,
-          enrolledAt: enrollment.enrolledAt
+          enrolledAt: enrollment.createdAt // Using createdAt instead of enrolledAt
         }
       })
     }

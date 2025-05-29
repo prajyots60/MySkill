@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
           },
         },
         orderBy: {
-          enrolledAt: "desc",
+          createdAt: "desc",  // Using createdAt instead of enrolledAt which doesn't exist
         },
       }))
     } catch (error) {
@@ -239,7 +239,7 @@ export async function GET(req: NextRequest) {
         progress: progress.percentage,
         nextLecture,
         lastAccessed: progress.lastAccessed,
-        enrolledAt: enrollment.enrolledAt,
+        enrolledAt: enrollment.createdAt, // Using createdAt instead of enrolledAt
         isCompleted,
       }
     })
