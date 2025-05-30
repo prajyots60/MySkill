@@ -18,6 +18,7 @@ import { NavigationOptimizer } from "@/components/navigation-optimizer"
 import { UploadManagerProvider } from "@/components/upload-manager-provider"
 import { UserRoleHandler } from "@/components/user-role-handler"
 import { ServiceWorkerProvider } from "@/components/service-worker-provider"
+import { NetworkProvider } from "@/components/network-provider"
 import Script from "next/script"
 
 const inter = Inter({
@@ -89,34 +90,36 @@ export default function RootLayout({
                 <UserRoleHandler />
                 {/* Service Worker Registration */}
                 <ServiceWorkerProvider />
-                <SidebarTouchHandler>
-                  <div className="flex min-h-screen w-full overflow-hidden">
-                    <AppSidebar />
-                    <main className="flex-1 overflow-auto relative">
-                      <MobileNavigationProgress />
-                      <MobileNavigation />
-                      <MobileNavHint />
-                      <PerformanceOptimizedLayout>
-                        <NavigationOptimizer>
-                          <UploadManagerProvider>
-                          {/* Dynamic import of mobile sidebar toggle to avoid hydration issues */}
-                          {typeof window !== 'undefined' && (
-                            <React.Suspense fallback={null}>
-                              {/* @ts-ignore - Dynamic import */}
-                              {(() => {
-                                const MobileSidebarToggle = require('@/components/mobile-sidebar-toggle').MobileSidebarToggle;
-                                return <MobileSidebarToggle />;
-                              })()}
-                            </React.Suspense>
-                          )}
-                          {children}
-                          </UploadManagerProvider>
-                        </NavigationOptimizer>
-                      </PerformanceOptimizedLayout>
-                    </main>
-                  </div>
-                  <Toaster />
-                </SidebarTouchHandler>
+                <NetworkProvider>
+                  <SidebarTouchHandler>
+                    <div className="flex min-h-screen w-full overflow-hidden">
+                      <AppSidebar />
+                      <main className="flex-1 overflow-auto relative">
+                        <MobileNavigationProgress />
+                        <MobileNavigation />
+                        <MobileNavHint />
+                        <PerformanceOptimizedLayout>
+                          <NavigationOptimizer>
+                            <UploadManagerProvider>
+                              {/* Dynamic import of mobile sidebar toggle to avoid hydration issues */}
+                              {typeof window !== 'undefined' && (
+                                <React.Suspense fallback={null}>
+                                  {/* @ts-ignore - Dynamic import */}
+                                  {(() => {
+                                    const MobileSidebarToggle = require('@/components/mobile-sidebar-toggle').MobileSidebarToggle;
+                                    return <MobileSidebarToggle />;
+                                  })()}
+                                </React.Suspense>
+                              )}
+                              {children}
+                            </UploadManagerProvider>
+                          </NavigationOptimizer>
+                        </PerformanceOptimizedLayout>
+                      </main>
+                    </div>
+                    <Toaster />
+                  </SidebarTouchHandler>
+                </NetworkProvider>
               </SidebarProvider>
             </AuthProvider>
           </ThemeProvider>
