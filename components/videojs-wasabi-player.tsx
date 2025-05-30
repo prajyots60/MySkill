@@ -101,7 +101,7 @@ export default function VideoJsWasabiPlayer({
   title,
   isEncrypted = false,
   encryptionKey,
-  encryptionIV,  // Add encryptionIV to the destructured props
+  encryptionIV,
   className = ''
 }: VideoJsWasabiPlayerProps) {
   const videoRef = useRef<HTMLDivElement>(null);
@@ -112,71 +112,22 @@ export default function VideoJsWasabiPlayer({
   const mountedRef = useRef(true);
   const playerInitializedRef = useRef(false);
 
-  // Handle cleanup of videoplayer and blob URLs - this function shouldn't cause re-renders
+  // Handle cleanup of videoplayer and blob URLs
   const cleanup = useCallback(() => {
     if (playerRef.current) {
       console.log('Disposing existing player instance');
       playerRef.current.dispose();
       playerRef.current = null;
     }
+
     if (decryptedBlobRef.current.url) {
       URL.revokeObjectURL(decryptedBlobRef.current.url);
       decryptedBlobRef.current = { sourceUrl: null, url: null, blob: null };
     }
     playerInitializedRef.current = false;
-  }, []); // Empty dependency array since it doesn't depend on any state or props
-
-  // Function to create a proper video blob with better MIME type detection
-  const createVideoBlob = useCallback((data: ArrayBuffer): Blob => {
-    // Magic numbers for different video formats
-    const signatures = {
-      mp4: [[0x66, 0x74, 0x79, 0x70], [0x6D, 0x6F, 0x6F, 0x76]], // ftyp or moov
-      webm: [0x1A, 0x45, 0xDF, 0xA3],
-      avi: [0x52, 0x49, 0x46, 0x46], // RIFF
-      mkv: [0x1A, 0x45, 0xDF, 0xA3], // Same as webm
-      mov: [0x66, 0x74, 0x79, 0x70, 0x71, 0x74, 0x20, 0x20] // ftyp qt
-    };
-    
-    const header = new Uint8Array(data.slice(0, 16));
-    let mimeType = 'video/mp4'; // default
-
-    // Check for MP4 signatures
-    const isMP4 = signatures.mp4.some(sig => 
-      header.slice(4, 8).every((byte, i) => byte === sig[i])
-    );
-    if (isMP4) {
-      mimeType = 'video/mp4';
-    }
-    // Check for WebM/MKV signature
-    else if (
-      header[0] === signatures.webm[0] &&
-      header[1] === signatures.webm[1] &&
-      header[2] === signatures.webm[2] &&
-      header[3] === signatures.webm[3]
-    ) {
-      mimeType = 'video/webm';
-    }
-    // Check for AVI signature
-    else if (
-      header[0] === signatures.avi[0] &&
-      header[1] === signatures.avi[1] &&
-      header[2] === signatures.avi[2] &&
-      header[3] === signatures.avi[3]
-    ) {
-      mimeType = 'video/x-msvideo';
-    }
-    // Check for MOV signature
-    else if (
-      header.slice(4, 12).every((byte, i) => byte === signatures.mov[i])
-    ) {
-      mimeType = 'video/quicktime';
-    }
-
-    console.log('Detected MIME type:', mimeType);
-    return new Blob([data], { type: mimeType });
   }, []);
 
-  // Player initialization function - memoized with empty dependency array
+  // Player initialization function
   const initializePlayer = useCallback((url: string) => {
     try {
       if (!videoRef.current || !mountedRef.current) {
@@ -184,162 +135,502 @@ export default function VideoJsWasabiPlayer({
         return;
       }
 
-      // Skip initialization if we're already initialized with this URL
-      if (playerInitializedRef.current && playerRef.current) {
-        console.log('Player already initialized, skipping re-initialization');
-        return;
-      }
-
       // Create video element only once
-      console.log('Initializing player with URL:', url);
-      
-      // Clear the videoRef container once
       if (videoRef.current.firstChild) {
         console.log('Video container already has children, reusing existing container');
       } else {
         // Create the video element
         const videoElement = document.createElement('video');
-        videoElement.className = 'video-js vjs-default-skin';
+        videoElement.className = 'video-js vjs-default-skin vjs-big-play-centered';
         videoElement.setAttribute('playsinline', '');
         videoElement.setAttribute('controls', '');
-        videoElement.setAttribute('crossorigin', 'anonymous'); 
-        videoElement.id = 'video-js-player-' + Date.now(); // Unique ID to prevent conflicts
+        videoElement.id = 'video-js-player-' + Date.now();
+        
+        // Advanced security attributes
+        videoElement.setAttribute('disablePictureInPicture', 'true');
+        videoElement.setAttribute('controlsList', 'nodownload noplaybackrate nofullscreen');
+        videoElement.setAttribute('oncontextmenu', 'return false;');
+        
+        // Apply security styles
+        Object.assign(videoElement.style, {
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          pointerEvents: 'auto', // Enable pointer events
+          WebkitTapHighlightColor: 'transparent',
+          cursor: 'pointer'
+        });
+        
         videoRef.current.appendChild(videoElement);
       }
 
-      // Determine MIME type
+      // Determine MIME type with security checks
       let sourceType = 'video/mp4';
-      if (url.includes('.mp4')) sourceType = 'video/mp4';
       if (url.includes('.webm')) sourceType = 'video/webm';
       if (url.includes('.mov')) sourceType = 'video/quicktime';
       if (url.includes('.m3u8')) sourceType = 'application/x-mpegURL';
       
-      // Add advanced configuration
+      // Enhanced security options
       const playerOptions = {
         controls: true,
         fluid: true,
         preload: 'auto',
         playsinline: true,
-        crossOrigin: 'anonymous', // Add CORS support
+        crossOrigin: 'anonymous',
         html5: {
           vhs: {
-            overrideNative: true, // Better handling for HLS
+            overrideNative: true,
+            enableLowInitialPlaylist: true,
+            handleManifestRedirects: true,
+            useDevicePixelRatio: true,
           },
-          nativeAudioTracks: false,
-          nativeVideoTracks: false,
-          nativeTextTracks: false
+          loadingSpinnerDelay: 100 // Short delay before showing spinner
         },
+        userActions: {
+          hotkeys: {
+            enableNumbers: false,
+            enableVolumeScroll: false,
+            enableMute: false,
+            enableFullscreen: false
+          },
+          doubleClick: false, // Disable double click to prevent conflicts
+          click: true // Enable single click
+        },
+        controlBar: {
+          children: [
+            'playToggle',
+            'volumePanel',
+            'currentTimeDisplay',
+            'timeDivider',
+            'durationDisplay',
+            'progressControl',
+            'playbackRateMenuButton',
+            'fullscreenToggle',
+          ],
+          volumePanel: {
+            inline: false,
+            volumeControl: {
+              vertical: true,
+              volumeBar: {
+                vertical: true
+              }
+            }
+          }
+        },
+        inactivityTimeout: 3000, // Hide controls after 3 seconds of inactivity
+        // Advanced security features
+        liveui: false,
+        responsive: true,
+        suppressNotSupportedError: true,
         sources: [{
           src: url,
           type: sourceType
-        }]
+        }],
+        playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+        errorDisplay: false,
+        loadingSpinner: {
+          display: loading
+        },
+        bigPlayButton: true,
+        textTrackSettings: false,
+        resizeManager: false,
+        poster: '', // Prevent poster frame downloads
+        controlBarVisibility: 'transform'
       };
 
-      // Find the video element in our container to initialize
       const videoElement = videoRef.current.querySelector('video');
       if (!videoElement) {
         throw new Error('Video element not found in container');
       }
 
-      console.log('Creating VideoJS player with element:', videoElement);
-      
-      // Dispose any existing player instance before creating a new one
-      if (playerRef.current) {
-        playerRef.current.dispose();
-        playerRef.current = null;
-      }
+      // Advanced security measures for video element
+      videoElement.addEventListener('contextmenu', e => e.preventDefault(), true);
+      videoElement.addEventListener('keydown', e => {
+        const blockedKeys = ['s', 'p', 'g', 'u', 'i', 'c', 'j', 'F12'];
+        if (
+          (e.ctrlKey && blockedKeys.includes(e.key.toLowerCase())) ||
+          (e.shiftKey && blockedKeys.includes(e.key.toLowerCase())) ||
+          (e.altKey && blockedKeys.includes(e.key.toLowerCase())) ||
+          e.key === 'F12'
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
 
+      // Anti-tampering measures
+      let lastChecksum = '';
+      const verifyPlayerIntegrity = () => {
+        const elementText = videoElement.outerHTML;
+        const checksum = elementText.split('').reduce((a, b) => {
+          a = ((a << 5) - a) + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+        
+        if (lastChecksum && lastChecksum !== String(checksum)) {
+          // Player has been modified
+          videoElement.pause();
+          videoElement.currentTime = 0;
+          videoElement.src = '';
+        }
+        lastChecksum = String(checksum);
+      };
+      setInterval(verifyPlayerIntegrity, 1000);
+
+      // Create player instance with enhanced security
       const player = videojs(videoElement, playerOptions, function onPlayerReady() {
         console.log('Player is ready');
         playerInitializedRef.current = true;
-        
-        // Immediately check for playability when ready
-        this.one('loadedmetadata', () => {
-          console.log('Video metadata loaded, dimensions:', {
-            width: this.videoWidth(),
-            height: this.videoHeight(),
-            duration: this.duration()
-          });
+
+        // Set loading to false when player is ready
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+
+        // Also listen for various ready states
+        this.on(['loadeddata', 'loadedmetadata', 'canplay'], () => {
           if (mountedRef.current) {
             setLoading(false);
           }
         });
+
+        // Improved click event handler on the video element
+        const tech = this.tech();
+        if (tech && tech.el_) {
+          tech.el_.style.pointerEvents = 'auto';
+          tech.el_.addEventListener('click', (e: MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.paused()) {
+              this.play();
+            } else {
+              this.pause();
+            }
+          }, { capture: true });
+        }
+
+        // Enable control bar interactions with proper event propagation
+        const controlBar = this.getChild('ControlBar');
+        if (controlBar && controlBar.el_) {
+          // Ensure control bar is clickable
+          controlBar.el_.style.pointerEvents = 'auto';
+          
+          // Handle control bar clicks without interfering with video clicks
+          controlBar.on('click', (e: MouseEvent) => {
+            e.stopPropagation();
+          });
+
+          // Make sure all child controls are clickable
+          const childComponents = Object.values(controlBar.children_);
+          childComponents.forEach((control: any) => {
+            if (control && control.el_) {
+              control.el_.style.pointerEvents = 'auto';
+            }
+          });
+        }
+
+        // Specifically handle play toggle button
+        const playToggle = this.getChild('ControlBar')?.getChild('PlayToggle');
+        if (playToggle && playToggle.el_) {
+          playToggle.el_.style.pointerEvents = 'auto';
+          playToggle.on('click', (e: MouseEvent) => {
+            e.stopPropagation();
+            if (this.paused()) {
+              this.play();
+            } else {
+              this.pause();
+            }
+          });
+        }
+
+        // Secure the player instance
+        this.on('loadstart', () => {
+          const tech = this.tech_;
+          if (tech && tech.el_) {
+            // Protect source URL
+            const secureUrl = new URL(url);
+            secureUrl.searchParams.forEach((_, key) => {
+              secureUrl.searchParams.set(key, '***');
+            });
+            
+            Object.defineProperty(tech.el_, 'currentSrc', {
+              get: () => secureUrl.toString(),
+              configurable: false
+            });
+          }
+        });
+
+        // Add keyboard controls with restrictions
+        this.on('keydown', (e: KeyboardEvent) => {
+          const currentTime = this.currentTime();
+          const duration = this.duration();
+          
+          if (typeof currentTime === 'number' && typeof duration === 'number') {
+            if (e.code === 'ArrowRight') {
+              this.currentTime(Math.min(currentTime + 10, duration));
+            } else if (e.code === 'ArrowLeft') {
+              this.currentTime(Math.max(0, currentTime - 10));
+            }
+          }
+          // Block other keyboard events
+          e.stopPropagation();
+        });
+
+        // Block screen capture API if available
+        if ('mediaDevices' in navigator && 'getDisplayMedia' in navigator.mediaDevices) {
+          try {
+            Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
+              value: async () => {
+                throw new Error('Screen capture is blocked');
+              },
+              configurable: false
+            });
+          } catch (e) {
+            console.warn('Failed to block screen capture API:', e);
+          }
+        }
       });
 
-      // Add robust error handling
+      // Additional security measures
       player.on('error', () => {
         const error = player.error();
         console.error('Video.js error:', error);
-        console.error('Video element error code:', videoElement.error && videoElement.error.code);
         
-        // Try to recover by resetting the source
-        if (error && error.code === 4) { // Media error
+        if (error && error.code === 4) {
           console.log('Attempting to recover from media error...');
           player.src({ src: url, type: sourceType });
           player.load();
           
-          // Give the player a second chance
           setTimeout(() => {
             if (mountedRef.current && player.error()) {
-              setError('Video playback error. Please reload the page and try again.');
+              setError('Video playback error. Please try again.');
             }
           }, 3000);
         } else if (mountedRef.current) {
-          setError(`Video error: ${error?.message || 'Unknown playback error'}`);
+          setError(`Video error: ${error?.message || 'Unknown error'}`);
         }
       });
 
-      // Handle all player events with detailed logging
-      player.on('loadstart', () => {
-        console.log('Video load started');
-        // Don't set loading to true here, as it would cause a re-render
-      });
-      
-      player.on('progress', () => {
-        const buffered = player.buffered();
-        const duration = player.duration && typeof player.duration === 'function' ? player.duration() : undefined;
-        if (buffered && buffered.length > 0 && duration !== undefined) {
-          console.log('Video downloading - buffered:',
-            buffered.end(buffered.length - 1).toFixed(2) + 's',
-            'of', duration !== undefined ? duration.toFixed(2) + 's' : 'unknown duration');
+      // Advanced stream protection
+      player.on('sourceset', () => {
+        const tech = player.tech();
+        if (tech) {
+          // Add visibility protection
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+              player.pause();
+            }
+          });
         }
       });
-      
-      player.on('loadeddata', () => {
-        console.log('Video data loaded successfully');
-        if (mountedRef.current) {
-          setLoading(false);
-        }
-      });
-      
-      player.on('canplay', () => {
-        console.log('Video can start playing');
-        if (mountedRef.current) {
-          setLoading(false);
-          setError(null); // Clear any previous errors when video is ready
-        }
-      });
-      
-      player.on('playing', () => {
-        console.log('Video playback started');
-        if (mountedRef.current) {
-          setLoading(false);
-          setError(null);
-        }
-      });
-      
-      player.on('waiting', () => console.log('Video playback waiting'));
-      
-      player.on('seeking', () => {
-        const t = player.currentTime();
-        console.log('Video seeking to:', t !== undefined ? t.toFixed(2) : 'unknown');
-      });
-      player.on('seeked', () => {
-        const t = player.currentTime();
-        console.log('Video seeked to:', t !== undefined ? t.toFixed(2) : 'unknown');
-      });
-      
+
+      // Remove native controls and enforce custom ones
+      player.usingNativeControls(false);
       playerRef.current = player;
+      videoElement.controls = false;
+      
+      // Add comprehensive security styles
+      const securityStyle = document.createElement('style');
+      securityStyle.textContent = `
+        .video-js {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+          pointer-events: auto !important;
+          transform: translateZ(0);
+          isolation: isolate;
+        }
+        
+        .video-js.vjs-has-started .vjs-loading-spinner,
+        .video-js.vjs-playing .vjs-loading-spinner,
+        .video-js.vjs-paused .vjs-loading-spinner {
+          display: none !important;
+          opacity: 0 !important;
+        }
+
+        .video-js .vjs-loading-spinner {
+          display: none;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .video-js.vjs-waiting .vjs-loading-spinner {
+          display: block;
+          opacity: 1;
+        }
+        .video-js .vjs-tech {
+          pointer-events: auto !important;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+          -webkit-mask-image: -webkit-radial-gradient(white, black);
+          -webkit-backface-visibility: hidden;
+          -moz-backface-visibility: hidden;
+          backface-visibility: hidden;
+          cursor: pointer !important;
+        }
+        .video-js * {
+          user-select: none !important;
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          pointer-events: none;
+        }
+        .video-js .vjs-control-bar {
+          pointer-events: auto !important;
+          background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.7)) !important;
+          backdrop-filter: blur(10px) !important;
+        }
+        .video-js .vjs-control {
+          pointer-events: auto !important;
+          cursor: pointer !important;
+        }
+        .video-js .vjs-progress-control {
+          pointer-events: auto !important;
+          cursor: pointer !important;
+        }
+        .video-js .vjs-progress-holder {
+          pointer-events: auto !important;
+          cursor: pointer !important;
+        }
+        .video-js .vjs-play-progress {
+          pointer-events: none !important;
+        }
+        .video-js .vjs-menu-button {
+          pointer-events: auto !important;
+        }
+        .vjs-tech::-webkit-media-controls,
+        .vjs-tech::-webkit-media-controls-panel,
+        .vjs-tech::-webkit-media-controls-panel-container,
+        .vjs-tech::-webkit-media-controls-start-playback-button,
+        .vjs-tech::-webkit-media-controls-enclosure,
+        video::-webkit-media-controls-overlay-enclosure,
+        video::-webkit-media-controls-enclosure,
+        video::-webkit-media-controls,
+        video::-webkit-media-controls-panel,
+        video::-webkit-media-controls-panel-container,
+        video::-webkit-media-controls-start-playback-button,
+        video::-webkit-media-controls-timeline,
+        video::-webkit-media-controls-current-time-display,
+        video::-webkit-media-controls-time-remaining-display,
+        video::-webkit-media-controls-time-remaining-display,
+        video::-webkit-media-controls-mute-button,
+        video::-webkit-media-controls-toggle-closed-captions-button,
+        video::-webkit-media-controls-volume-slider,
+        video::-webkit-media-controls-fullscreen-button,
+        video::-internal-media-controls-download-button,
+        video::-internal-media-controls-overflow-button {
+          display: none !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          position: absolute !important;
+        }
+        video::-webkit-media-controls-enclosure {
+          display: none !important;
+          opacity: 0 !important;
+        }
+        video::-webkit-media-controls {
+          display: none !important;
+          opacity: 0 !important;
+        }
+        .vjs-text-track-display {
+          pointer-events: none !important;
+        }
+        .video-js *::selection {
+          background: transparent !important;
+        }
+        .video-js *::-moz-selection {
+          background: transparent !important;
+        }
+
+        /* Hide loading spinner when video is ready */
+        .video-js.vjs-has-started .vjs-loading-spinner,
+        .video-js.vjs-playing .vjs-loading-spinner,
+        .video-js.vjs-paused .vjs-loading-spinner {
+          display: none !important;
+          opacity: 0 !important;
+        }
+
+        /* Only show loading spinner during actual loading states */
+        .video-js .vjs-loading-spinner {
+          display: none;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .video-js.vjs-waiting .vjs-loading-spinner {
+          display: block;
+          opacity: 1;
+        }
+      `;
+      document.head.appendChild(securityStyle);
+
+      // Add custom styles
+      const styles = `
+      .video-js .vjs-tech {
+        pointer-events: auto !important;
+        user-select: none !important;
+        cursor: pointer !important;
+      }
+
+      .video-js .vjs-control-bar {
+        pointer-events: auto !important;
+        user-select: none !important;
+      }
+
+      .video-js .vjs-control {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+
+      .video-js .vjs-progress-control {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+
+      .video-js .vjs-progress-holder {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+
+      .video-js .vjs-play-progress {
+        pointer-events: none !important;
+      }
+
+      .video-js .vjs-slider {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+
+      .video-js .vjs-volume-panel {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+      `;
+
+      // Create and append style element
+      const styleSheet = document.createElement('style');
+      styleSheet.type = 'text/css';
+      styleSheet.innerText = styles;
+      document.head.appendChild(styleSheet);
+
+      // Block DevTools opening
+      window.addEventListener('keydown', function(e) {
+        if (
+          (e.key === 'F12') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'C') ||
+          (e.ctrlKey && e.key === 'U')
+        ) {
+          e.preventDefault();
+        }
+      });
+
     } catch (err) {
       console.error('Error initializing player:', err);
       if (mountedRef.current) {
@@ -347,7 +638,7 @@ export default function VideoJsWasabiPlayer({
         setLoading(false);
       }
     }
-  }, []); // Empty dependency array to prevent recreation
+  }, []);
 
   // Handle initialization of video player - stable reference with no dependencies
   const handleInitializePlayer = useCallback((url: string) => {
