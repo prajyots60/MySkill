@@ -102,12 +102,12 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
     // Check if user is a creator
     if (session.user.role !== "CREATOR" && session.user.role !== "ADMIN") {
-      return NextResponse.json({ message: "Only creators can access courses" }, { status: 403 })
+      return NextResponse.json({ success: false, message: "Only creators can access courses" }, { status: 403 })
     }
 
     // Set cache control headers
@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
 
     const cacheKey = REDIS_KEYS.CREATOR_COURSES(session.user.id)
 
-    // Try to get from cache first
+    // Try to get from cache first with creator-specific key
     try {
       const cachedCourses = await redis.get(cacheKey)
       if (cachedCourses) {
@@ -131,13 +131,12 @@ export async function GET(req: NextRequest) {
       }
     } catch (cacheError) {
       console.error("Cache read error:", cacheError)
-      // Continue to database fetch if cache fails
     }
 
-    // Get courses from database with efficient querying
+    // Get courses from database - CRITICAL: Filter by creatorId
     const courses = await prisma.content.findMany({
       where: {
-        creatorId: session.user.id,
+        creatorId: session.user.id, // This ensures we only get courses owned by the current creator
       },
       orderBy: {
         createdAt: "desc",
@@ -179,7 +178,7 @@ export async function GET(req: NextRequest) {
       sectionCount: course.sections.length,
     }))
 
-    // Cache the results
+    // Cache the results with creator-specific key
     try {
       await redis.set(cacheKey, JSON.stringify(transformedCourses), { ex: CACHE_DURATION })
     } catch (cacheError) {

@@ -103,16 +103,21 @@ export async function getCreatorCourses() {
       throw new Error("Unauthorized")
     }
 
+    // Check if user is a creator
+    if (session.user.role !== "CREATOR" && session.user.role !== "ADMIN") {
+      throw new Error("Only creators can access courses")
+    }
+
     // Try to get from cache first
     const cachedCourses = await getCachedCreatorCourses(session.user.id)
     if (cachedCourses) {
       return { success: true, courses: cachedCourses }
     }
 
-    // Get courses from database
+    // Get courses from database with strict creator ID filtering
     const courses = await prisma.content.findMany({
       where: {
-        creatorId: session.user.id,
+        creatorId: session.user.id, // Ensure we only get courses owned by the current creator
       },
       orderBy: {
         createdAt: "desc",
@@ -151,7 +156,7 @@ export async function getCreatorCourses() {
       lectureCount: course.sections.reduce((acc, section) => acc + section._count.lectures, 0),
     }))
 
-    // Cache the results
+    // Cache the results with creator-specific key
     await cacheCreatorCourses(session.user.id, transformedCourses)
 
     return { success: true, courses: transformedCourses }

@@ -29,6 +29,9 @@ export function useCreatorCourses() {
         throw new Error("Failed to fetch courses")
       }
       const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch courses")
+      }
       return data.courses
     },
   })
