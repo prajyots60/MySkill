@@ -1101,31 +1101,31 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           <div className="lg:col-span-2 space-y-8">
             <Suspense fallback={<Skeleton className="h-[200px]" />}>
               <Tabs defaultValue="curriculum" className="space-y-6">
-                <TabsList className="bg-muted/50 p-1 inline-flex h-12 items-center justify-center rounded-md w-full lg:w-auto overflow-x-auto">
-                  <TabsTrigger value="curriculum" className="rounded-sm data-[state=active]:bg-background">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Curriculum
+                <TabsList className="bg-muted/50 p-1 flex items-center justify-start rounded-md w-full overflow-x-auto scrollbar-none gap-1 min-h-[48px]">
+                  <TabsTrigger value="curriculum" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                    <BookOpen className="h-4 w-4 mr-1.5 sm:mr-2" />
+                    <span className="whitespace-nowrap">Curriculum</span>
                   </TabsTrigger>
-                  <TabsTrigger value="overview" className="rounded-sm data-[state=active]:bg-background">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Overview
+                  <TabsTrigger value="overview" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                    <BarChart3 className="h-4 w-4 mr-1.5 sm:mr-2" />
+                    <span className="whitespace-nowrap">Overview</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="resources" 
-                    className="rounded-sm data-[state=active]:bg-background"
+                    className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3"
                     disabled={(course.price ?? 0) > 0 && !effectivelyEnrolled}
                   >
                     <div className="flex items-center">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Resources
+                      <FileText className="h-4 w-4 mr-1.5 sm:mr-2" />
+                      <span className="whitespace-nowrap">Resources</span>
                       {(course.price ?? 0) > 0 && !effectivelyEnrolled && (
                         <Lock className="h-3 w-3 ml-2 text-muted-foreground" />
                       )}
                     </div>
                   </TabsTrigger>
-                  <TabsTrigger value="reviews" className="rounded-sm data-[state=active]:bg-background">
-                    <Star className="h-4 w-4 mr-2" />
-                    Reviews
+                  <TabsTrigger value="reviews" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                    <Star className="h-4 w-4 mr-1.5 sm:mr-2" />
+                    <span className="whitespace-nowrap">Reviews</span>
                   </TabsTrigger>
                 </TabsList>
 
