@@ -289,33 +289,6 @@ export default function VideoJsWasabiPlayer({
           setLoading(false);
         }
 
-        // Listen for time updates to show progress
-        this.on('timeupdate', () => {
-          const currentTime = Math.floor(this.currentTime() || 0);
-          const duration = Math.floor(this.duration() || 0);
-          if (duration > 0) {
-            const progress = (currentTime / duration) * 100;
-            
-            // Update progress bar styles
-            const progressBar = document.querySelector('.video-progress-bar') as HTMLElement;
-            if (progressBar) {
-              progressBar.style.width = `${progress}%`;
-            }
-
-            // Update duration display
-            const durationDisplay = document.querySelector('.video-duration-display');
-            if (durationDisplay) {
-              const formatTime = (time: number) => {
-                const minutes = Math.floor(time / 60);
-                const seconds = Math.floor(time % 60);
-                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-              };
-              
-              durationDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-            }
-          }
-        });
-
         // Also listen for various ready states
         this.on(['loadeddata', 'loadedmetadata', 'canplay'], () => {
           if (mountedRef.current) {
