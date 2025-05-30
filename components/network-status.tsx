@@ -18,17 +18,23 @@ export function NetworkStatus() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [showMinimal, setShowMinimal] = useState(false);
   const [hasShownConnected, setHasShownConnected] = useState(false);  useEffect(() => {
-    if (isOnline && connectionQuality === 'good' && !hasShownConnected) {
-      // Show connected message only once
-      setIsVisible(true);
-      setShowMinimal(false);
-      setHasShownConnected(true);
-      
-      const hideTimer = setTimeout(() => {
+    if (isOnline && connectionQuality === 'good') {
+      if (!hasShownConnected) {
+        // Show connected message only once when first connected
+        setIsVisible(true);
+        setShowMinimal(false);
+        setHasShownConnected(true);
+        
+        // Hide after 5 seconds
+        const hideTimer = setTimeout(() => {
+          setIsVisible(false);
+        }, 5000);
+        
+        return () => clearTimeout(hideTimer);
+      } else {
+        // Keep message hidden for subsequent good connections
         setIsVisible(false);
-      }, 2000);
-      
-      return () => clearTimeout(hideTimer);
+      }
     } else if (!isOnline) {
       // Show full offline message
       setIsVisible(true);
