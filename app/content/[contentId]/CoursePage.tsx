@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -112,7 +112,6 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-
   const [course, setCourse] = useState<Course | null>(null)
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
@@ -120,6 +119,62 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [isUnenrolling, setIsUnenrolling] = useState(false)
   const [showUnenrollDialog, setShowUnenrollDialog] = useState(false)
   const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<ReviewStats | null>(null)
+
+  // Enhanced data fetching with strong cache busting
+  const fetchCourseData = useCallback(async () => {
+    if (!contentId) return
+    
+    try {
+      setLoading(true)
+      const timestamp = new Date().getTime()
+      
+      const cacheBustHeaders = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Cache-Bust": timestamp.toString()
+      }
+
+      const courseResponse = await fetch(`/api/courses/${contentId}?t=${timestamp}`, { 
+        headers: cacheBustHeaders,
+        cache: 'no-store'
+      })
+
+      if (!courseResponse.ok) {
+        throw new Error("Failed to load course")
+      }
+
+      const courseData = await courseResponse.json()
+      setCourse(courseData.course)
+      setSections(courseData.course.sections || [])
+
+      // Check enrollment status for authenticated users
+      if (session?.user) {
+        const enrollmentResponse = await fetch(
+          `/api/courses/${contentId}/enrollment?t=${timestamp}`,
+          { headers: cacheBustHeaders }
+        )
+
+        if (enrollmentResponse.ok) {
+          const enrollmentData = await enrollmentResponse.json()
+          const isCreator = session.user.id === courseData.course.creatorId
+          const isAdmin = session.user.role === "ADMIN"
+          
+          setIsEnrolled(enrollmentData.isEnrolled)
+          setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
+        }
+      }
+
+      setLoading(false)
+    } catch (error) {
+      console.error("Error loading course data:", error)
+      setError(error instanceof Error ? error.message : "Failed to load course")
+      setLoading(false)
+    }
+  }, [contentId, session])
 
   // Handle CTA button click
   const handleCTAClick = () => {
@@ -145,11 +200,8 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   }
 
   const [userReview, setUserReview] = useState<Review | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [isBookmarking, setIsBookmarking] = useState(false)
-  const [stats, setStats] = useState<ReviewStats | null>(null)
   const [cachedFollowerData, setCachedFollowerData] = useLocalStorageWithExpiry(
     `creator-followers-${course?.creatorId || "unknown"}`,
     { followerCount: 0 },
@@ -395,90 +447,8 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   // Fetch course data
   useEffect(() => {
-    const fetchCourseData = async () => {
-      try {
-        setLoading(true)
-        // Create a timestamp to ensure we get fresh data
-        const cacheBustTimestamp = new Date().getTime().toString()
-        
-        // Define strong cache-busting headers
-        const cacheBustHeaders = {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "X-Cache-Bust": cacheBustTimestamp
-        }
-        
-        const [courseResponse, enrollmentResponse, reviewsResponse] = await Promise.all([
-          fetch(`/api/courses/${contentId}`, { 
-            headers: cacheBustHeaders 
-          }),
-          session?.user ? fetch(`/api/courses/${contentId}/enrollment`, {
-            headers: cacheBustHeaders
-          }) : Promise.resolve(new Response(JSON.stringify({ success: false, isEnrolled: false }), { 
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          })),
-          fetch(`/api/courses/${contentId}/reviews`, { 
-            headers: cacheBustHeaders 
-          })
-        ])
-
-        if (!courseResponse.ok) {
-          throw new Error("Failed to load course")
-        }
-
-        const courseData = await courseResponse.json()
-        setCourse(courseData.course)
-        setSections(courseData.course.sections || [])
-
-        // Handle enrollment status
-        if (enrollmentResponse.ok) {
-          const enrollmentData = await enrollmentResponse.json()
-          console.log("Initial enrollment check:", enrollmentData)
-          
-          // Check if user is creator or admin
-          const isCreator = session?.user?.id === courseData.course.creatorId;
-          const isAdmin = session?.user?.role === "ADMIN";
-          
-          setIsEnrolled(enrollmentData.isEnrolled)
-          // Set effective enrollment based on either actual enrollment or creator/admin status
-          setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
-        }
-
-        // Process reviews data
-        if (reviewsResponse.ok) {
-          const reviewsData = await reviewsResponse.json()
-          if (reviewsData.success) {
-            setStats(reviewsData.stats)
-            setUserReview(reviewsData.userReview)
-          }
-        }
-
-        // Only fetch related courses if user is a student
-        if (session?.user?.role === "STUDENT") {
-          try {
-            const relatedResponse = await fetch(`/api/courses/${contentId}/related`)
-            if (relatedResponse.ok) {
-              const relatedData = await relatedResponse.json()
-              // Handle related courses data if needed
-            }
-          } catch (error) {
-            console.error("Error fetching related courses:", error)
-          }
-        }
-
-        setLoading(false)
-      } catch (error) {
-        console.error("Error loading course data:", error)
-        setError(error instanceof Error ? error.message : "Failed to load course")
-        setLoading(false)
-      }
-    }
-
-    if (contentId) {
-      fetchCourseData()
-    }
-  }, [contentId, session?.user?.role])
+    fetchCourseData()
+  }, [fetchCourseData])
 
   // Check enrollment status whenever session or contentId changes
   useEffect(() => {

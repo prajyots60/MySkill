@@ -326,12 +326,27 @@ export async function updateCourse({
       },
     })
 
-    // Invalidate cache
-    await invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id))
-    await invalidateCache(REDIS_KEYS.COURSE(courseId))
+    // Comprehensive cache invalidation
+    await Promise.all([
+      // Individual course cache
+      invalidateCache(REDIS_KEYS.COURSE(courseId)),
+      // Creator's courses list
+      invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id)),
+      // Featured courses (if this course might be featured)
+      invalidateCache('featured-courses'),
+      // Category-based caches if applicable
+      invalidateCache(`courses-category-${updatedCourse.type}`),
+      // Search-related caches
+      invalidateCache('course-search'),
+      // User's enrolled courses (in case enrollment status changes)
+      invalidateCache(REDIS_KEYS.USER_ENROLLED_COURSES(session.user.id))
+    ])
 
+    // Revalidate dynamic routes
+    revalidatePath(`/content/${courseId}`)
     revalidatePath(`/dashboard/creator/content/${courseId}`)
     revalidatePath("/dashboard/creator")
+    revalidatePath("/explore")
 
     return { success: true, course: updatedCourse }
   } catch (error) {

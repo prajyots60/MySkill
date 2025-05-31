@@ -498,7 +498,6 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
   // Handle saving course with toast notifications
   const handleSaveWithToast = async () => {
     try {
-      // Display a toast indicating the save operation is in progress
       const saveToastId = toast({
         title: "Saving changes",
         description: "Please wait while your course changes are being saved...",
@@ -512,10 +511,30 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
           description: "Your course changes have been saved successfully",
           variant: "default",
         })
-        
-        // Optionally refresh the page to ensure all components reflect the latest changes
-        // This is now unnecessary since we're refreshing the course data after save
-        // router.refresh()
+
+        // Force revalidation of course data everywhere
+        const timestamp = new Date().getTime()
+        await Promise.all([
+          fetch(`/api/courses/${courseId}?t=${timestamp}`, {
+            method: 'HEAD',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }),
+          fetch(`/api/creator/courses?t=${timestamp}`, {
+            method: 'HEAD',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          })
+        ])
+
+        // Refresh the router to reflect changes
+        router.refresh()
       } else {
         toast({
           title: "Save failed",
@@ -526,8 +545,8 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
     } catch (error) {
       console.error("Error saving course:", error)
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Failed to save course changes",
         variant: "destructive",
       })
     }
