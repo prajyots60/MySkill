@@ -5,7 +5,7 @@ import type React from "react"
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import { immer } from "zustand/middleware/immer"
-import type { Course, Section, ContentType, Lecture } from "@/lib/types"
+import type { Course, Section, ContentType, Lecture, CourseStatus, DeliveryMode } from "@/lib/types"
 
 interface CourseFormState {
   title: string
@@ -14,8 +14,8 @@ interface CourseFormState {
   price: string
   isPublished: boolean
   tags: string
-  courseStatus?: string
-  deliveryMode?: string
+  courseStatus?: CourseStatus
+  deliveryMode?: DeliveryMode
   accessDuration?: string
   languages?: string[]
 }
@@ -146,6 +146,10 @@ export const useCourseStore = create<CourseStore>()(
         price: "0",
         isPublished: false,
         tags: "",
+        courseStatus: "UPCOMING" as CourseStatus,
+        deliveryMode: "VIDEO" as DeliveryMode,
+        accessDuration: "12",
+        languages: ["English"],
       },
       newSectionTitle: "",
       newSectionDescription: "",
@@ -253,11 +257,13 @@ export const useCourseStore = create<CourseStore>()(
 
           // Use the server action instead of direct database access
           // Always get fresh data with cache-busting headers
-          const response = await fetch(`/api/courses/${courseId}`, {
+          const cacheBustTimestamp = new Date().getTime().toString()
+          const response = await fetch(`/api/courses/${courseId}?t=${cacheBustTimestamp}`, {
+            method: 'GET',
             headers: {
               "Cache-Control": "no-cache, no-store, must-revalidate",
               "Pragma": "no-cache",
-              "X-Cache-Bust": new Date().getTime().toString()
+              "X-Cache-Bust": cacheBustTimestamp
             },
           })
 
@@ -278,8 +284,8 @@ export const useCourseStore = create<CourseStore>()(
                 price: data.course.price?.toString() || "0",
                 isPublished: data.course.isPublished || false,
                 tags: data.course.tags?.join(", ") || "",
-                courseStatus: data.course.courseStatus || "UPCOMING",
-                deliveryMode: data.course.deliveryMode || "VIDEO",
+                courseStatus: (data.course.courseStatus || "UPCOMING") as CourseStatus,
+                deliveryMode: (data.course.deliveryMode || "VIDEO") as DeliveryMode,
                 accessDuration: data.course.accessDuration?.toString() || "12",
                 languages: data.course.languages || ["English"],
               }
@@ -318,10 +324,10 @@ export const useCourseStore = create<CourseStore>()(
               state.courseForm.isPublished = value === "true"
               break;
             case "courseStatus":
-              state.courseForm.courseStatus = value
+              state.courseForm.courseStatus = value as CourseStatus | undefined
               break;
             case "deliveryMode":
-              state.courseForm.deliveryMode = value
+              state.courseForm.deliveryMode = value as DeliveryMode | undefined
               break;
           }
         })
@@ -394,6 +400,10 @@ export const useCourseStore = create<CourseStore>()(
                     .split(",")
                     .map((tag) => tag.trim())
                     .filter(Boolean),
+                  courseStatus: courseForm.courseStatus,
+                  deliveryMode: courseForm.deliveryMode,
+                  accessDuration: Number.parseInt(courseForm.accessDuration || "12"),
+                  languages: courseForm.languages,
                 }
               })
             }

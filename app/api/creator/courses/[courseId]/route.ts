@@ -170,6 +170,10 @@ export async function PATCH(request: Request, { params }: { params: { courseId: 
     // Invalidate cache
     await invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id))
     await invalidateCache(REDIS_KEYS.COURSE(courseId))
+    
+    // ONLY add specific cache invalidation for the CourseEditor page issue
+    // without affecting other working cache logic elsewhere
+    await redis.del(`course:${courseId}`)
 
     return NextResponse.json({ success: true, course: updatedCourse })
   } catch (error) {
