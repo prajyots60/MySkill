@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 import { redis } from "@/lib/redis"
 import type { UserFollow } from "@prisma/client"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -13,16 +13,25 @@ export async function GET() {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
-    // Try to get from cache first
-    const cacheKey = `student:followed-instructors:${session.user.id}`
-    const cachedData = await redis.get(cacheKey)
+    // Check for cache-busting headers
+    const requestHeaders = new Headers(request.headers)
+    const shouldBypassCache = 
+      requestHeaders.get('X-Cache-Bust') || 
+      requestHeaders.get('Cache-Control') === 'no-cache, no-store, must-revalidate' ||
+      requestHeaders.get('Pragma') === 'no-cache'
+      
+    // Try to get from cache if not bypassing
+    if (!shouldBypassCache) {
+      const cacheKey = `student:followed-instructors:${session.user.id}`
+      const cachedData = await redis.get(cacheKey)
 
-    if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        instructors: JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
-        fromCache: true,
-      })
+      if (cachedData) {
+        return NextResponse.json({
+          success: true,
+          instructors: JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
+          fromCache: true,
+        })
+      }
     }
 
     // Get all followed instructors
@@ -58,8 +67,11 @@ export async function GET() {
       studentCount: follow.following._count.followers,
     }))
 
-    // Cache the results
-    await redis.set(cacheKey, JSON.stringify(transformedInstructors), { ex: 60 * 5 }) // 5 minutes
+    // Cache the results if not bypassing cache
+    if (!shouldBypassCache) {
+      const cacheKey = `student:followed-instructors:${session.user.id}`
+      await redis.set(cacheKey, JSON.stringify(transformedInstructors), { ex: 60 * 5 }) // 5 minutes
+    }
 
     return NextResponse.json({
       success: true,

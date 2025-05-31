@@ -71,12 +71,18 @@ export default function StudentDashboard() {
       try {
         setLoading(true)
 
-        // Fetch enrolled courses with proper error handling
+        // Create a timestamp for cache-busting
+        const cacheBustTimestamp = new Date().getTime().toString()
+        
+        // Fetch enrolled courses with proper error handling and cache-busting
         const response = await fetch("/api/student/enrollments", {
           method: "GET",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "X-Cache-Bust": cacheBustTimestamp
           },
         })
 
@@ -100,12 +106,15 @@ export default function StudentDashboard() {
         // Get a list of enrolled course IDs to filter out from recommendations
         const enrolledCourseIds = data.inProgressCourses?.map((course: any) => course.id) || [];
 
-        // Fetch recommended courses
+        // Fetch recommended courses with cache busting
         const recommendedResponse = await fetch("/api/courses?limit=10", {
           method: "GET",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "X-Cache-Bust": cacheBustTimestamp
           },
         })
 

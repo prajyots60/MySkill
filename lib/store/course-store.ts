@@ -252,9 +252,12 @@ export const useCourseStore = create<CourseStore>()(
           console.log(`Fetching course: ${courseId}`)
 
           // Use the server action instead of direct database access
+          // Always get fresh data with cache-busting headers
           const response = await fetch(`/api/courses/${courseId}`, {
             headers: {
-              "Cache-Control": "no-cache",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Pragma": "no-cache",
+              "X-Cache-Bust": new Date().getTime().toString()
             },
           })
 
@@ -348,6 +351,8 @@ export const useCourseStore = create<CourseStore>()(
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
             },
             body: JSON.stringify({
               title: courseForm.title,
@@ -392,7 +397,51 @@ export const useCourseStore = create<CourseStore>()(
                 }
               })
             }
-            return true
+            
+            // Force revalidation of course data in other components by busting the cache
+            try {
+              // Refresh the course data in all places where it might be displayed
+              const cacheBustTimestamp = new Date().getTime().toString()
+              
+              // Course details page
+              await fetch(`/api/courses/${courseId}`, {
+                method: 'HEAD',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache',
+                  'X-Cache-Bust': cacheBustTimestamp
+                }
+              });
+              
+              // Creator dashboard courses list
+              await fetch(`/api/creator/courses`, {
+                method: 'HEAD',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache',
+                  'X-Cache-Bust': cacheBustTimestamp
+                }
+              });
+              
+              // Explore page
+              await fetch(`/api/content/featured-courses`, {
+                method: 'HEAD',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache',
+                  'X-Cache-Bust': cacheBustTimestamp
+                }
+              });
+              
+              // Refresh the course data
+              await get().fetchCourse(courseId);
+              
+            } catch (cacheError) {
+              // Don't fail the save operation if cache busting fails
+              console.warn("Failed to bust cache:", cacheError);
+            }
+            
+            return true;
           } else {
             console.error("Failed to update course:", result.error)
             return false

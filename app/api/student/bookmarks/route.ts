@@ -12,16 +12,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
-    // Try to get from cache first
-    const cacheKey = `student:bookmarks:${session.user.id}`
-    const cachedData = await redis.get(cacheKey)
+    // Check for cache-busting headers
+    const requestHeaders = new Headers(request.headers)
+    const shouldBypassCache = 
+      requestHeaders.get('X-Cache-Bust') || 
+      requestHeaders.get('Cache-Control') === 'no-cache, no-store, must-revalidate' ||
+      requestHeaders.get('Pragma') === 'no-cache'
+      
+    // Try to get from cache if not bypassing
+    if (!shouldBypassCache) {
+      const cacheKey = `student:bookmarks:${session.user.id}`
+      const cachedData = await redis.get(cacheKey)
 
-    if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        bookmarks: JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
-        fromCache: true,
-      })
+      if (cachedData) {
+        return NextResponse.json({
+          success: true,
+          bookmarks: JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
+          fromCache: true,
+        })
+      }
     }
 
     // Get all bookmarked courses
@@ -78,8 +87,11 @@ export async function GET(request: Request) {
       tags: course.tags,
     }))
 
-    // Cache the results
-    await redis.set(cacheKey, JSON.stringify(transformedBookmarks), { ex: 60 * 5 }) // 5 minutes
+    // Cache the results if not bypassing cache
+    if (!shouldBypassCache) {
+      const cacheKey = `student:bookmarks:${session.user.id}`
+      await redis.set(cacheKey, JSON.stringify(transformedBookmarks), { ex: 60 * 5 }) // 5 minutes
+    }
 
     return NextResponse.json({
       success: true,

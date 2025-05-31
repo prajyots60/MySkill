@@ -461,12 +461,33 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
 
   // Add these new handlers
   const handleAddSectionClick = async () => {
-    const success = await handleAddSection(courseId)
-    if (success) {
-      // Reset all section-related state
-      setAddingSectionId(null)
-      setNewSectionTitle("")
-      setNewSectionDescription("")
+    try {
+      const success = await handleAddSection(courseId)
+      if (success) {
+        // Reset all section-related state
+        setAddingSectionId(null)
+        setNewSectionTitle("")
+        setNewSectionDescription("")
+        
+        toast({
+          title: "Section added",
+          description: "New section has been added to your course",
+          variant: "default",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add new section",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error adding section:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add section",
+        variant: "destructive",
+      })
     }
   }
 
@@ -474,27 +495,91 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
     setDeleteConfirmation({ type: "section", id: sectionId, title })
   }
 
+  // Handle saving course with toast notifications
+  const handleSaveWithToast = async () => {
+    try {
+      // Display a toast indicating the save operation is in progress
+      const saveToastId = toast({
+        title: "Saving changes",
+        description: "Please wait while your course changes are being saved...",
+      })
+      
+      const success = await handleSaveCourse(courseId)
+      
+      if (success) {
+        toast({
+          title: "Changes saved",
+          description: "Your course changes have been saved successfully",
+          variant: "default",
+        })
+        
+        // Optionally refresh the page to ensure all components reflect the latest changes
+        // This is now unnecessary since we're refreshing the course data after save
+        // router.refresh()
+      } else {
+        toast({
+          title: "Save failed",
+          description: "We encountered an error while saving your course changes",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error saving course:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleConfirmDelete = async () => {
     if (!deleteConfirmation) return
 
     let success = false
-    switch (deleteConfirmation.type) {
-      case "course":
-        success = await handleDeleteCourse(courseId)
-        break
-      case "section":
-        success = await handleDeleteSection(deleteConfirmation.id)
-        break
-      case "lecture":
-        success = await handleDeleteLecture(deleteConfirmation.id)
-        break
-      case "document":
-        success = await handleDeleteDocument(deleteConfirmation.id)
-        break
-    }
+    let itemType = deleteConfirmation.type
+    let itemName = deleteConfirmation.title
+    
+    try {
+      switch (deleteConfirmation.type) {
+        case "course":
+          success = await handleDeleteCourse(courseId)
+          if (success) {
+            router.push('/dashboard/creator')
+          }
+          break
+        case "section":
+          success = await handleDeleteSection(deleteConfirmation.id)
+          break
+        case "lecture":
+          success = await handleDeleteLecture(deleteConfirmation.id)
+          break
+        case "document":
+          success = await handleDeleteDocument(deleteConfirmation.id)
+          break
+      }
 
-    if (success) {
-      setDeleteConfirmation(null)
+      if (success) {
+        setDeleteConfirmation(null)
+        toast({
+          title: `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted`,
+          description: `"${itemName}" has been deleted successfully`,
+          variant: "default",
+        })
+      } else {
+        toast({
+          title: "Delete failed",
+          description: `Failed to delete ${itemType}. Please try again.`,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error(`Error deleting ${itemType}:`, error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : `An error occurred while deleting the ${itemType}`,
+        variant: "destructive",
+      })
     }
   }
 
@@ -850,7 +935,7 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button onClick={() => handleSaveCourse(courseId)} disabled={saving}>
+                  <Button onClick={handleSaveWithToast} disabled={saving}>
                     {saving ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

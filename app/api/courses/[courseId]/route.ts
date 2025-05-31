@@ -23,16 +23,27 @@ export async function GET(request: Request, { params }: { params: { courseId: st
     const headers = new Headers()
     headers.set("Cache-Control", `s-maxage=${CACHE_DURATION}, stale-while-revalidate`)
 
-    // Try to get from cache first
-    const cacheKey = `course:${courseId}`
-    const cachedCourse = await redis.get(cacheKey)
+    // Check for cache-busting headers
+    const requestHeaders = new Headers(request.headers)
+    const shouldBypassCache = 
+      requestHeaders.get('X-Cache-Bust') || 
+      requestHeaders.get('Cache-Control') === 'no-cache, no-store, must-revalidate' ||
+      requestHeaders.get('Pragma') === 'no-cache'
+    
+    if (shouldBypassCache) {
+      console.log("Cache-busting headers detected, bypassing Redis cache")
+    } else {
+      // Try to get from cache first when not explicitly busting cache
+      const cacheKey = `course:${courseId}`
+      const cachedCourse = await redis.get(cacheKey)
 
-    if (cachedCourse) {
-      console.log("Using cached course data")
-      return NextResponse.json(
-        { course: typeof cachedCourse === "string" ? JSON.parse(cachedCourse) : cachedCourse },
-        { headers },
-      )
+      if (cachedCourse) {
+        console.log("Using cached course data")
+        return NextResponse.json(
+          { course: typeof cachedCourse === "string" ? JSON.parse(cachedCourse) : cachedCourse },
+          { headers },
+        )
+      }
     }
 
     // Get course from database with all related data
@@ -98,10 +109,13 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       reviewCount: parseInt(ratingData[0]?.totalReviews || "0")
     };
 
-    // Cache the course data with rating
-    await redis.set(cacheKey, JSON.stringify(courseWithRating), {
-      ex: CACHE_DURATION,
-    })
+    // Cache the course data with rating only if not bypassing cache
+    if (!shouldBypassCache) {
+      const cacheKey = `course:${courseId}`
+      await redis.set(cacheKey, JSON.stringify(courseWithRating), {
+        ex: CACHE_DURATION,
+      })
+    }
 
     return NextResponse.json({ course: courseWithRating }, { headers })
   } catch (error) {

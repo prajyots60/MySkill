@@ -398,17 +398,29 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     const fetchCourseData = async () => {
       try {
         setLoading(true)
+        // Create a timestamp to ensure we get fresh data
+        const cacheBustTimestamp = new Date().getTime().toString()
+        
+        // Define strong cache-busting headers
+        const cacheBustHeaders = {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "X-Cache-Bust": cacheBustTimestamp
+        }
+        
         const [courseResponse, enrollmentResponse, reviewsResponse] = await Promise.all([
-          fetch(`/api/courses/${contentId}`),
+          fetch(`/api/courses/${contentId}`, { 
+            headers: cacheBustHeaders 
+          }),
           session?.user ? fetch(`/api/courses/${contentId}/enrollment`, {
-            headers: {
-              "Cache-Control": "no-cache"
-            }
+            headers: cacheBustHeaders
           }) : Promise.resolve(new Response(JSON.stringify({ success: false, isEnrolled: false }), { 
             status: 200,
             headers: { 'Content-Type': 'application/json' }
           })),
-          fetch(`/api/courses/${contentId}/reviews`)
+          fetch(`/api/courses/${contentId}/reviews`, { 
+            headers: cacheBustHeaders 
+          })
         ])
 
         if (!courseResponse.ok) {
@@ -948,7 +960,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <div className="flex items-center gap-2">
                         <Languages className="h-4 w-4 text-primary" />
                         <span>
-                          {course.language ? course.language : "English"}
+                          {course.languages && course.languages.length > 0 
+                            ? course.languages.join(", ") 
+                            : "English"}
                         </span>
                       </div>
                       

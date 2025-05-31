@@ -51,17 +51,26 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = session.user.id
+    
+    // Check for cache-busting headers
+    const requestHeaders = new Headers(req.headers)
+    const shouldBypassCache = 
+      requestHeaders.get('X-Cache-Bust') || 
+      requestHeaders.get('Cache-Control') === 'no-cache, no-store, must-revalidate' ||
+      requestHeaders.get('Pragma') === 'no-cache'
 
-    // Try to get from cache first
-    const cacheKey = `student:enrollments:${userId}`
-    const cachedData = await redis.get(cacheKey)
+    // Try to get from cache if not bypassing
+    if (!shouldBypassCache) {
+      const cacheKey = `student:enrollments:${userId}`
+      const cachedData = await redis.get(cacheKey)
 
-    if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        ...JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
-        fromCache: true,
-      })
+      if (cachedData) {
+        return NextResponse.json({
+          success: true,
+          ...JSON.parse(typeof cachedData === "string" ? cachedData : JSON.stringify(cachedData)),
+          fromCache: true,
+        })
+      }
     }
 
     // Fetch enrollments and progress data separately with retry logic
@@ -265,8 +274,11 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      // Cache the response (10 minutes)
-      await redis.set(cacheKey, JSON.stringify(responseData), { ex: 600 })
+      // Cache the response (10 minutes) if not bypassing cache
+      if (!shouldBypassCache) {
+        const cacheKey = `student:enrollments:${userId}`
+        await redis.set(cacheKey, JSON.stringify(responseData), { ex: 600 })
+      }
     } catch (error) {
       console.error("Error caching enrollment data:", error)
       // Continue without caching - not critical

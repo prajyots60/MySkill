@@ -53,9 +53,21 @@ export default function SavedCoursesPage() {
       try {
         setLoading(true)
         setError(null)
+        // Create a timestamp for cache-busting
+        const cacheBustTimestamp = new Date().getTime().toString()
+        const cacheBustHeaders = {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "X-Cache-Bust": cacheBustTimestamp
+        }
+        
         const [bookmarksResponse, instructorsResponse] = await Promise.all([
-          fetch("/api/student/bookmarks"),
-          fetch("/api/student/followed-instructors"),
+          fetch("/api/student/bookmarks", { 
+            headers: cacheBustHeaders 
+          }),
+          fetch("/api/student/followed-instructors", {
+            headers: cacheBustHeaders
+          }),
         ])
 
         if (!bookmarksResponse.ok) {

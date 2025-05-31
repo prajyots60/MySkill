@@ -53,7 +53,7 @@ export interface Course {
   courseStatus?: CourseStatus
   deliveryMode?: DeliveryMode
   accessDuration?: number
-  language?: string
+  languages?: string[]
   creatorId?: string
   creatorName?: string
   creatorImage?: string | null

@@ -62,12 +62,18 @@ export default function MyCoursesPage() {
       try {
         setLoading(true)
 
-        // Fetch enrolled courses with proper error handling
+        // Create a timestamp for cache-busting
+        const cacheBustTimestamp = new Date().getTime().toString()
+        
+        // Fetch enrolled courses with proper error handling and cache-busting
         const response = await fetch("/api/student/enrollments", {
           method: "GET",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "X-Cache-Bust": cacheBustTimestamp
           },
         })
 
