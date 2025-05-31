@@ -19,8 +19,8 @@ const YOUTUBE_CONNECTION_TTL = 60 * 60 // 1 hour
 
 // Cache keys
 export const REDIS_KEYS = {
-  CREATOR_COURSES: (creatorId: string) => `creator:courses:${creatorId}`,
-  COURSE: (courseId: string) => `course:${courseId}`,
+  CREATOR_COURSES: (creatorId: string) => `creator:${creatorId}:courses`,
+  COURSE: (courseId: string, creatorId?: string) => creatorId ? `creator:${creatorId}:course:${courseId}` : `course:${courseId}`,
   SECTION: (sectionId: string) => `section:${sectionId}`,
   LECTURE: (lectureId: string) => `lecture:${lectureId}`,
   USER: (userId: string) => `user:${userId}`,
@@ -66,13 +66,13 @@ export async function deleteCache(key: string) {
 }
 
 // Cache course data
-export async function cacheCourse(courseId: string, courseData: any) {
-  return setCache(REDIS_KEYS.COURSE(courseId), courseData, COURSE_TTL)
+export async function cacheCourse(courseId: string, courseData: any, creatorId?: string) {
+  return setCache(REDIS_KEYS.COURSE(courseId, creatorId), courseData, COURSE_TTL)
 }
 
 // Get cached course data
-export async function getCachedCourse(courseId: string) {
-  return getCache(REDIS_KEYS.COURSE(courseId))
+export async function getCachedCourse(courseId: string, creatorId?: string) {
+  return getCache(REDIS_KEYS.COURSE(courseId, creatorId))
 }
 
 // Cache creator courses
@@ -126,6 +126,33 @@ export async function invalidateCache(pattern: string) {
     return true
   } catch (error) {
     console.error(`Failed to invalidate cache for pattern: ${pattern}`, error)
+    return false
+  }
+}
+
+// Invalidate all course-related caches for a creator
+export async function invalidateCreatorCaches(creatorId: string) {
+  try {
+    // Invalidate creator-specific patterns
+    const patterns = [
+      `creator:${creatorId}:*`,
+      `creator_courses:${creatorId}*`
+    ]
+    
+    let totalInvalidated = 0
+    
+    for (const pattern of patterns) {
+      const keys = await redis.keys(pattern)
+      if (keys.length > 0) {
+        await redis.del(...keys)
+        totalInvalidated += keys.length
+      }
+    }
+    
+    console.log(`Invalidated ${totalInvalidated} cache keys for creator: ${creatorId}`)
+    return true
+  } catch (error) {
+    console.error(`Failed to invalidate caches for creator: ${creatorId}`, error)
     return false
   }
 }

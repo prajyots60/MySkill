@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
-import { redis, REDIS_KEYS, invalidateCache } from "@/lib/redis"
+import { redis, REDIS_KEYS, invalidateCache, invalidateCreatorCaches, cacheCourse } from "@/lib/redis"
 import { supabaseAdmin } from "@/lib/supabase"
 
 // Cache duration
@@ -87,8 +87,8 @@ export async function POST(request: Request) {
       },
     })
 
-    // Invalidate creator courses cache
-    await invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id))
+    // Invalidate all creator-related caches to ensure clean state
+    await invalidateCreatorCaches(session.user.id)
 
     return NextResponse.json({ success: true, courseId: course.id }, { status: 201 })
   } catch (error) {
@@ -133,6 +133,9 @@ export async function GET(req: NextRequest) {
       console.error("Cache read error:", cacheError)
     }
 
+    // First purge any incorrect cache that might exist
+    await invalidateCreatorCaches(session.user.id);
+    
     // Get courses from database - CRITICAL: Filter by creatorId
     const courses = await prisma.content.findMany({
       where: {
@@ -181,6 +184,11 @@ export async function GET(req: NextRequest) {
     // Cache the results with creator-specific key
     try {
       await redis.set(cacheKey, JSON.stringify(transformedCourses), { ex: CACHE_DURATION })
+      
+      // Also store individual course caches with creator ID to prevent mixups
+      for (const course of transformedCourses) {
+        await cacheCourse(course.id, course, session.user.id)
+      }
     } catch (cacheError) {
       console.error("Cache write error:", cacheError)
     }

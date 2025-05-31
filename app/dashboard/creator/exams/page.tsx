@@ -130,7 +130,9 @@ export default function CreatorExamsPage() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const response = await fetch("/api/creator/courses")
+        // Add cache-busting parameter to ensure fresh data
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/creator/courses?t=${timestamp}`)
         
         if (!response.ok) {
           throw new Error("Failed to fetch courses")

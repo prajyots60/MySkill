@@ -203,8 +203,8 @@ export async function fetchCreatorCourses() {
       return { success: false, error: "Not authenticated" }
     }
 
-    // Use cache with a key based on user ID
-    const cacheKey = `creator_courses:${session.user.id}`
+    // Use cache with a key based on user ID with proper namespace
+    const cacheKey = `creator:${session.user.id}:courses`
     
     return await cacheManager.get(
       cacheKey,

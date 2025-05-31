@@ -175,10 +175,16 @@ export async function getCourseById(courseId: string) {
       throw new Error("Unauthorized")
     }
 
-    // Try to get from cache first
-    const cachedCourse = await getCachedCourse(courseId)
+    // Try to get from cache first with creator ID to ensure isolation
+    const cachedCourse = await getCachedCourse(courseId, session.user.id)
     if (cachedCourse) {
-      return { success: true, course: cachedCourse }
+      // Verify the cached course belongs to this creator
+      if (cachedCourse && 
+          typeof cachedCourse === 'object' && 
+          'creatorId' in cachedCourse && 
+          (cachedCourse.creatorId === session.user.id || session.user.role === "ADMIN")) {
+        return { success: true, course: cachedCourse }
+      }
     }
 
     // Get course from database
@@ -227,8 +233,8 @@ export async function getCourseById(courseId: string) {
       throw new Error("You don't have permission to view this course")
     }
 
-    // Cache the results
-    await cacheCourse(courseId, course)
+    // Cache the results with creator ID for proper isolation
+    await cacheCourse(courseId, course, session.user.id)
 
     return { success: true, course }
   } catch (error) {

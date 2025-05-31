@@ -223,9 +223,20 @@ export async function getCourseFileUrl(resourceId: string, userId: string, expir
  */
 export async function listCourseResources(courseId: string, userId: string, category?: string) {
   try {
+    // Check user permissions first
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+    
     // Check if user has permission to view this course
-    const course = await prisma.content.findUnique({
-      where: { id: courseId },
+    // Use a direct creator ID match to avoid any cache-related issues
+    const course = await prisma.content.findFirst({
+      where: { 
+        id: courseId,
+        // When checking for creator resources, explicitly verify creator ownership
+        ...(user?.role === "CREATOR" ? { creatorId: userId } : {})
+      },
       select: { 
         creatorId: true, 
         isPublished: true, 
@@ -237,12 +248,6 @@ export async function listCourseResources(courseId: string, userId: string, cate
     if (!course) {
       throw new Error("Course not found");
     }
-    
-    // Check user permissions
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true }
-    });
     
     const isCreator = course.creatorId === userId;
     const isAdmin = user?.role === "ADMIN";

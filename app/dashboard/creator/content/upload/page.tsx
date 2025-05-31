@@ -111,7 +111,9 @@ export default function UploadContent() {
 
       try {
         setFetchingCourses(true)
-        const response = await fetch("/api/creator/courses")
+        // Add cache-busting parameter to ensure we get fresh data
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/creator/courses?t=${timestamp}`)
 
         if (!response.ok) {
           throw new Error("Failed to fetch courses")

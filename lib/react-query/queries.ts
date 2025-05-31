@@ -24,7 +24,9 @@ export function useCreatorCourses() {
   return useQuery({
     queryKey: [QUERY_KEYS.CREATOR_COURSES],
     queryFn: async () => {
-      const response = await fetch("/api/creator/courses")
+      // Add timestamp to prevent caching issues
+      const timestamp = new Date().getTime()
+      const response = await fetch(`/api/creator/courses?t=${timestamp}`)
       if (!response.ok) {
         throw new Error("Failed to fetch courses")
       }
@@ -34,6 +36,8 @@ export function useCreatorCourses() {
       }
       return data.courses
     },
+    // Set shorter staleTime to ensure data is refreshed more frequently
+    staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 
