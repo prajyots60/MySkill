@@ -70,20 +70,42 @@ interface CourseEditorProps {
 }
 
 // Memoized components
-const CoursePreview = memo(function CoursePreview({ course }: { course: any }) {
+const CoursePreview = memo(function CoursePreview({ 
+  course, 
+  courseForm 
+}: { 
+  course: any; 
+  courseForm?: any;
+}) {
+  // Merge course data with form data for real-time preview
+  const previewData = {
+    ...course,
+    // Override with form data when available
+    title: courseForm?.title || course.title,
+    description: courseForm?.description || course.description,
+    price: courseForm?.price !== undefined ? parseFloat(courseForm.price) : course.price,
+    isPublished: courseForm?.isPublished !== undefined ? courseForm.isPublished : course.isPublished,
+    tags: courseForm?.tags ? courseForm.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean) : course.tags,
+    type: courseForm?.type || course.type,
+    courseStatus: courseForm?.courseStatus || course.courseStatus,
+    deliveryMode: courseForm?.deliveryMode || course.deliveryMode,
+    accessDuration: courseForm?.accessDuration ? parseInt(courseForm.accessDuration) : course.accessDuration,
+    languages: courseForm?.languages || course.languages,
+  };
+
   return (
     <Card className="overflow-hidden border-2 border-primary/10 shadow-md">
       <div className="relative">
         {/* Thumbnail with status badge overlay */}
         <div className="aspect-video w-full overflow-hidden bg-muted">
-          {course.thumbnail ? (
+          {previewData.thumbnail ? (
             <img
-              src={course.thumbnail || "/placeholder.svg"}
-              alt={course.title}
+              src={previewData.thumbnail || "/placeholder.svg"}
+              alt={previewData.title}
               className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               loading="lazy"
               onError={(e) => {
-                console.error("Failed to load thumbnail:", course.thumbnail)
+                console.error("Failed to load thumbnail:", previewData.thumbnail)
                 e.currentTarget.src = "/placeholder.svg?height=400&width=600"
               }}
             />
@@ -99,11 +121,11 @@ const CoursePreview = memo(function CoursePreview({ course }: { course: any }) {
         </div>
         
         {/* Status badge */}
-        {course.courseStatus && (
+        {previewData.courseStatus && (
           <div className="absolute right-3 top-3">
             <Badge className="bg-primary/90 text-xs font-medium uppercase tracking-wider text-primary-foreground">
-              {course.courseStatus === "UPCOMING" ? "Upcoming" : 
-               course.courseStatus === "ONGOING" ? "Ongoing" : "Completed"}
+              {previewData.courseStatus === "UPCOMING" ? "Upcoming" : 
+               previewData.courseStatus === "ONGOING" ? "Ongoing" : "Completed"}
             </Badge>
           </div>
         )}
@@ -111,26 +133,26 @@ const CoursePreview = memo(function CoursePreview({ course }: { course: any }) {
         {/* Published status badge */}
         <div className="absolute left-3 top-3">
           <Badge 
-            variant={course.isPublished ? "default" : "outline"} 
-            className={`text-xs font-medium ${course.isPublished ? "bg-green-500/90 text-white" : "border-yellow-500 text-yellow-500"}`}
+            variant={previewData.isPublished ? "default" : "outline"} 
+            className={`text-xs font-medium ${previewData.isPublished ? "bg-green-500/90 text-white" : "border-yellow-500 text-yellow-500"}`}
           >
-            {course.isPublished ? "Published" : "Draft"}
+            {previewData.isPublished ? "Published" : "Draft"}
           </Badge>
         </div>
       </div>
 
       <CardHeader className="pb-2 pt-4">
-        <CardTitle className="line-clamp-1 text-xl">{course.title}</CardTitle>
+        <CardTitle className="line-clamp-1 text-xl">{previewData.title}</CardTitle>
         <CardDescription className="line-clamp-2 mt-1 text-sm text-muted-foreground">
-          {course.description}
+          {previewData.description}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4 pb-0">
         {/* Course tags */}
-        {course.tags && course.tags.length > 0 && (
+        {previewData.tags && previewData.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {course.tags.map((tag: string) => (
+            {previewData.tags.map((tag: string) => (
               <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                 {tag}
               </span>
@@ -143,35 +165,35 @@ const CoursePreview = memo(function CoursePreview({ course }: { course: any }) {
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Price</p>
             <p className="font-semibold">
-              {course.price && course.price > 0 ? `₹${course.price.toFixed(2)}` : "Free"}
+              {previewData.price && previewData.price > 0 ? `₹${previewData.price.toFixed(2)}` : "Free"}
             </p>
           </div>
           
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Delivery Mode</p>
             <p className="font-semibold">
-              {course.deliveryMode === "VIDEO" ? "Video" : 
-               course.deliveryMode === "LIVE" ? "Live" : "Hybrid"}
+              {previewData.deliveryMode === "VIDEO" ? "Video" : 
+               previewData.deliveryMode === "LIVE" ? "Live" : "Hybrid"}
             </p>
           </div>
           
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Access Period</p>
-            <p className="font-semibold">{course.accessDuration || 12} Months</p>
+            <p className="font-semibold">{previewData.accessDuration || 12} Months</p>
           </div>
           
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Content Type</p>
-            <p className="capitalize font-semibold">{course.type?.toLowerCase()}</p>
+            <p className="capitalize font-semibold">{previewData.type?.toLowerCase()}</p>
           </div>
         </div>
         
         {/* Languages */}
-        {course.languages && course.languages.length > 0 && (
+        {previewData.languages && previewData.languages.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">Available in</p>
             <div className="flex flex-wrap gap-1.5">
-              {course.languages.map((language: string) => (
+              {previewData.languages.map((language: string) => (
                 <Badge key={language} variant="secondary" className="text-xs">
                   {language}
                 </Badge>
@@ -1039,7 +1061,7 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         </div>
 
         <div className="space-y-6">
-          {course && <CoursePreview course={course} />}
+          {course && <CoursePreview course={course} courseForm={courseForm} />}
 
           <QuickActions
             courseId={courseId}
