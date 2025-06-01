@@ -129,18 +129,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     
     try {
       setLoading(true)
-      const timestamp = new Date().getTime()
       
-      const cacheBustHeaders = {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-        "X-Cache-Bust": timestamp.toString()
-      }
-
-      const courseResponse = await fetch(`/api/courses/${contentId}?t=${timestamp}`, { 
-        headers: cacheBustHeaders,
-        cache: 'no-store'
+      const courseResponse = await fetch(`/api/courses/${contentId}`, { 
+        next: {
+          revalidate: 300 // 5 minutes, but serves stale data while revalidating
+        }
       })
 
       if (!courseResponse.ok) {
@@ -154,8 +147,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       // Check enrollment status for authenticated users
       if (session?.user) {
         const enrollmentResponse = await fetch(
-          `/api/courses/${contentId}/enrollment?t=${timestamp}`,
-          { headers: cacheBustHeaders }
+          `/api/courses/${contentId}/enrollment-status`,
+          {
+            next: {
+              revalidate: 300
+            }
+          }
         )
 
         if (enrollmentResponse.ok) {
@@ -340,14 +337,14 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     if (!session?.user?.id) return;
     
     try {
-      // Check if user is creator or admin first - they always have access
+
       const isCreator = session.user.id === course?.creatorId;
       const isAdmin = session.user.role === "ADMIN";
       
       if (isCreator || isAdmin) {
         console.log(`User is ${isCreator ? 'creator' : 'admin'}, setting effective enrollment to true`);
         setIsEnrolled(false); // They're not technically enrolled
-        setEffectivelyEnrolled(true); // But they effectively have access
+        setEffectivelyEnrolled(true);
         return; // Skip API call for creators and admins
       }
       
@@ -377,7 +374,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         }
       } else {
         console.error("Enrollment check returned unsuccessful:", data);
-        // Reset enrollment state on error
+       
         setIsEnrolled(false);
         setEffectivelyEnrolled(false);
       }
@@ -547,7 +544,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
               });
             });
         } else {
-          // Fallback for browsers without clipboard API
+          
           const textArea = document.createElement("textarea");
           textArea.value = currentUrl;
           document.body.appendChild(textArea);
@@ -662,7 +659,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
   const isCreator = session?.user?.id === course.creatorId
   const isAdmin = session?.user?.role === "ADMIN"
-  // Creators and admins always have access, so we should count them as enrolled too
+ 
   const hasAccess = isEnrolled || isCreator || isAdmin
 
   return (

@@ -5,45 +5,36 @@ import { prisma } from "@/lib/db"
 import { redis } from "@/lib/redis"
 
 // Cache duration in seconds
-const CACHE_DURATION = 60 * 5 // 5 minutes
+const CACHE_DURATION = 60 * 30 // 30 minutes
+const STALE_WHILE_REVALIDATE = 60 * 60 // 1 hour
+
+interface RatingData {
+  averageRating: number;
+  totalReviews: number;
+}
 
 export async function GET(request: Request, { params }: { params: { courseId: string } }) {
   try {
     const session = await getServerSession(authOptions)
-    const { courseId } = await params
+    const { courseId } = params
 
-    console.log("Fetching course with ID:", courseId)
-    console.log("User session:", session?.user?.id, "Role:", session?.user?.role)
-
-    if (!courseId) {
-      return NextResponse.json({ message: "Course ID is required" }, { status: 400 })
-    }
-
-    // Set cache control headers for the response
+    // Set cache control headers for stale-while-revalidate strategy
     const headers = new Headers()
-    headers.set("Cache-Control", `s-maxage=${CACHE_DURATION}, stale-while-revalidate`)
+    headers.set(
+      "Cache-Control",
+      `s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`
+    )
 
-    // Check for cache-busting headers
-    const requestHeaders = new Headers(request.headers)
-    const shouldBypassCache = 
-      requestHeaders.get('X-Cache-Bust') || 
-      requestHeaders.get('Cache-Control') === 'no-cache, no-store, must-revalidate' ||
-      requestHeaders.get('Pragma') === 'no-cache'
-    
-    if (shouldBypassCache) {
-      console.log("Cache-busting headers detected, bypassing Redis cache")
-    } else {
-      // Try to get from cache first when not explicitly busting cache
-      const cacheKey = `course:${courseId}`
-      const cachedCourse = await redis.get(cacheKey)
+    // Try to get from cache first
+    const cacheKey = `course:${courseId}`
+    const cachedCourse = await redis.get(cacheKey)
 
-      if (cachedCourse) {
-        console.log("Using cached course data")
-        return NextResponse.json(
-          { course: typeof cachedCourse === "string" ? JSON.parse(cachedCourse) : cachedCourse },
-          { headers },
-        )
-      }
+    if (cachedCourse) {
+      console.log("Using cached course data")
+      return NextResponse.json(
+        { course: typeof cachedCourse === "string" ? JSON.parse(cachedCourse) : cachedCourse },
+        { headers }
+      )
     }
 
     // Get course from database with all related data
@@ -51,7 +42,7 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       where: {
         id: courseId,
         // Only return published courses for non-creators and non-admins
-        OR: [{ isPublished: true }, { creatorId: session?.user?.id }, { creator: { role: "ADMIN" } }],
+        OR: [{ isPublished: true }, { creatorId: session?.user?.id }],
       },
       include: {
         creator: true,
@@ -80,46 +71,40 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       },
     })
 
-    console.log("Course data from database:", {
-      id: course?.id,
-      title: course?.title,
-      isPublished: course?.isPublished,
-      creatorId: course?.creatorId,
-      price: course?.price,
-    })
-
     if (!course) {
-      console.log("Course not found or not accessible")
-      return NextResponse.json({ message: "Course not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Course not found" },
+        { status: 404 }
+      )
     }
 
-    // Get course rating data
-    const ratingData = await prisma.$queryRaw`
+    // Get rating data
+    const ratingData = await prisma.$queryRaw<RatingData[]>`
       SELECT 
-        AVG(rating)::float as averageRating,
-        COUNT(*) as totalReviews
+        AVG(rating)::float as "averageRating",
+        COUNT(*) as "totalReviews"
       FROM "Review"
       WHERE "contentId" = ${courseId}
-    `;
+    `
 
     // Add rating data to course object
     const courseWithRating = {
       ...course,
       rating: parseFloat(ratingData[0]?.averageRating?.toFixed(1) || "0"),
-      reviewCount: parseInt(ratingData[0]?.totalReviews || "0")
-    };
-
-    // Cache the course data with rating only if not bypassing cache
-    if (!shouldBypassCache) {
-      const cacheKey = `course:${courseId}`
-      await redis.set(cacheKey, JSON.stringify(courseWithRating), {
-        ex: CACHE_DURATION,
-      })
+      reviewCount: parseInt(ratingData[0]?.totalReviews?.toString() || "0")
     }
+
+    // Cache the course data
+    await redis.set(cacheKey, JSON.stringify(courseWithRating), {
+      ex: CACHE_DURATION + STALE_WHILE_REVALIDATE // Total cache lifetime
+    })
 
     return NextResponse.json({ course: courseWithRating }, { headers })
   } catch (error) {
     console.error("Error fetching course:", error)
-    return NextResponse.json({ message: "Failed to fetch course" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to fetch course" },
+      { status: 500 }
+    )
   }
 }
