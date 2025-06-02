@@ -141,7 +141,7 @@ export async function GET(
       ? progress.sort((a, b) => 
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         )[0].updatedAt 
-      : enrollment.enrolledAt
+      : enrollment.createdAt
     
     // Calculate time spent
     const totalTimeSpent = progress.reduce((total, p) => total + p.timeSpentSeconds, 0)
@@ -150,7 +150,7 @@ export async function GET(
       progress: {
         courseId,
         studentId,
-        enrolledAt: enrollment.enrolledAt,
+        enrolledAt: enrollment.createdAt,
         completedLectures,
         totalLectures,
         overallProgress,

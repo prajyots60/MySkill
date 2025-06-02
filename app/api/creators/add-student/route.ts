@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
 
     // Invalidate caches
     await invalidateCache(REDIS_KEYS.USER_ENROLLMENTS(student.id));
-    await invalidateCache(REDIS_KEYS.COURSE_ENROLLMENTS(courseId));
+    await invalidateCache(REDIS_KEYS.USER_ENROLLED_COURSES(student.id));
+    await invalidateCache(REDIS_KEYS.CREATOR_COURSES(session.user.id));
 
     return NextResponse.json({ 
       message: "Student successfully enrolled", 

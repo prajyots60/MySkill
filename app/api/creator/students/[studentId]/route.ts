@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { studentId: string } }
 ) {
   try {
-    const { studentId } = params
+    const { studentId } = await params
     
     // Check authentication
     const session = await getServerSession(authOptions)

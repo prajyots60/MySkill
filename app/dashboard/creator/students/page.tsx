@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { toast } from "@/components/ui/use-toast"
 import {
   Loader2,
   Search,
@@ -26,7 +29,7 @@ import {
   BookOpen,
   Calendar,
 } from "lucide-react"
-import { useCreatorCourses, useCreatorEnrolledStudents, useStudentDetails } from "@/lib/react-query/queries"
+import { useCreatorCourses, useCreatorEnrolledStudents, useStudentDetails, useRemoveStudentEnrollment } from "@/lib/react-query/queries"
 import { formatDistanceToNow } from "date-fns"
 
 export default function StudentsPage() {
@@ -36,6 +39,13 @@ export default function StudentsPage() {
   const [selectedCourse, setSelectedCourse] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
+  
+  // State for enrollment management dialogs
+  const [isManageEnrollmentOpen, setIsManageEnrollmentOpen] = useState(false)
+  const [isRemoveStudentDialogOpen, setIsRemoveStudentDialogOpen] = useState(false)
+  const [studentToManage, setStudentToManage] = useState<any>(null)
+  const [courseToRemove, setCourseToRemove] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Fetch courses data
   const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
@@ -45,6 +55,9 @@ export default function StudentsPage() {
   
   // Fetch selected student details if a student is selected
   const { data: studentDetails, isLoading: studentDetailsLoading } = useStudentDetails(selectedStudent || "")
+  
+  // Mutation for removing student enrollment
+  const { mutate: removeStudentEnrollment, isPending } = useRemoveStudentEnrollment()
 
   // Filter students based on search query and filters
   const filteredStudents = studentsData ? studentsData.filter((student: any) => {
@@ -311,6 +324,15 @@ export default function StudentsPage() {
                                 <Users className="h-4 w-4 mr-2" />
                                 <span>View Profile</span>
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                setStudentToManage(student);
+                                setIsManageEnrollmentOpen(true);
+                              }}>
+                                <GraduationCap className="h-4 w-4 mr-2" />
+                                <span>Manage Enrollments</span>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -470,6 +492,112 @@ export default function StudentsPage() {
           )}
         </div>
       </div>
+
+      {/* Manage Student Enrollments Dialog */}
+      <Dialog open={isManageEnrollmentOpen} onOpenChange={setIsManageEnrollmentOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Manage Student Enrollments</DialogTitle>
+            <DialogDescription>
+              Review and manage course enrollments for {studentToManage?.name || "this student"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {studentToManage?.coursesEnrolled?.length ? (
+              studentToManage.coursesEnrolled.map((course: any) => (
+                <div key={course.id} className="flex items-center justify-between p-3 border rounded-md">
+                  <div>
+                    <div className="font-medium">{course.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Enrolled: {new Date(course.enrolledAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => {
+                      setCourseToRemove(course.id);
+                      setIsRemoveStudentDialogOpen(true);
+                    }}
+                  >
+                    Unenroll
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                This student is not enrolled in any courses
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsManageEnrollmentOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Remove Enrollment Dialog */}
+      <AlertDialog open={isRemoveStudentDialogOpen} onOpenChange={setIsRemoveStudentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Course Enrollment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this student from this course? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!courseToRemove || !studentToManage) return;
+                
+                setIsProcessing(true);
+                
+                try {
+                  // Call the mutation to remove the enrollment
+                  await removeStudentEnrollment({ 
+                    studentId: studentToManage.id, 
+                    courseId: courseToRemove 
+                  });
+                  
+                  toast({
+                    title: "Enrollment removed",
+                    description: "Student has been unenrolled from the course",
+                  });
+
+                  // Close dialogs and reset states
+                  setIsRemoveStudentDialogOpen(false);
+                  setIsManageEnrollmentOpen(false);
+                  setCourseToRemove(null);
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to remove enrollment. Please try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isProcessing || isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Removing...</span>
+                </>
+              ) : (
+                "Remove Enrollment"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -172,6 +172,36 @@ export function useCreatorEnrolledStudents() {
   })
 }
 
+export function useRemoveStudentEnrollment() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ studentId, courseId }: { studentId: string; courseId: string }) => {
+      const response = await fetch("/api/creator/students/enrollment", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+          courseId,
+        }),
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to remove enrollment")
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries to refetch data
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ENROLLED_STUDENTS] })
+    },
+  })
+}
+
 export function useStudentDetails(studentId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.STUDENT_DETAILS(studentId),
