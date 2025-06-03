@@ -22,112 +22,8 @@ import {
   ChevronRight,
   Info,
 } from "lucide-react"
-import { useCreatorCourses } from "@/lib/react-query/queries"
+import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
 import { BarChart, LineChart } from "../analytics/charts"
-
-// Mock earnings data - in a real app, this would come from your API
-const mockEarningsData = {
-  totalEarnings: 8245.5,
-  pendingPayouts: 1250.75,
-  lastPayout: 1500.0,
-  lastPayoutDate: "2023-10-01T10:00:00Z",
-  earningsGrowth: 32,
-
-  // Time series data for charts
-  earningsOverTime: [
-    { date: "Jan", value: 800 },
-    { date: "Feb", value: 1200 },
-    { date: "Mar", value: 1800 },
-    { date: "Apr", value: 1400 },
-    { date: "May", value: 2200 },
-    { date: "Jun", value: 2600 },
-    { date: "Jul", value: 3200 },
-  ],
-
-  courseEarnings: [
-    { name: "Web Development", value: 3200 },
-    { name: "Data Science", value: 1800 },
-    { name: "Mobile App Dev", value: 1400 },
-    { name: "UI/UX Design", value: 1200 },
-    { name: "Digital Marketing", value: 800 },
-  ],
-
-  // Transaction history
-  transactions: [
-    {
-      id: "tx1",
-      date: "2023-10-15T14:30:00Z",
-      amount: 49.99,
-      type: "sale",
-      course: "Web Development Bootcamp",
-      student: "Alex Johnson",
-      status: "completed",
-    },
-    {
-      id: "tx2",
-      date: "2023-10-14T09:15:00Z",
-      amount: 29.99,
-      type: "sale",
-      course: "Advanced JavaScript",
-      student: "Samantha Lee",
-      status: "completed",
-    },
-    {
-      id: "tx3",
-      date: "2023-10-12T16:45:00Z",
-      amount: 79.99,
-      type: "sale",
-      course: "Data Science Fundamentals",
-      student: "Michael Chen",
-      status: "completed",
-    },
-    {
-      id: "tx4",
-      date: "2023-10-10T11:20:00Z",
-      amount: 1500.0,
-      type: "payout",
-      course: null,
-      student: null,
-      status: "completed",
-    },
-    {
-      id: "tx5",
-      date: "2023-10-08T13:10:00Z",
-      amount: 49.99,
-      type: "sale",
-      course: "Web Development Bootcamp",
-      student: "Emily Rodriguez",
-      status: "completed",
-    },
-    {
-      id: "tx6",
-      date: "2023-10-05T10:30:00Z",
-      amount: 19.99,
-      type: "sale",
-      course: "UI/UX Design Basics",
-      student: "David Kim",
-      status: "completed",
-    },
-    {
-      id: "tx7",
-      date: "2023-10-03T15:45:00Z",
-      amount: 29.99,
-      type: "refund",
-      course: "Advanced JavaScript",
-      student: "Jessica Taylor",
-      status: "completed",
-    },
-    {
-      id: "tx8",
-      date: "2023-10-01T09:00:00Z",
-      amount: 1200.0,
-      type: "payout",
-      course: null,
-      student: null,
-      status: "completed",
-    },
-  ],
-}
 
 export default function EarningsPage() {
   const router = useRouter()
@@ -137,14 +33,21 @@ export default function EarningsPage() {
 
   // Fetch courses data
   const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
-
-  // Filter transactions based on type
-  const filteredTransactions = mockEarningsData.transactions.filter((transaction) => {
-    if (transactionType === "all") return true
-    return transaction.type === transactionType
+  
+  // Fetch earnings data
+  const { 
+    data: earningsData, 
+    isLoading: earningsLoading, 
+    error: earningsError 
+  } = useCreatorEarnings({
+    timeRange: timeRange as any,
+    transactionType: transactionType as any
   })
 
-  if (status === "loading" || coursesLoading) {
+  // Filter transactions based on type (now handled by API)
+  const filteredTransactions = earningsData?.transactions || []
+
+  if (status === "loading" || coursesLoading || earningsLoading) {
     return (
       <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-2">
@@ -158,6 +61,36 @@ export default function EarningsPage() {
   if (status === "unauthenticated") {
     router.push("/auth/signin")
     return null
+  }
+
+  // Show error state if earnings data failed to load
+  if (earningsError) {
+    return (
+      <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-red-500">Failed to load earnings data</p>
+          <p className="text-muted-foreground text-sm">Please try refreshing the page</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Use default values if data is still loading
+  const earnings = earningsData || {
+    totalEarnings: 0,
+    pendingPayouts: 0,
+    lastPayout: 0,
+    lastPayoutDate: new Date().toISOString(),
+    earningsGrowth: 0,
+    earningsOverTime: [],
+    courseEarnings: [],
+    transactions: [],
+    metrics: {
+      totalSales: 0,
+      totalRefunds: 0,
+      pendingTransactions: 0,
+      conversionRate: "0.00"
+    }
   }
 
   return (
@@ -198,10 +131,10 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${mockEarningsData.totalEarnings.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${earnings.totalEarnings.toLocaleString()}</div>
                 <div className="text-xs text-green-500 flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  {mockEarningsData.earningsGrowth}% from last period
+                  {earnings.earningsGrowth}% from last period
                 </div>
               </div>
               <div className="p-2 bg-primary/10 rounded-full">
@@ -218,7 +151,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${mockEarningsData.pendingPayouts.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${earnings.pendingPayouts.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">Next payout on 1st of month</div>
               </div>
               <div className="p-2 bg-primary/10 rounded-full">
@@ -235,9 +168,9 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${mockEarningsData.lastPayout.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${earnings.lastPayout.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {new Date(mockEarningsData.lastPayoutDate).toLocaleDateString()}
+                  {new Date(earnings.lastPayoutDate).toLocaleDateString()}
                 </div>
               </div>
               <div className="p-2 bg-primary/10 rounded-full">
@@ -280,7 +213,7 @@ export default function EarningsPage() {
                 <CardDescription>Monthly earnings trend</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <LineChart data={mockEarningsData.earningsOverTime} xKey="date" yKey="value" color="#10b981" />
+                <LineChart data={earnings.earningsOverTime} xKey="date" yKey="value" color="#10b981" />
               </CardContent>
             </Card>
 
@@ -290,7 +223,7 @@ export default function EarningsPage() {
                 <CardDescription>Revenue breakdown by course</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <BarChart data={mockEarningsData.courseEarnings} xKey="name" yKey="value" color="#8b5cf6" />
+                <BarChart data={earnings.courseEarnings} xKey="name" yKey="value" color="#8b5cf6" />
               </CardContent>
             </Card>
           </div>
@@ -312,7 +245,7 @@ export default function EarningsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockEarningsData.transactions.slice(0, 5).map((transaction) => (
+                  {earnings.transactions.slice(0, 5).map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -430,7 +363,7 @@ export default function EarningsPage() {
             </CardContent>
             <CardFooter className="flex justify-between">
               <div className="text-sm text-muted-foreground">
-                Showing {filteredTransactions.length} of {mockEarningsData.transactions.length} transactions
+                Showing {filteredTransactions.length} of {earnings.transactions.length} transactions
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled>
@@ -494,7 +427,7 @@ export default function EarningsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockEarningsData.transactions
+                    {earnings.transactions
                       .filter((tx) => tx.type === "payout")
                       .map((payout) => (
                         <TableRow key={payout.id}>

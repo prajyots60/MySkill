@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Course, Lecture } from "@/lib/types"
+import type { EarningsData, EarningsQueryParams } from "@/types/earnings"
 
 // Query keys
 export const QUERY_KEYS = {
   COURSES: "courses",
   COURSE: (id: string) => ["course", id],
   CREATOR_COURSES: "creator-courses",
+  CREATOR_EARNINGS: "creator-earnings",
   CREATOR_PROFILE: (id: string) => ["creator-profile", id],
   CREATOR_PUBLIC_COURSES: (id: string) => ["creator-public-courses", id],
   SECTIONS: (courseId: string) => ["sections", courseId],
@@ -558,5 +560,27 @@ export function useUpdateProgress() {
       queryClient.invalidateQueries({ queryKey: ["progress", "course", variables.courseId] })
       queryClient.invalidateQueries({ queryKey: ["student", "enrollments"] })
     },
+  })
+}
+
+// Earnings queries
+export function useCreatorEarnings(params: EarningsQueryParams = {}) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.CREATOR_EARNINGS, params],
+    queryFn: async (): Promise<EarningsData> => {
+      const searchParams = new URLSearchParams()
+      if (params.timeRange) searchParams.append("timeRange", params.timeRange)
+      if (params.transactionType) searchParams.append("transactionType", params.transactionType)
+      
+      const response = await fetch(`/api/creator/earnings?${searchParams.toString()}`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch earnings data")
+      }
+      
+      const data = await response.json()
+      return data
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   })
 }
