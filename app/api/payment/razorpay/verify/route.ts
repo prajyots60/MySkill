@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { EnrollmentStatus, PaymentStatus } from "@prisma/client"
+import { revalidatePath } from "next/cache"
+import { redis } from "@/lib/redis"
 
 export async function POST(req: Request) {
   try {
@@ -62,20 +64,56 @@ export async function POST(req: Request) {
       });
     }
 
-    // Create enrollment record
-    await prisma.enrollment.create({
-      data: {
+    // Check for existing enrollment first
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: {
         userId: session.user.id,
         contentId: courseId,
-        status: EnrollmentStatus.ACTIVE,
-        price: course?.price || 0,
-        paymentId: payment.id,
       },
-    })
+    });
+
+    if (!existingEnrollment) {
+      // Create enrollment record if it doesn't exist
+      await prisma.enrollment.create({
+        data: {
+          userId: session.user.id,
+          contentId: courseId,
+          status: EnrollmentStatus.ACTIVE,
+          price: course?.price || 0,
+          paymentId: payment.id,
+        },
+      });
+    } else {
+      // Update existing enrollment to ACTIVE if it's not already
+      await prisma.enrollment.update({
+        where: { id: existingEnrollment.id },
+        data: {
+          status: EnrollmentStatus.ACTIVE,
+          paymentId: payment.id,
+        },
+      });
+    }
+
+    // Revalidate relevant paths to ensure fresh data
+    revalidatePath(`/content/${courseId}`);
+    revalidatePath(`/content/${courseId}/player`);
+    revalidatePath(`/api/courses/${courseId}/enrollment`);
+    revalidatePath(`/api/courses/${courseId}/enrollment-status`);
+    
+    // Clear Redis cache for enrollment status
+    const enrollmentCacheKey = `enrollment:${courseId}:${session.user.id}`;
+    await redis.del(enrollmentCacheKey);
+    
+    // Also clear any lecture-specific enrollment cache entries
+    const cacheKeys = await redis.keys(`enrollment:${courseId}:${session.user.id}:*`);
+    if (cacheKeys.length > 0) {
+      await redis.del(...cacheKeys);
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Payment verified and enrollment created",
+      message: "Payment verified and enrollment created/updated",
+      enrollmentStatus: true
     })
   } catch (error) {
     console.error("Payment verification error:", error)

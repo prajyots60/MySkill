@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { usePaymentEvents } from "@/hooks/use-payment-events"
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -34,6 +35,7 @@ export function PaymentModal({
 }: PaymentModalProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
+  const { notifyPaymentSuccess } = usePaymentEvents()
 
   const handlePayment = async () => {
     try {
@@ -86,9 +88,41 @@ export function PaymentModal({
               }
 
               toast.success("Payment successful!")
-              onClose()
+              
+              // Double check enrollment status from server with cache busting
+              try {
+                const timestamp = new Date().getTime();
+                // Force an enrollment check explicitly after payment
+                await fetch(`/api/courses/${courseId}/enrollment-status?t=${timestamp}`, {
+                  cache: 'no-store',
+                  headers: {
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0"
+                  }
+                });
+              } catch (checkError) {
+                console.error("Error double checking enrollment:", checkError);
+                // Continue even if this fails as notifyPaymentSuccess will trigger UI update
+              }
+              
+              // Notify the system about successful payment
+              notifyPaymentSuccess(courseId)
+              
+              // First refresh the UI
               router.refresh()
-              router.push(`/content/${courseId}/player`)
+              
+              // Give the system a moment to process the payment
+              setTimeout(() => {
+                // Close modal after a slight delay to avoid jarring transition
+                onClose()
+                
+                // Wait a bit longer before navigating to ensure state is updated
+                setTimeout(() => {
+                  // Force a reload to ensure fresh data
+                  window.location.href = `/content/${courseId}/player`;
+                }, 500)
+              }, 300)
             } catch (error) {
               console.error("Payment verification error:", error)
               toast.error("Payment verification failed. Please contact support.")

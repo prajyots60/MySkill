@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { usePaymentEvents } from "@/hooks/use-payment-events"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -112,6 +113,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const { lastSuccessfulPayment, resetPaymentState } = usePaymentEvents()
   const [course, setCourse] = useState<Course | null>(null)
   const [sections, setSections] = useState<Section[]>([])
   const [isEnrolled, setIsEnrolled] = useState(false)
@@ -367,10 +369,16 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       const data = await response.json();
       
       if (data.success) {
-        // Only update state if the enrollment status has changed
-        if (isEnrolled !== data.isEnrolled) {
-          setIsEnrolled(data.isEnrolled);
-          setEffectivelyEnrolled(data.isEnrolled);
+        console.log("Enrollment check successful, isEnrolled:", data.isEnrolled);
+        
+        // Always update state to ensure UI reflects current enrollment status
+        // This helps when the backend shows enrolled but UI hasn't updated
+        setIsEnrolled(data.isEnrolled);
+        setEffectivelyEnrolled(data.isEnrolled);
+        
+        // Force UI refresh if enrolled
+        if (data.isEnrolled) {
+          router.refresh();
         }
       } else {
         console.error("Enrollment check returned unsuccessful:", data);
@@ -446,6 +454,54 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   useEffect(() => {
     fetchCourseData()
   }, [fetchCourseData])
+
+  // React to successful payment events
+  useEffect(() => {
+    // Check if this contentId matches the course that was just paid for
+    if (lastSuccessfulPayment.courseId === contentId && lastSuccessfulPayment.timestamp) {
+      console.log("Payment success detected for this course, refreshing enrollment status");
+      
+      // Force immediate enrollment check with explicit cache bypass
+      const forceCheckEnrollmentStatus = async () => {
+        try {
+          const timestamp = new Date().getTime();
+          const response = await fetch(
+            `/api/courses/${contentId}/enrollment-status?t=${timestamp}&skipCache=true`, 
+            {
+              method: "GET",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+              },
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Forced enrollment check after payment:", data);
+            
+            // Update states and trigger UI refresh
+            setIsEnrolled(data.isEnrolled);
+            setEffectivelyEnrolled(data.isEnrolled);
+            router.refresh();
+          }
+        } catch (error) {
+          console.error("Error in forced enrollment check:", error);
+          // Fallback to standard check if this fails
+          checkEnrollmentStatus();
+        }
+      };
+      
+      // Execute force check
+      forceCheckEnrollmentStatus();
+      
+      // Reset payment state to avoid duplicate processing
+      resetPaymentState(contentId);
+    }
+  }, [lastSuccessfulPayment, contentId, resetPaymentState, router]);
 
   // Check enrollment status whenever session or contentId changes
   useEffect(() => {

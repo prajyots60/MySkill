@@ -16,7 +16,7 @@ interface RatingData {
 export async function GET(request: Request, { params }: { params: { courseId: string } }) {
   try {
     const session = await getServerSession(authOptions)
-    const { courseId } = params
+    const { courseId } = await params
 
     // Set cache control headers for stale-while-revalidate strategy
     const headers = new Headers()

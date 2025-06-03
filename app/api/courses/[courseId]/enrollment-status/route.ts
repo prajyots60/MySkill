@@ -10,12 +10,15 @@ export async function GET(request: Request, { params }: { params: { courseId: st
     const { courseId } = await params
     const session = await getServerSession(authOptions)
     
-    // Extract lectureId from URL if provided
+    // Extract lectureId and timestamp from URL if provided
     const url = new URL(request.url)
     const lectureId = url.searchParams.get('lectureId')
+    const timestamp = url.searchParams.get('t')
+    const skipCache = url.searchParams.get('skipCache') === 'true'
     
-    // Try to get from cache first if user is logged in
-    if (session?.user) {
+    // Try to get from cache first if user is logged in and not explicitly skipping cache
+    // Skip cache if timestamp is present (indicates cache busting request)
+    if (session?.user && !skipCache && !timestamp) {
       const cacheKey = `enrollment:${courseId}:${session.user.id}${lectureId ? `:${lectureId}` : ''}`
       const cachedStatus = await redis.get(cacheKey)
       
@@ -91,9 +94,19 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       },
     })
 
-    const response = { isEnrolled: !!enrollment }
+    const response = { 
+      isEnrolled: !!enrollment,
+      success: true,  // Add success flag for better client-side handling
+      timestamp: Date.now() // Add timestamp for debugging
+    }
+    
+    // Use a short cache duration when coming from payment verification or cache busting requests
     const cacheKey = `enrollment:${courseId}:${session.user.id}${lectureId ? `:${lectureId}` : ''}`
-    await redis.set(cacheKey, response, { ex: 3600 }) // 1 hour cache
+    const cacheDuration = (timestamp || skipCache) ? 10 : 3600 // 10 seconds cache if from payment, otherwise 1 hour
+    
+    // Store in cache
+    await redis.set(cacheKey, response, { ex: cacheDuration })
+    
     return NextResponse.json(response)
   } catch (error) {
     console.error("[ENROLLMENT_STATUS]", error)
