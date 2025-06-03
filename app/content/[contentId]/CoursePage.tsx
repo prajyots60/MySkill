@@ -199,7 +199,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         })
 
         if (!userProfileResponse.ok) {
-          throw new Error("Failed to fetch user profile")
+          toast({
+            title: "Mobile Number Required",
+            description: "Please add your mobile number in settings before enrolling in this paid course.",
+            variant: "default",
+          })
+          // Encode the current URL to return after adding mobile number
+          const returnUrl = encodeURIComponent(`/content/${contentId}`)
+          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please add your mobile number to enroll in paid courses")}`)
+          return
         }
 
         const userData = await userProfileResponse.json()
@@ -207,7 +215,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         if (!userData.user?.mobileNumber) {
           toast({
             title: "Mobile Number Required",
-            description: "Please add your mobile number in settings before enrolling in this paid course.",
+            description: "A mobile number is required for paid course enrollment. Please add it in your settings.",
             variant: "default",
           })
           // Encode the current URL to return after adding mobile number
