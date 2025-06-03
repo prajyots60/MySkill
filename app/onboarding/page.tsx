@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Loader2, Pencil, User, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { completeUserOnboarding, updateUserSession } from "@/lib/actions/auth"
 import type { UserRole } from "@/lib/types"
 import { getRedirectPathForRole } from "@/lib/utils/roles"
+import { CountryCodeSelect } from "@/components/country-code-select"
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -23,6 +25,7 @@ export default function OnboardingPage() {
 
   const [selectedRole, setSelectedRole] = useState<UserRole>("STUDENT")
   const [bio, setBio] = useState("")
+  const [mobileNumber, setMobileNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +71,7 @@ export default function OnboardingPage() {
         userId,
         role: selectedRole,
         bio,
+        mobileNumber,
       })
 
       if (result.success) {
@@ -180,6 +184,17 @@ export default function OnboardingPage() {
                 </div>
               </RadioGroup>
             </div>
+
+            <CountryCodeSelect
+              value={mobileNumber}
+              onChange={setMobileNumber}
+              label="Mobile Number (Optional)"
+              placeholder="Phone Number"
+              helperText="Select your country code and enter your number"
+              className="space-y-2"
+              selectClassName="bg-slate-800/50 border-indigo-700/50 text-slate-200 placeholder:text-slate-500"
+              inputClassName="bg-slate-800/50 border-indigo-700/50 text-slate-200 placeholder:text-slate-500"
+            />
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-slate-200">

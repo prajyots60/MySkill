@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getUserProfile, updateUserProfile } from "@/lib/actions/user"
+import { CountryCodeSelect } from "@/components/country-code-select"
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const [profileForm, setProfileForm] = useState({
     name: "",
     bio: "",
+    mobileNumber: "",
     twitter: "",
     linkedin: "",
     website: "",
@@ -43,6 +45,7 @@ export default function SettingsPage() {
             setProfileForm({
               name: result.user.name || "",
               bio: result.user.bio || "",
+              mobileNumber: result.user.mobileNumber || "",
               twitter: result.user.socialLinks?.twitter || "",
               linkedin: result.user.socialLinks?.linkedin || "",
               website: result.user.socialLinks?.website || "",
@@ -76,6 +79,7 @@ export default function SettingsPage() {
         userId: session.user.id,
         name: profileForm.name,
         bio: profileForm.bio,
+        mobileNumber: profileForm.mobileNumber,
         socialLinks: {
           twitter: profileForm.twitter,
           linkedin: profileForm.linkedin,
@@ -162,6 +166,14 @@ export default function SettingsPage() {
                       placeholder="Your name"
                     />
                   </div>
+
+                  <CountryCodeSelect
+                    value={profileForm.mobileNumber}
+                    onChange={(value) => setProfileForm({ ...profileForm, mobileNumber: value })}
+                    label="Mobile Number"
+                    placeholder="Phone Number"
+                    helperText="Select your country code and enter your number"
+                  />
 
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>

@@ -30,6 +30,7 @@ export interface User {
   image?: string | null
   role: UserRole
   bio?: string | null
+  mobileNumber?: string | null
   socialLinks?: Record<string, string> | null
   createdAt: Date
   onboarded: boolean

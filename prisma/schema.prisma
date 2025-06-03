@@ -53,6 +53,7 @@ model User {
   image                  String?
   role                   UserRole                @default(STUDENT)
   bio                    String?
+  mobileNumber           String?
   youtubeConnected       Boolean                 @default(false)
   socialLinks            Json?
   onboarded              Boolean                 @default(false)

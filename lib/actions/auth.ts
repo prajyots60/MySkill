@@ -11,10 +11,12 @@ export async function completeUserOnboarding({
   userId,
   role,
   bio,
+  mobileNumber,
 }: {
   userId: string
   role: UserRole
   bio?: string
+  mobileNumber?: string
 }) {
   try {
     const session = await getServerSession(authOptions)
@@ -34,6 +36,7 @@ export async function completeUserOnboarding({
           image: tempUser.image,
           role,
           bio,
+          mobileNumber,
           onboarded: true,
         },
       })
@@ -85,6 +88,7 @@ export async function completeUserOnboarding({
             id: userId,
             role,
             bio,
+            mobileNumber,
             onboarded: true,
           },
         })
@@ -107,6 +111,7 @@ export async function completeUserOnboarding({
         data: {
           role,
           bio,
+          mobileNumber,
           onboarded: true,
         },
       })

@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CountryCodeSelect } from "@/components/country-code-select"
 import { Badge } from "@/components/ui/badge"
 import {
   Accordion,
@@ -73,6 +74,7 @@ export default function CreatorSettingsPage() {
     // Basic information
     name: session?.user?.name || "",
     bio: "I'm a passionate educator with over 10 years of experience in web development and software engineering.",
+    mobileNumber: "",
     website: "https://yourwebsite.com",
     location: "San Francisco, CA",
     profileImage: session?.user?.image || "/placeholder.svg?height=100&width=100",
@@ -158,6 +160,7 @@ export default function CreatorSettingsPage() {
                 ...prev,
                 name: data.creator.name || prev.name,
                 bio: data.creator.bio || prev.bio,
+                mobileNumber: data.creator.mobileNumber || prev.mobileNumber,
                 profileImage: data.creator.image || prev.profileImage,
                 coverImages: data.creator.coverImages || prev.coverImages,
                 tagline: data.creator.tagline || prev.tagline,
@@ -353,6 +356,7 @@ export default function CreatorSettingsPage() {
       const result = await updateCreatorProfile({
         name: profileForm.name,
         bio: profileForm.bio,
+        mobileNumber: profileForm.mobileNumber,
         image: profileForm.profileImage,
         coverImages: profileForm.coverImages,
         tagline: profileForm.tagline,
@@ -587,6 +591,14 @@ export default function CreatorSettingsPage() {
                               Brief description that appears on your public profile (300 characters max)
                             </p>
                           </div>
+                          
+                          <CountryCodeSelect
+                            value={profileForm.mobileNumber}
+                            onChange={(value) => setProfileForm({ ...profileForm, mobileNumber: value })}
+                            label="Mobile Number"
+                            placeholder="Phone Number"
+                            helperText="Only shown to platform administrators"
+                          />
                         </div>
                       </div>
 

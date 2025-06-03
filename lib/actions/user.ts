@@ -134,6 +134,7 @@ export async function getUserProfile(userId: string) {
         image: true,
         role: true,
         bio: true,
+        mobileNumber: true,
         socialLinks: true,
         createdAt: true,
         onboarded: true,
@@ -158,6 +159,7 @@ export async function getUserProfile(userId: string) {
       image: user.image,
       role: user.role,
       bio: user.bio,
+      mobileNumber: user.mobileNumber,
       socialLinks: user.socialLinks,
       createdAt: user.createdAt,
       onboarded: user.onboarded,
@@ -182,11 +184,13 @@ export async function updateUserProfile({
   userId,
   name,
   bio,
+  mobileNumber,
   socialLinks,
 }: {
   userId: string
   name?: string
   bio?: string
+  mobileNumber?: string
   socialLinks?: Record<string, string>
 }) {
   try {
@@ -208,6 +212,7 @@ export async function updateUserProfile({
       data: {
         name,
         bio,
+        mobileNumber,
         socialLinks,
       },
     })

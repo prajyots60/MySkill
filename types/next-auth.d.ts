@@ -23,6 +23,7 @@ declare module "next-auth" {
     role?: UserRole
     onboarded?: boolean
     youtubeConnected?: boolean
+    mobileNumber?: string | null
   }
 }
 

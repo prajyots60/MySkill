@@ -10,6 +10,7 @@ export interface CreatorProfile {
   id: string
   name: string
   bio: string
+  mobileNumber?: string | null
   image: string
   coverImages?: string[] | null // Changed from coverImage to coverImages array
   tagline?: string | null
@@ -156,6 +157,7 @@ export async function getCreatorProfile(creatorId: string): Promise<{
       id: user.id,
       name: user.name || "",
       bio: user.bio || "",
+      mobileNumber: user.mobileNumber || "",
       image: user.image || "",
       coverImages: user.creatorProfile?.coverImages, // Changed from coverImage to coverImages
       tagline: user.creatorProfile?.tagline,
@@ -200,6 +202,7 @@ export async function getCreatorProfile(creatorId: string): Promise<{
 interface UpdateCreatorProfileInput {
   name?: string
   bio?: string
+  mobileNumber?: string
   image?: string
   coverImages?: string[] // Changed from coverImage to coverImages
   tagline?: string
@@ -265,6 +268,7 @@ export async function updateCreatorProfile(
       data: {
         name: input.name,
         bio: input.bio,
+        mobileNumber: input.mobileNumber,
         image: input.image
       }
     })
