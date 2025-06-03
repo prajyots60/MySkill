@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { usePaymentEvents } from "@/hooks/use-payment-events"
+import { getUserProfile } from "@/lib/actions/user"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -189,29 +190,16 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     // For paid courses, check if user has mobile number
     if (course?.price && course.price > 0) {
       try {
-        const userProfileResponse = await fetch(`/api/users/${session.user.id}/profile`, {
-          headers: {
-            "Content-Type": "application/json",
-            // Add cache control to ensure we get fresh data
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache"
-          },
-        })
+        // Use the imported getUserProfile function directly
+        // This bypasses cache and gets fresh data from the database
+        // We're ensuring we get the latest user profile data
+        const userData = await getUserProfile(session.user.id);
 
-        if (!userProfileResponse.ok) {
-          toast({
-            title: "Mobile Number Required",
-            description: "Please add your mobile number in settings before enrolling in this paid course.",
-            variant: "default",
-          })
-          // Encode the current URL to return after adding mobile number
-          const returnUrl = encodeURIComponent(`/content/${contentId}`)
-          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please add your mobile number to enroll in paid courses")}`)
-          return
+        if (!userData.success) {
+          throw new Error(userData.error || "Failed to fetch user profile")
         }
 
-        const userData = await userProfileResponse.json()
-
+        // Then check if mobile number exists
         if (!userData.user?.mobileNumber) {
           toast({
             title: "Mobile Number Required",
@@ -223,6 +211,22 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please add your mobile number to enroll in paid courses")}`)
           return
         }
+
+        // Additional validation for mobile number format
+        const mobileNumber = userData.user.mobileNumber.trim()
+        // Improved regex to validate international format: +{country code}{number}
+        // Must start with + and have between 8 and 15 digits in total
+        if (!mobileNumber.match(/^\+\d{1,4}[\d\s-]{7,14}$/)) {
+          toast({
+            title: "Invalid Mobile Number",
+            description: "Your mobile number must be in international format (e.g. +1234567890). Please update it in settings.",
+            variant: "default",
+          })
+          const returnUrl = encodeURIComponent(`/content/${contentId}`)
+          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please update your mobile number to international format (e.g. +1234567890)")}`)
+          return
+        }
+
       } catch (error) {
         console.error("Error checking user profile:", error)
         toast({
@@ -399,15 +403,19 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       }
       
       // Add timestamp to prevent browser caching
+      // Add both timestamp and random to ensure fresh response
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/courses/${contentId}/enrollment?t=${timestamp}`, {
+      const random = Math.random().toString(36).substring(7);
+      const response = await fetch(`/api/courses/${contentId}/enrollment?t=${timestamp}&r=${random}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Cache-Control": "no-cache, no-store, must-revalidate, private",
           "Pragma": "no-cache",
-          "Expires": "0"
+          "Expires": "0",
         },
+        // Add cache: 'no-store' to force fresh request
+        cache: 'no-store'
       });
 
       if (!response.ok) {
@@ -416,23 +424,22 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
       const data = await response.json();
       
-      if (data.success) {
-        console.log("Enrollment check successful, isEnrolled:", data.isEnrolled);
-        
-        // Always update state to ensure UI reflects current enrollment status
-        // This helps when the backend shows enrolled but UI hasn't updated
-        setIsEnrolled(data.isEnrolled);
-        setEffectivelyEnrolled(data.isEnrolled);
-        
-        // Force UI refresh if enrolled
-        if (data.isEnrolled) {
-          router.refresh();
-        }
-      } else {
+      if (!data.success) {
         console.error("Enrollment check returned unsuccessful:", data);
-       
         setIsEnrolled(false);
         setEffectivelyEnrolled(false);
+        throw new Error(data.error || "Failed to verify enrollment status");
+      }
+
+      console.log("Enrollment check successful, isEnrolled:", data.isEnrolled);
+      
+      // Always update state to ensure UI reflects current enrollment status
+      setIsEnrolled(data.isEnrolled);
+      setEffectivelyEnrolled(data.isEnrolled);
+      
+      // Force router and page data refresh if enrolled
+      if (data.isEnrolled) {
+        router.refresh();
       }
     } catch (error) {
       console.error("Error checking enrollment status:", error);
