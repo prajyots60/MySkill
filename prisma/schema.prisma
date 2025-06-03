@@ -53,7 +53,6 @@ model User {
   image                  String?
   role                   UserRole                @default(STUDENT)
   bio                    String?
-  mobileNumber           String?
   youtubeConnected       Boolean                 @default(false)
   socialLinks            Json?
   onboarded              Boolean                 @default(false)
@@ -69,16 +68,19 @@ model User {
   gdriveName             String?
   gdriveProfileImage     String?
   dailymotionConnected   Boolean                 @default(false)
+  mobileNumber           String?
   accounts               Account[]
   bookmarks              Bookmark[]
   comments               Comment[]
   contents               Content[]
+  uploadedResources      CourseResource[]
   creatorProfile         CreatorProfile?
   dailymotionInfo        DailymotionInfo?
   documents              Document[]
   enrollments            Enrollment[]
   eventReminders         EventReminder[]
   createdExams           Exam[]
+  payments               Payment[]               @relation("UserPayments")
   progress               Progress[]
   reviews                Review[]
   sessions               Session[]
@@ -86,8 +88,6 @@ model User {
   followers              UserFollow[]            @relation("UserFollowers")
   following              UserFollow[]            @relation("UserFollowing")
   userServiceConnections UserServiceConnection[]
-  uploadedResources      CourseResource[]
-  payments               Payment[]          @relation("UserPayments")
 
   @@index([email])
 }
@@ -159,14 +159,14 @@ model Content {
   bookmarks       Bookmark[]
   comments        Comment[]
   creator         User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  courseResources CourseResource[] @relation("ContentToCourseResource")
   documents       Document[]
   enrollments     Enrollment[]
   exams           Exam[]
+  payments        Payment[]        @relation("ContentPayments")
   resources       Resource[]
   reviews         Review[]
   sections        Section[]
-  courseResources CourseResource[] @relation("ContentToCourseResource")
-  payments        Payment[]        @relation("ContentPayments")
 
   @@index([creatorId])
   @@index([type])
@@ -196,8 +196,8 @@ model Lecture {
   type           LectureType     @default(VIDEO)
   videoId        String?
   videoSource    VideoSource?    @default(YOUTUBE)
-  claimId        String? // For Odysee videos
-  claimName      String? // For Odysee videos
+  claimId        String?
+  claimName      String?
   duration       Int?
   isPreview      Boolean         @default(false)
   liveStatus     LiveStatus?
@@ -227,46 +227,33 @@ model Enrollment {
   id        String           @id @default(cuid())
   userId    String
   contentId String
-  status    EnrollmentStatus @default(ACTIVE)
   createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  paymentId String?          @unique
   price     Float?
-
-  // Payment related fields
-  paymentId String?  @unique
-  payment   Payment? @relation(fields: [paymentId], references: [id])
-
-  // Relations
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  status    EnrollmentStatus @default(ACTIVE)
+  updatedAt DateTime         @default(now()) @updatedAt
+  content   Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  payment   Payment?         @relation(fields: [paymentId], references: [id])
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
   @@index([userId])
   @@index([contentId])
 }
 
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-  REFUNDED
-}
-
 model Payment {
-  id        String        @id @default(cuid())
-  orderId   String        @unique
-  amount    Float
-  currency  String
-  status    PaymentStatus @default(PENDING)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  // Foreign Keys
-  userId    String
-  courseId  String
-  user      User     @relation("UserPayments", fields: [userId], references: [id])
-  course    Content  @relation("ContentPayments", fields: [courseId], references: [id])
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  amount     Float
+  currency   String
+  status     PaymentStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  userId     String
+  courseId   String
   enrollment Enrollment?
+  course     Content       @relation("ContentPayments", fields: [courseId], references: [id])
+  user       User          @relation("UserPayments", fields: [userId], references: [id])
 
   @@index([userId])
   @@index([courseId])
@@ -513,8 +500,8 @@ model DailymotionInfo {
   scope             String?
   connectedAt       DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
-  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   credentials       DailymotionCredentials?
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -522,8 +509,8 @@ model DailymotionInfo {
 model DailymotionCredentials {
   id                String          @id @default(cuid())
   dailymotionInfoId String          @unique
-  apiKey            String // Encrypted API key
-  apiSecret         String // Encrypted API secret
+  apiKey            String
+  apiSecret         String
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   dailymotionInfo   DailymotionInfo @relation(fields: [dailymotionInfoId], references: [id], onDelete: Cascade)
@@ -534,7 +521,7 @@ model DailymotionCredentials {
 model UserServiceConnection {
   id            String   @id @default(cuid())
   userId        String
-  service       String // e.g., 'DAILYMOTION', 'YOUTUBE', etc.
+  service       String
   isConnected   Boolean  @default(false)
   lastConnected DateTime
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -542,6 +529,33 @@ model UserServiceConnection {
   @@unique([userId, service])
   @@index([userId])
   @@index([service])
+}
+
+model CourseResource {
+  id              String          @id @default(cuid())
+  title           String
+  type            String
+  storagePath     String
+  storageProvider StorageProvider @default(WASABI)
+  url             String?
+  sizeInBytes     Int
+  courseId        String
+  uploadedById    String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  metadata        Json?
+  course          Content         @relation("ContentToCourseResource", fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy      User            @relation(fields: [uploadedById], references: [id])
+
+  @@index([courseId])
+  @@index([uploadedById])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
 }
 
 enum UserRole {
@@ -620,25 +634,4 @@ enum StorageProvider {
   WASABI
   S3
   GDRIVE
-}
-
-model CourseResource {
-  id              String          @id @default(cuid())
-  title           String
-  type            String
-  storagePath     String
-  storageProvider StorageProvider @default(WASABI)
-  url             String?
-  sizeInBytes     Int
-  courseId        String
-  uploadedById    String
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  metadata        Json?
-
-  course     Content @relation("ContentToCourseResource", fields: [courseId], references: [id], onDelete: Cascade)
-  uploadedBy User    @relation(fields: [uploadedById], references: [id])
-
-  @@index([courseId])
-  @@index([uploadedById])
 }
