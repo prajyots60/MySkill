@@ -34,6 +34,18 @@ export default function SettingsPage() {
     website: "",
   })
 
+  // Check for message in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const message = urlParams.get("message")
+    if (message) {
+      toast({
+        title: "Action Required",
+        description: decodeURIComponent(message),
+      })
+    }
+  }, [toast])
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (status === "authenticated" && session.user.id) {
@@ -92,6 +104,13 @@ export default function SettingsPage() {
           title: "Success",
           description: "Your profile has been updated successfully",
         })
+        
+        // Check if there's a return URL in the query params
+        const urlParams = new URLSearchParams(window.location.search)
+        const returnUrl = urlParams.get("returnUrl")
+        if (returnUrl) {
+          window.location.href = decodeURIComponent(returnUrl)
+        }
       } else {
         throw new Error(result.error || "Failed to update profile")
       }

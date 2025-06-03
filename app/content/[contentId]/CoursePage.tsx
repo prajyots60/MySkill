@@ -176,7 +176,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   }, [contentId, session])
 
   // Handle CTA button click
-  const handleCTAClick = () => {
+  const handleCTAClick = async () => {
     if (!session) {
       toast({
         title: "Authentication Required",
@@ -184,6 +184,46 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       })
       router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
       return
+    }
+
+    // For paid courses, check if user has mobile number
+    if (course?.price && course.price > 0) {
+      try {
+        const userProfileResponse = await fetch(`/api/users/${session.user.id}/profile`, {
+          headers: {
+            "Content-Type": "application/json",
+            // Add cache control to ensure we get fresh data
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache"
+          },
+        })
+
+        if (!userProfileResponse.ok) {
+          throw new Error("Failed to fetch user profile")
+        }
+
+        const userData = await userProfileResponse.json()
+
+        if (!userData.user?.mobileNumber) {
+          toast({
+            title: "Mobile Number Required",
+            description: "Please add your mobile number in settings before enrolling in this paid course.",
+            variant: "default",
+          })
+          // Encode the current URL to return after adding mobile number
+          const returnUrl = encodeURIComponent(`/content/${contentId}`)
+          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please add your mobile number to enroll in paid courses")}`)
+          return
+        }
+      } catch (error) {
+        console.error("Error checking user profile:", error)
+        toast({
+          title: "Error",
+          description: "Unable to verify your information. Please try again later.",
+          variant: "destructive",
+        })
+        return
+      }
     }
 
     if (effectivelyEnrolled) {
