@@ -18,11 +18,11 @@ import { Loader2, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getUserProfile, updateUserProfile } from "@/lib/actions/user"
 import { CountryCodeSelect } from "@/components/country-code-select"
+import { useSearchParams } from "next/navigation"
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const { toast } = useToast()
-
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profileForm, setProfileForm] = useState({
@@ -33,26 +33,26 @@ export default function SettingsPage() {
     linkedin: "",
     website: "",
   })
+  const searchParams = useSearchParams()
+  const returnUrl = searchParams.get("returnUrl")
+  const message = searchParams.get("message")
 
-  // Check for message in URL parameters
+  // Show message from URL params if present
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const message = urlParams.get("message")
     if (message) {
       toast({
         title: "Action Required",
         description: decodeURIComponent(message),
       })
     }
-  }, [toast])
+  }, [message, toast])
 
+  // Load user profile data
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (status === "authenticated" && session.user.id) {
-        setLoading(true)
+    async function fetchUserProfile() {
+      if (session?.user?.id && status === "authenticated") {
         try {
           const result = await getUserProfile(session.user.id)
-
           if (result.success && result.user) {
             setProfileForm({
               name: result.user.name || "",
@@ -65,6 +65,11 @@ export default function SettingsPage() {
           }
         } catch (error) {
           console.error("Error fetching user profile:", error)
+          toast({
+            title: "Error",
+            description: "Failed to load your profile data. Please try refreshing the page.",
+            variant: "destructive",
+          })
         } finally {
           setLoading(false)
         }
@@ -72,14 +77,14 @@ export default function SettingsPage() {
     }
 
     fetchUserProfile()
-  }, [session, status])
+  }, [session, status, toast])
 
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setProfileForm({
-      ...profileForm,
+    setProfileForm(prev => ({
+      ...prev,
       [name]: value,
-    })
+    }))
   }
 
   const handleSaveProfile = async () => {
@@ -99,25 +104,24 @@ export default function SettingsPage() {
         },
       })
 
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Your profile has been updated successfully",
-        })
-        
-        // Check if there's a return URL in the query params
-        const urlParams = new URLSearchParams(window.location.search)
-        const returnUrl = urlParams.get("returnUrl")
-        if (returnUrl) {
-          window.location.href = decodeURIComponent(returnUrl)
-        }
-      } else {
-        throw new Error(result.error || "Failed to update profile")
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      toast({
+        title: "Success",
+        description: "Your profile has been updated successfully",
+      })
+
+      // Handle return URL if present
+      if (returnUrl) {
+        window.location.href = decodeURIComponent(returnUrl)
       }
     } catch (error) {
+      console.error("Error saving profile:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile",
+        description: error instanceof Error ? error.message : "Failed to update your profile",
         variant: "destructive",
       })
     } finally {
@@ -125,12 +129,8 @@ export default function SettingsPage() {
     }
   }
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
+  if (loading) {
+    return <div>Loading...</div>
   }
 
   if (status === "unauthenticated") {

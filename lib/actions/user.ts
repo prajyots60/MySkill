@@ -116,13 +116,6 @@ export async function updateUserRole({
 // Get user profile
 export async function getUserProfile(userId: string) {
   try {
-    // Try to get from cache first
-    const cachedUser = await redis.get(`user:${userId}`)
-    if (cachedUser) {
-      return { success: true, user: JSON.parse(cachedUser as string) }
-    }
-
-    // Get user from database
     const user = await prisma.user.findUnique({
       where: {
         id: userId,
@@ -167,11 +160,6 @@ export async function getUserProfile(userId: string) {
       enrollmentCount: user._count.enrollments,
     }
 
-    // Cache the results
-    await redis.set(`user:${userId}`, JSON.stringify(transformedUser), {
-      ex: 60 * 5, // 5 minutes
-    })
-
     return { success: true, user: transformedUser }
   } catch (error) {
     console.error("Error getting user profile:", error)
@@ -204,24 +192,44 @@ export async function updateUserProfile({
       throw new Error("You don't have permission to update this user")
     }
 
+    // Validate mobile number if provided
+    if (mobileNumber && !mobileNumber.match(/^\+?[\d\s-]{10,}$/)) {
+      return { success: false, error: "Invalid mobile number format" }
+    }
+
     // Update the user in the database
-    const updatedUser = await prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        name,
-        bio,
-        mobileNumber,
-        socialLinks,
-      },
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      // Update user record
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: {
+          name,
+          bio,
+          mobileNumber,
+          socialLinks,
+          updatedAt: new Date(), // Force update timestamp
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          role: true,
+          bio: true,
+          mobileNumber: true,
+          socialLinks: true,
+          createdAt: true,
+          onboarded: true,
+        }
+      })
+
+      return user
     })
 
-    // Invalidate cache
-    await redis.del(`user:${userId}`)
-
+    // Force revalidation of all relevant paths
     revalidatePath("/settings")
     revalidatePath(`/profile/${userId}`)
+    revalidatePath(`/content/[contentId]`, 'layout')
 
     return { success: true, user: updatedUser }
   } catch (error) {
