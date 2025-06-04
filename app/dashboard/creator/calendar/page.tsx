@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function CreatorCalendarPage() {
   return (
-    <div className="container py-6">
+    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <EventCalendar variant="creator" />
     </div>
   )

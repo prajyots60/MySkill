@@ -24,14 +24,22 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import ExamCreator from "@/components/exam-creator"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" // Added TabsTrigger
+import { SelectItem } from "@/components/ui/select";
+import ExamCreator from "@/components/exam-creator"; // Changed to default import
 import { formatDate } from "@/lib/utils/format"
+ // Assuming formatDate is in lib/utils - this might need a specific path if not directly in utils
 
 interface Exam {
   id: string
@@ -55,6 +63,7 @@ export default function CreatorExamsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [courseFilter, setCourseFilter] = useState<string | null>(null) // New state for course filter
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [examToDelete, setExamToDelete] = useState<Exam | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -168,9 +177,14 @@ export default function CreatorExamsPage() {
     if (statusFilter) {
       results = results.filter(exam => exam.status === statusFilter)
     }
+
+    // Apply course filter
+    if (courseFilter) {
+      results = results.filter(exam => exam.courseId === courseFilter)
+    }
     
     setFilteredExams(results)
-  }, [searchTerm, statusFilter, exams])
+  }, [searchTerm, statusFilter, courseFilter, exams, courses]) // Added courseFilter and courses
   
   // Handle exam creation completion
   const handleExamCreated = (examId: string, formId: string, formUrl: string) => {
@@ -252,6 +266,7 @@ export default function CreatorExamsPage() {
   const clearFilters = () => {
     setSearchTerm("")
     setStatusFilter(null)
+    setCourseFilter(null) // Reset course filter
   }
   
   // Create new exam (replaces the modal dialog handler)
@@ -263,136 +278,144 @@ export default function CreatorExamsPage() {
   const renderExamCards = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        {filteredExams.map((exam) => (
-          <Card key={exam.id} className="flex flex-col h-full border-indigo-100 dark:border-indigo-900/40 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
-            <CardHeader className="pb-2 bg-gradient-to-r from-indigo-50/50 to-violet-50/50 dark:from-indigo-950/20 dark:to-violet-950/20 border-b border-indigo-100 dark:border-indigo-900/30">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
-                  <Link href={`/dashboard/creator/exams/${exam.id}`}>
-                    {exam.title}
-                  </Link>
-                </CardTitle>
-                <Badge variant={
-                  exam.status === "DRAFT" 
-                    ? "secondary" 
-                    : exam.status === "PUBLISHED" 
-                      ? "default" 
-                      : "destructive"
-                } className={
-                  exam.status === "DRAFT" 
-                    ? "bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50" 
-                    : exam.status === "PUBLISHED" 
-                      ? "bg-green-100 border-green-200 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50"
-                      : ""
-                }>
-                  {exam.status}
-                </Badge>
-              </div>
-              <CardDescription className="line-clamp-2 mt-1">
-                {exam.description || "No description provided"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow text-sm pb-2 pt-4">
-              <div className="space-y-3">
-                <div className="flex gap-2 text-muted-foreground">
-                  <FileQuestion className="h-4 w-4 mt-0.5 text-indigo-400" />
-                  <span>{exam.questionCount || 0} Question{(exam.questionCount || 0) !== 1 ? "s" : ""}</span>
-                </div>
-                
-                <div className="flex gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4 mt-0.5 text-violet-400" />
-                  <span>{exam.responseCount || 0} Response{(exam.responseCount || 0) !== 1 ? "s" : ""}</span>
-                </div>
-                
-                <div className="flex gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4 mt-0.5 text-indigo-400" />
-                  <span>Created: {formatDate(new Date(exam.createdAt))}</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0 mt-2 border-t border-indigo-100 dark:border-indigo-900/30">
-              <div className="flex justify-between w-full">
-                {exam.status === "PUBLISHED" || exam.status === "CLOSED" ? (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    asChild
-                    className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                  >
-                    <Link href={`/exams/${exam.formId}/results`}>
-                      <FileText className="h-4 w-4 mr-1" />
-                      Results
+        {filteredExams.map((exam) => {
+          const course = courses.find(c => c.id === exam.courseId);
+          const courseTitle = course ? course.title : "N/A";
+          return (
+            <Card key={exam.id} className="flex flex-col h-full border-indigo-100 dark:border-indigo-900/40 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+              <CardHeader className="pb-2 bg-gradient-to-r from-indigo-50/50 to-violet-50/50 dark:from-indigo-950/20 dark:to-violet-950/20 border-b border-indigo-100 dark:border-indigo-900/30">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
+                    <Link href={`/dashboard/creator/exams/${exam.id}`}>
+                      {exam.title}
                     </Link>
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    asChild
-                    className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                  >
-                    <Link href={`/exams/${exam.formId}/edit`}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Link>
-                  </Button>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
-                      <Settings className="h-4 w-4" />
+                  </CardTitle>
+                  <Badge variant={
+                    exam.status === "DRAFT" 
+                      ? "secondary" 
+                      : exam.status === "PUBLISHED" 
+                        ? "default" 
+                        : "destructive"
+                  } className={
+                    exam.status === "DRAFT" 
+                      ? "bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50" 
+                      : exam.status === "PUBLISHED" 
+                        ? "bg-green-100 border-green-200 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800/50"
+                        : ""
+                  }>
+                    {exam.status}
+                  </Badge>
+                </div>
+                <CardDescription className="line-clamp-2 mt-1">
+                  {exam.description || "No description provided"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow text-sm pb-2 pt-4">
+                <div className="space-y-3">
+                  <div className="flex gap-2 text-muted-foreground">
+                    <BookOpen className="h-4 w-4 mt-0.5 text-sky-400" />
+                    <span>Course: {courseTitle}</span>
+                  </div>
+                  <div className="flex gap-2 text-muted-foreground">
+                    <FileQuestion className="h-4 w-4 mt-0.5 text-indigo-400" />
+                    <span>{exam.questionCount || 0} Question{(exam.questionCount || 0) !== 1 ? "s" : ""}</span>
+                  </div>
+                  
+                  <div className="flex gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4 mt-0.5 text-violet-400" />
+                    <span>{exam.responseCount || 0} Response{(exam.responseCount || 0) !== 1 ? "s" : ""}</span>
+                  </div>
+                  
+                  <div className="flex gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4 mt-0.5 text-indigo-400" />
+                    <span>Created: {formatDate(new Date(exam.createdAt))}</span>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-0 mt-2 border-t border-indigo-100 dark:border-indigo-900/30">
+                <div className="flex justify-between w-full">
+                  {exam.status === "PUBLISHED" || exam.status === "CLOSED" ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      asChild
+                      className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    >
+                      <Link href={`/exams/${exam.formId}/results`}>
+                        <FileText className="h-4 w-4 mr-1" />
+                        Results
+                      </Link>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg min-w-[180px]">
-                    <DropdownMenuLabel className="text-indigo-800 dark:text-indigo-300">Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-indigo-100 dark:bg-indigo-800/40" />
-                    {exam.status === "DRAFT" && (
-                      <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
-                        <Link href={`/exams/${exam.formId}/edit`}>
-                          <Edit className="h-4 w-4 mr-2 text-indigo-500" />
-                          Edit Exam
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {exam.status === "PUBLISHED" && (
-                      <>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      asChild
+                      className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:border-indigo-800/40 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    >
+                      <Link href={`/exams/${exam.formId}/edit`}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Link>
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg min-w-[180px]">
+                      <DropdownMenuLabel className="text-indigo-800 dark:text-indigo-300">Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-indigo-100 dark:bg-indigo-800/40" />
+                      {exam.status === "DRAFT" && (
                         <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
-                          <Link href={`/exams/${exam.formId}/take`} target="_blank">
-                            <Eye className="h-4 w-4 mr-2 text-indigo-500" />
-                            Preview
+                          <Link href={`/exams/${exam.formId}/edit`}>
+                            <Edit className="h-4 w-4 mr-2 text-indigo-500" />
+                            Edit Exam
                           </Link>
                         </DropdownMenuItem>
+                      )}
+                      {exam.status === "PUBLISHED" && (
+                        <>
+                          <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
+                            <Link href={`/exams/${exam.formId}/take`} target="_blank">
+                              <Eye className="h-4 w-4 mr-2 text-indigo-500" />
+                              Preview
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
+                            <Link href={`/exams/${exam.formId}/results`}>
+                              <FileText className="h-4 w-4 mr-2 text-indigo-500" />
+                              View Results
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {exam.status === "CLOSED" && (
                         <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                           <Link href={`/exams/${exam.formId}/results`}>
                             <FileText className="h-4 w-4 mr-2 text-indigo-500" />
                             View Results
                           </Link>
                         </DropdownMenuItem>
-                      </>
-                    )}
-                    {exam.status === "CLOSED" && (
-                      <DropdownMenuItem asChild className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
-                        <Link href={`/exams/${exam.formId}/results`}>
-                          <FileText className="h-4 w-4 mr-2 text-indigo-500" />
-                          View Results
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {exam.status === "DRAFT" && (
-                      <DropdownMenuItem 
-                        onClick={() => confirmDelete(exam)} 
-                        className="text-red-600 hover:text-red-700 focus:text-red-700 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-950/30 dark:focus:bg-red-950/30"
-                      >
-                        <Trash className="h-4 w-4 mr-2" />
-                        Delete Exam
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardFooter>
-          </Card>
-        ))}
+                      )}
+                      {exam.status === "DRAFT" && (
+                        <DropdownMenuItem 
+                          onClick={() => confirmDelete(exam)} 
+                          className="text-red-600 hover:text-red-700 focus:text-red-700 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-950/30 dark:focus:bg-red-950/30"
+                        >
+                          <Trash className="h-4 w-4 mr-2" />
+                          Delete Exam
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardFooter>
+            </Card>
+          )
+        })}
       </div>
     )
   }
@@ -405,7 +428,7 @@ export default function CreatorExamsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-muted">
-                <th className="px-4 py-2 text-left font-medium">Exam</th>
+                <th className="px-4 py-2 text-left font-medium">Exam / Course</th>
                 <th className="px-4 py-2 text-left font-medium">Status</th>
                 <th className="px-4 py-2 text-left font-medium">Questions</th>
                 <th className="px-4 py-2 text-left font-medium">Responses</th>
@@ -414,69 +437,76 @@ export default function CreatorExamsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredExams.map((exam) => (
-                <tr key={exam.id} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-3">
-                    <div>
-                      <Link href={`/dashboard/creator/exams/${exam.id}`} className="font-medium hover:underline">
-                        {exam.title}
-                      </Link>
-                      {exam.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-1">{exam.description}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={
-                      exam.status === "DRAFT" ? "secondary" : 
-                      exam.status === "PUBLISHED" ? "default" : 
-                      "destructive"
-                    }>
-                      {exam.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">{exam.questionCount || 0}</td>
-                  <td className="px-4 py-3">{exam.responseCount || 0}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(new Date(exam.createdAt))}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {exam.status === "DRAFT" ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          asChild
-                        >
-                          <Link href={`/exams/${exam.formId}/edit`}>
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Link>
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          asChild
-                        >
-                          <Link href={`/exams/${exam.formId}/results`}>
-                            <FileText className="h-4 w-4 mr-1" />
-                            Results
-                          </Link>
-                        </Button>
-                      )}
-                      
-                      {exam.status === "DRAFT" && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => confirmDelete(exam)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredExams.map((exam) => {
+                const course = courses.find(c => c.id === exam.courseId);
+                const courseTitle = course ? course.title : "N/A";
+                return (
+                  <tr key={exam.id} className="border-t hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <div>
+                        <Link href={`/dashboard/creator/exams/${exam.id}`} className="font-medium hover:underline">
+                          {exam.title}
+                        </Link>
+                        <p className="text-sm text-muted-foreground line-clamp-1">
+                          {courseTitle !== "N/A" ? `Course: ${courseTitle}` : "No course assigned"}
+                        </p>
+                        {exam.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-1 mt-1">{exam.description}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={
+                        exam.status === "DRAFT" ? "secondary" : 
+                        exam.status === "PUBLISHED" ? "default" : 
+                        "destructive"
+                      }>
+                        {exam.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">{exam.questionCount || 0}</td>
+                    <td className="px-4 py-3">{exam.responseCount || 0}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(new Date(exam.createdAt))}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {exam.status === "DRAFT" ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            asChild
+                          >
+                            <Link href={`/exams/${exam.formId}/edit`}>
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            asChild
+                          >
+                            <Link href={`/exams/${exam.formId}/results`}>
+                              <FileText className="h-4 w-4 mr-1" />
+                              Results
+                            </Link>
+                          </Button>
+                        )}
+                        
+                        {exam.status === "DRAFT" && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => confirmDelete(exam)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -519,7 +549,7 @@ export default function CreatorExamsPage() {
             onExamCreated={handleExamCreated}
             requireCourse={true}
             courses={courses}
-            onCourseChange={(courseId) => {
+            onCourseChange={(courseId: string) => { // Added type for courseId
               setNewExam({
                 ...newExam,
                 courseId: courseId,
@@ -569,7 +599,7 @@ export default function CreatorExamsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg">
               <DropdownMenuItem onClick={() => setStatusFilter(null)} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
-                All
+                All Statuses
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter("DRAFT")} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
                 Draft
@@ -582,8 +612,36 @@ export default function CreatorExamsPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="border-indigo-200 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                <BookOpen className="h-4 w-4 mr-2 text-indigo-500" />
+                Course
+                {courseFilter && <Badge variant="secondary" className="ml-2 bg-violet-100 text-violet-700">{courses.find(c => c.id === courseFilter)?.title || 'Unknown Course'}</Badge>}
+                <ChevronDown className="h-4 w-4 ml-2 text-indigo-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-indigo-100 shadow-lg">
+              <DropdownMenuItem onClick={() => setCourseFilter(null)} className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30">
+                All Courses
+              </DropdownMenuItem>
+              {courses.map(course => (
+                <DropdownMenuItem 
+                  key={course.id} 
+                  onClick={() => setCourseFilter(course.id)}
+                  className="hover:bg-indigo-50 dark:hover:bg-indigo-950/30 focus:bg-indigo-50 dark:focus:bg-indigo-950/30"
+                >
+                  {course.title}
+                </DropdownMenuItem>
+              ))}
+              {courses.length === 0 && (
+                <DropdownMenuItem disabled className="text-muted-foreground">No courses available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           
-          {(searchTerm || statusFilter) && (
+          {(searchTerm || statusFilter || courseFilter) && ( // Added courseFilter
             <Button 
               variant="ghost" 
               size="sm" 
