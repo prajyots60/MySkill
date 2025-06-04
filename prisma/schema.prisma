@@ -76,13 +76,16 @@ model User {
   uploadedResources      CourseResource[]
   creatorProfile         CreatorProfile?
   dailymotionInfo        DailymotionInfo?
+  devices                UserDevice[]            // Track user devices
   documents              Document[]
   enrollments            Enrollment[]
   eventReminders         EventReminder[]
   createdExams           Exam[]
+  notifications          Notification[]
   payments               Payment[]               @relation("UserPayments")
   progress               Progress[]
   reviews                Review[]
+  securityViolations     SecurityViolation[]      // Track security violations
   sessions               Session[]
   studentExamResponses   StudentExamResponse[]
   followers              UserFollow[]            @relation("UserFollowers")
@@ -163,6 +166,7 @@ model Content {
   documents       Document[]
   enrollments     Enrollment[]
   exams           Exam[]
+  notifications   Notification[]
   payments        Payment[]        @relation("ContentPayments")
   resources       Resource[]
   reviews         Review[]
@@ -551,6 +555,26 @@ model CourseResource {
   @@index([uploadedById])
 }
 
+model Notification {
+  id            String           @id @default(cuid())
+  userId        String
+  contentId     String
+  type          NotificationType
+  title         String
+  message       String
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  actionUrl     String?
+  relatedItemId String?
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content       Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([contentId])
+  @@index([read])
+  @@index([createdAt])
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -634,4 +658,47 @@ enum StorageProvider {
   WASABI
   S3
   GDRIVE
+}
+
+enum NotificationType {
+  LECTURE_ADDED
+  RESOURCE_ADDED
+  ANNOUNCEMENT
+  LIVE_SESSION
+  DEADLINE_REMINDER
+}
+
+model UserDevice {
+  id              String    @id @default(cuid())
+  userId          String
+  deviceId        String    @unique
+  deviceType      String
+  browser         String
+  operatingSystem String
+  ip              String?
+  userAgent       String
+  firstLogin      DateTime  @default(now())
+  lastLogin       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model SecurityViolation {
+  id              String   @id @default(cuid())
+  userId          String
+  violationType   String
+  ipAddress       String?
+  userAgent       String?
+  details         Json?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([violationType])
+  @@index([createdAt])
 }
