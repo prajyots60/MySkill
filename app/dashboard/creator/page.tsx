@@ -28,7 +28,7 @@ import {
   Settings,
   ExternalLink,
 } from "lucide-react"
-import { useCreatorCourses } from "@/lib/react-query/queries"
+import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
 import Link from "next/link"
 import Image from "next/image"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
@@ -289,14 +289,45 @@ const QuickActions = memo(function QuickActions() {
 })
 
 export default function CreatorDashboardPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
+  const { data: session, status } = useSession()
+  
   const [activeTab, setActiveTab] = useState("overview")
 
   // Use React Query for data fetching
   const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
 
-  // State for creator profile
+  // Fetch earnings data with react-query
+  const { data: earningsData } = useCreatorEarnings({
+    timeRange: "30days",
+    transactionType: "all"
+  })
+
+  // Handle authentication
+  useEffect(() => {
+    if (status === "loading") {
+      // Still loading, do nothing
+      return
+    }
+
+    if (status === "unauthenticated") {
+      // Redirect to sign in page
+      router.push("/auth/signin")
+    } else {
+      // Check if user has a role and redirect accordingly
+      const userRole = session?.user?.role
+      if (userRole === "ADMIN") {
+        router.push("/admin")
+      } else if (userRole === "CREATOR") {
+        router.push("/dashboard/creator")
+      } else {
+        // Handle other roles or default case
+        router.push("/")
+      }
+    }
+  }, [status, session, router])
+
+  // Profile completion state
   const [creatorProfile, setCreatorProfile] = useState<Record<string, any> | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
 
@@ -382,7 +413,7 @@ export default function CreatorDashboardPage() {
 
   // Memoize stats to prevent unnecessary re-renders
   const stats = useMemo(() => {
-    if (!courses) {
+    if (!courses || !earningsData) {
       return {
         totalCourses: 0,
         totalStudents: 0,
@@ -397,9 +428,9 @@ export default function CreatorDashboardPage() {
       totalStudents: courses.reduce((acc: number, course: any) => acc + (course.enrollmentCount || 0), 0),
       totalVideos: courses.reduce((acc: number, course: any) => acc + (course.lectureCount || 0), 0),
       totalViews: courses.reduce((acc: number, course: any) => acc + (course.viewCount || 0), 0),
-      totalRevenue: 8245.5, // Mock data for revenue
+      totalRevenue: earningsData.totalEarnings, // Real earnings data
     }
-  }, [courses])
+  }, [courses, earningsData])
 
   // Check for success message in URL
   useEffect(() => {
