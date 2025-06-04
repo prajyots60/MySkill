@@ -209,8 +209,8 @@ export default function ExamCreator({
           type: data.type,
           passingScore: data.passingScore,
           timeLimit: data.timeLimit,
-          startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
-          endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+          startDate: data.startDate ? preserveTimezoneForDB(data.startDate) : undefined,
+          endDate: data.endDate ? preserveTimezoneForDB(data.endDate) : undefined,
           contentId,
           sectionId,
           lectureId,
@@ -409,12 +409,46 @@ export default function ExamCreator({
     }
   }
 
+  // Function to preserve timezone info when storing in the database
+  const preserveTimezoneForDB = (dateString: string): string => {
+    try {
+      // Parse the date input, which is in local time
+      const localDate = new Date(dateString);
+      
+      // Create a date string that preserves the exact local date and time
+      const year = localDate.getFullYear();
+      const month = String(localDate.getMonth() + 1).padStart(2, "0");
+      const day = String(localDate.getDate()).padStart(2, "0");
+      const hours = String(localDate.getHours()).padStart(2, "0");
+      const minutes = String(localDate.getMinutes()).padStart(2, "0");
+      const seconds = String(localDate.getSeconds()).padStart(2, "0");
+      
+      // Format: YYYY-MM-DDTHH:MM:SS.sssZ with UTC offset
+      const tzOffset = -localDate.getTimezoneOffset();
+      const tzOffsetHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, "0");
+      const tzOffsetMinutes = String(Math.abs(tzOffset) % 60).padStart(2, "0");
+      const tzSign = tzOffset >= 0 ? "+" : "-";
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${tzSign}${tzOffsetHours}:${tzOffsetMinutes}`;
+    } catch (error) {
+      console.error("Error preserving timezone for DB:", error);
+      return new Date().toISOString(); // Fallback to current time
+    }
+  }
+  
   // Update date loading functions
   const formatDateTimeForInput = (dateString?: string | null): string => {
     if (!dateString) return '';
     try {
       // Format to YYYY-MM-DDTHH:MM format required for datetime-local input
-      return new Date(dateString).toISOString().slice(0, 16);
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch (error) {
       console.error("Error formatting date for input:", error);
       return '';
@@ -552,7 +586,7 @@ export default function ExamCreator({
       </CardHeader>
       
       <CardContent className="pt-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue={defaultTab}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "details" | "questions" | "publish")} defaultValue={defaultTab}>
           <TabsList className="mb-6 bg-indigo-50/70 dark:bg-indigo-950/30 p-1 rounded-lg">
             <TabsTrigger 
               value="details" 

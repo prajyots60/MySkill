@@ -786,12 +786,11 @@ function formatDateToTimeZone(date: Date | string | null, timeZone: string = 'UT
   
   const dateObj = typeof date === 'string' ? new Date(date) : date
   try {
-    // Use the date-fns-tz toZonedTime function to handle timezone conversion properly
-    // This ensures the date is interpreted in the user's timezone correctly
-    const zonedDate = toZonedTime(dateObj, timeZone)
-    return zonedDate.toISOString()
-  } catch (error) {
-    console.error("Error converting timezone:", error)
+    // Keep the original date but format it as ISO string to ensure consistency
+    // This prevents timezone shifts that cause dates to move to different days
     return dateObj.toISOString()
+  } catch (error) {
+    console.error("Error formatting date:", error)
+    return new Date().toISOString()
   }
 }

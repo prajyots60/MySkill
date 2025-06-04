@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
           type: type as ExamType,
           passingScore: passingScore ? parseInt(passingScore) : undefined,
           timeLimit: timeLimit ? parseInt(timeLimit) : undefined,
+          // Parse dates with timezone information preserved
           startDate: startDate ? new Date(startDate) : undefined,
           endDate: endDate ? new Date(endDate) : undefined,
           contentId,
@@ -84,16 +85,14 @@ export async function POST(req: NextRequest) {
         
         const result = await examService.closeExam(examId)
         return NextResponse.json(result)
-      }
-      
-      case "update": {
+      }        case "update": {
         const { examId, ...examData } = data
         
         if (!examId) {
           return NextResponse.json({ error: "Exam ID is required" }, { status: 400 })
         }
         
-        // Convert date strings to Date objects if provided
+        // Convert date strings to Date objects if provided, preserving the exact time
         if (examData.startDate) examData.startDate = new Date(examData.startDate)
         if (examData.endDate) examData.endDate = new Date(examData.endDate)
         

@@ -344,21 +344,24 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
   // Memoize events for a particular day to prevent unnecessary calculations
   const getEventsForDay = useCallback((date: Date) => {
     return events.filter(event => {
-      // Parse the ISO string and adjust for timezone differences
+      // Parse the ISO string
       const eventDate = parseISO(event.scheduledAt)
-      // Creating date objects with the same year, month, day to compare correctly
-      const eventDateNoTime = new Date(
-        eventDate.getFullYear(),
-        eventDate.getMonth(),
-        eventDate.getDate()
-      )
-      const compareDate = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate()
-      )
-      // Compare the dates without time component
-      return eventDateNoTime.getTime() === compareDate.getTime()
+      
+      // Get date parts in local timezone for both dates
+      // For the event date
+      const eventYear = eventDate.getFullYear()
+      const eventMonth = eventDate.getMonth()
+      const eventDay = eventDate.getDate()
+      
+      // For the comparison date
+      const compareYear = date.getFullYear()
+      const compareMonth = date.getMonth()
+      const compareDay = date.getDate()
+      
+      // Compare date components directly without creating new Date objects
+      return eventYear === compareYear && 
+             eventMonth === compareMonth && 
+             eventDay === compareDay
     })
   }, [events])
 
@@ -447,16 +450,33 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
   // Check if exam can be accessed based on scheduled date
   const canAccessExam = (scheduledAt: string): boolean => {
     try {
-      // Parse the ISO string and normalize to start of day
+      // Parse the ISO string
       const examDate = parseISO(scheduledAt);
-      const examDateStart = new Date(
-        examDate.getFullYear(),
-        examDate.getMonth(),
-        examDate.getDate()
-      );
+      
+      // Get current date components in local timezone
       const now = new Date();
-      // Check if exam date is in the past or today
-      return isPast(examDateStart) || isToday(examDate);
+      
+      // Compare date components directly for more reliable timezone-safe comparison
+      // An exam is accessible if:
+      // 1. Exam year is less than current year OR
+      // 2. Same year, but exam month is less than current month OR
+      // 3. Same year and month, but exam day is less than or equal to current day
+      if (examDate.getFullYear() < now.getFullYear()) {
+        return true;
+      }
+      
+      if (examDate.getFullYear() === now.getFullYear() && 
+          examDate.getMonth() < now.getMonth()) {
+        return true;
+      }
+      
+      if (examDate.getFullYear() === now.getFullYear() && 
+          examDate.getMonth() === now.getMonth() && 
+          examDate.getDate() <= now.getDate()) {
+        return true;
+      }
+      
+      return false;
     } catch (error) {
       console.error("Error checking exam access date:", error);
       return false; // Default to preventing access if there's an error
