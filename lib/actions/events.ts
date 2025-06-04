@@ -786,6 +786,8 @@ function formatDateToTimeZone(date: Date | string | null, timeZone: string = 'UT
   
   const dateObj = typeof date === 'string' ? new Date(date) : date
   try {
+    // Use the date-fns-tz toZonedTime function to handle timezone conversion properly
+    // This ensures the date is interpreted in the user's timezone correctly
     const zonedDate = toZonedTime(dateObj, timeZone)
     return zonedDate.toISOString()
   } catch (error) {

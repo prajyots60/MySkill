@@ -19,7 +19,7 @@ import {
   LayoutList,
   X,
 } from "lucide-react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isPast, isFuture, isSameDay, parseISO, addMonths, getMonth, getYear } from "date-fns"
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isPast, isFuture, isSameDay, parseISO, addMonths, getMonth, getYear, startOfWeek, endOfWeek } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -133,8 +133,13 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
       }
       
       // Prepare date ranges for the calendar view
-      const startDate = startOfMonth(currentDate)
-      const endDate = endOfMonth(currentDate)
+      const monthStart = startOfMonth(currentDate)
+      const monthEnd = endOfMonth(currentDate)
+      
+      // For calendar view, we need to fetch events for all visible days
+      // including days from adjacent months that appear in the calendar
+      const startDate = view === "calendar" ? startOfWeek(monthStart) : monthStart
+      const endDate = view === "calendar" ? endOfWeek(monthEnd) : monthEnd
       
       // Choose the right fetch function based on variant
       const fetchFunction = variant === "creator" 
@@ -375,7 +380,13 @@ export function EventCalendar({ variant = "student" }: EventCalendarProps) {
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentDate)
     const end = endOfMonth(currentDate)
-    return eachDayOfInterval({ start, end })
+    // Calculate the start of the week for the first day of the month
+    const weekStart = startOfWeek(start, { weekStartsOn: 0 }) // Sunday as the first day of the week
+    // Calculate the end of the week for the last day of the month
+    const weekEnd = endOfWeek(end, { weekStartsOn: 0 }) // Sunday as the first day of the week
+    
+    // Create an array of days from the start of the week to the end of the week
+    return eachDayOfInterval({ start: weekStart, end: weekEnd })
   }, [currentDate])
 
   // Filter events for the selected date
