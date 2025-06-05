@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -123,6 +123,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [showUnenrollDialog, setShowUnenrollDialog] = useState(false)
   const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [enrollmentChecked, setEnrollmentChecked] = useState(false) // Add state to track enrollment check
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<ReviewStats | null>(null)
 
@@ -132,6 +133,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     
     try {
       setLoading(true)
+      setEnrollmentChecked(false) // Reset enrollment check status
       
       const courseResponse = await fetch(`/api/courses/${contentId}`, { 
         next: {
@@ -149,11 +151,19 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
       // Check enrollment status for authenticated users
       if (session?.user) {
+        // Add timestamp and random to prevent caching
+        const timestamp = new Date().getTime()
+        const random = Math.random().toString(36).substring(7)
+        
         const enrollmentResponse = await fetch(
-          `/api/courses/${contentId}/enrollment-status`,
+          `/api/courses/${contentId}/enrollment-status?t=${timestamp}&r=${random}`,
           {
-            next: {
-              revalidate: 300
+            cache: 'no-store',
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate, private",
+              "Pragma": "no-cache",
+              "Expires": "0",
             }
           }
         )
@@ -167,11 +177,13 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
         }
       }
-
+      
+      setEnrollmentChecked(true) // Mark enrollment check as complete
       setLoading(false)
     } catch (error) {
       console.error("Error loading course data:", error)
       setError(error instanceof Error ? error.message : "Failed to load course")
+      setEnrollmentChecked(true) // Still mark as checked even on error
       setLoading(false)
     }
   }, [contentId, session])
@@ -289,17 +301,13 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       // Update local state immediately
       setIsEnrolled(true)
       setEffectivelyEnrolled(true)
-      // Revalidate enrollment status
-      checkEnrollmentStatus()
+      setEnrollmentChecked(true) // Explicitly mark enrollment as checked
 
       toast({
         title: "Successfully Enrolled!",
         description: "You can now access all course content",
         variant: "default",
       })
-
-      // Force a router refresh to update the UI
-      router.refresh()
 
       // After successful enrollment, redirect to first lecture
       if (sections.length > 0 && sections[0].lectures.length > 0) {
@@ -357,15 +365,13 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       // Update local state after successful API call
       setIsEnrolled(false)
       setEffectivelyEnrolled(false)
+      setEnrollmentChecked(true) // Explicitly mark enrollment as checked
 
       toast({
         title: "Successfully Unenrolled",
         description: "You have been removed from this course",
         variant: "default",
       })
-
-      // Force router and page data refresh
-      router.refresh()
       
       // Redirect to explore page after unenroll
       router.push("/explore")
@@ -391,7 +397,8 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     if (!session?.user?.id) return;
     
     try {
-
+      setEnrollmentChecked(false); // Indicate we're checking enrollment
+      
       const isCreator = session.user.id === course?.creatorId;
       const isAdmin = session.user.role === "ADMIN";
       
@@ -399,6 +406,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         console.log(`User is ${isCreator ? 'creator' : 'admin'}, setting effective enrollment to true`);
         setIsEnrolled(false); // They're not technically enrolled
         setEffectivelyEnrolled(true);
+        setEnrollmentChecked(true); // Mark as checked
         return; // Skip API call for creators and admins
       }
       
@@ -436,13 +444,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       // Always update state to ensure UI reflects current enrollment status
       setIsEnrolled(data.isEnrolled);
       setEffectivelyEnrolled(data.isEnrolled);
-      
-      // Force router and page data refresh if enrolled
-      if (data.isEnrolled) {
-        router.refresh();
-      }
     } catch (error) {
       console.error("Error checking enrollment status:", error);
+      setIsEnrolled(false);
+      setEffectivelyEnrolled(false);
+    } finally {
+      setEnrollmentChecked(true); // Always mark enrollment check as complete
     }
   }
 
@@ -516,6 +523,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     if (lastSuccessfulPayment.courseId === contentId && lastSuccessfulPayment.timestamp) {
       console.log("Payment success detected for this course, refreshing enrollment status");
       
+      // Set enrollment check as loading to show loading state
+      setEnrollmentChecked(false);
+      
       // Force immediate enrollment check with explicit cache bypass
       const forceCheckEnrollmentStatus = async () => {
         try {
@@ -541,31 +551,30 @@ export default function CoursePage({ contentId }: CoursePageProps) {
             // Update states and trigger UI refresh
             setIsEnrolled(data.isEnrolled);
             setEffectivelyEnrolled(data.isEnrolled);
-            router.refresh();
           }
         } catch (error) {
           console.error("Error in forced enrollment check:", error);
-          // Fallback to standard check if this fails
-          checkEnrollmentStatus();
+        } finally {
+          // Always complete enrollment check to avoid stuck loading state
+          setEnrollmentChecked(true);
+          resetPaymentState(contentId);
         }
       };
       
       // Execute force check
       forceCheckEnrollmentStatus();
-      
-      // Reset payment state to avoid duplicate processing
-      resetPaymentState(contentId);
     }
-  }, [lastSuccessfulPayment, contentId, resetPaymentState, router]);
+  }, [lastSuccessfulPayment, contentId, resetPaymentState]);
 
-  // Check enrollment status whenever session or contentId changes
+  // Only check enrollment status on explicit session changes (login/logout)
+  // This prevents unnecessary double-rendering
   useEffect(() => {
-    if (session?.user && contentId && course) {
-      console.log("Checking enrollment status on session/contentId change");
-      // Always call checkEnrollmentStatus - it will handle creator/admin logic internally
+    if (session?.user && contentId && course && !loading) {
+      console.log("Checking enrollment status due to session change only");
+      // We only want to recheck when the session user ID changes (login/logout)
       checkEnrollmentStatus();
     }
-  }, [session?.user?.id, contentId, course?.creatorId, course])
+  }, [session?.user?.id])
 
   useEffect(() => {
     async function fetchFollowerCount() {
@@ -683,7 +692,20 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     }
   };
 
-  if (loading) {
+  // Create a ref to track if we've rendered at least once
+  const hasRendered = useRef(false);
+  
+  // Combined loading state to prevent UI flicker
+  const isLoadingContent = (loading || !enrollmentChecked) && !hasRendered.current;
+  
+  // After first successful render, mark as rendered
+  useEffect(() => {
+    if (!loading && enrollmentChecked) {
+      hasRendered.current = true;
+    }
+  }, [loading, enrollmentChecked]);
+  
+  if (isLoadingContent) {
     return (
       <div className="bg-background min-h-screen pb-12">
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background pt-8 pb-12 border-b">
