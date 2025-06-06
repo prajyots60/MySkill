@@ -852,7 +852,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
           </div>
 
           {/* Fixed Video Player with proper positioning - Completely redesigned container */}
-          <div className="w-full bg-purple-200 flex items-center justify-center p-1">
+          <div className="w-full bg-purple-200 flex items-center justify-center p-0.5">
             {hasAccess ? (
               <div className="w-full border border-gray-200 rounded-sm overflow-hidden" style={{ position: 'relative' }}>
                 <div className="video-wrapper w-full h-full">
