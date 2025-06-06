@@ -822,6 +822,13 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
           justify-content: center;
         }
         
+        /* Video player styling with proper spacing */
+        .video-js, .plyr {
+          width: 100% !important;
+          height: 100% !important;
+        }
+        
+        /* Control positioning in fullscreen mode */
         :fullscreen .plyr__controls {
           position: fixed !important;
           bottom: 0 !important;
@@ -845,9 +852,9 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
           </div>
 
           {/* Fixed Video Player with proper positioning - Completely redesigned container */}
-          <div className="w-full bg-black flex items-center justify-center">
+          <div className="w-full bg-purple-200 flex items-center justify-center p-1">
             {hasAccess ? (
-              <div className="w-full" style={{ position: 'relative' }}>
+              <div className="w-full border border-gray-200 rounded-sm overflow-hidden" style={{ position: 'relative' }}>
                 <div className="video-wrapper w-full h-full">
                   {currentLecture.videoSource === "WASABI" ? (
                     (() => {
@@ -896,11 +903,11 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                 
               </div>
             ) : (
-              <div className="aspect-video w-full flex flex-col items-center justify-center bg-black">
+              <div className="aspect-video w-full flex flex-col items-center justify-center bg-black border border-gray-100 rounded-sm overflow-hidden">
                 <Lock className="h-16 w-16 text-muted-foreground mb-4" />
                 <h2 className="text-xl font-bold mb-2 text-white">Content Locked</h2>
                 <p className="text-muted-foreground mb-4">You need to enroll in this course to access this lecture.</p>
-                <Button asChild>
+                <Button asChild className="mb-4">
                   <Link href={`/content/${contentId}`}>Enroll Now</Link>
                 </Button>
               </div>

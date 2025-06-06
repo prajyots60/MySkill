@@ -27,11 +27,11 @@ export function PlyrComponent({ videoId, title, onEnded }: PlyrComponentProps) {
           playerRef.current.destroy()
         }
 
-        // Create YouTube player with custom options - WITH FORCED CONTAINER FULLSCREEN
+        // Create YouTube player with browser-level fullscreen support
         const player = new Plyr(containerRef.current, {
           autoplay: false,
           seekTime: 10,
-          controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "settings"],
+          controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen", "settings"],
           settings: ["captions", "quality", "speed"],
           fullscreen: { 
             enabled: true,

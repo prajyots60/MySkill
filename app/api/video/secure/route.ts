@@ -99,6 +99,7 @@ export async function GET(request: Request) {
                   'duration',
                   'mute',
                   'volume',
+                  'fullscreen',
                   'settings'
                 ],
                 settings: ['speed'],
@@ -118,13 +119,13 @@ export async function GET(request: Request) {
                   controls: 0,
                   origin: window.location.origin,
                   enablejsapi: 1,
-                  fs: 0,
+                  fs: 1,
                   cc_load_policy: 0,
                   hl: 'en'
                 },
                 fullscreen: { 
-                  enabled: false,
-                  fallback: false,
+                  enabled: true,
+                  fallback: true,
                   iosNative: false,
                 },
                 keyboard: {
