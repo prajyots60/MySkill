@@ -32,6 +32,7 @@ interface NextGenUploadProps {
   onUploadStart?: () => void;
   onUploadProgress?: (progress: number) => void;
   enableEncryption?: boolean;
+  onCacheInvalidateNeeded?: (courseId: string) => Promise<void>;
 }
 
 // Status badge styling
@@ -60,7 +61,8 @@ export function NextGenWasabiUploader({
   onUploadError,
   onUploadStart,
   onUploadProgress,
-  enableEncryption = true
+  enableEncryption = true,
+  onCacheInvalidateNeeded
 }: NextGenUploadProps) {
   const [useEncryption, setUseEncryption] = useState(enableEncryption);
   const [isUploading, setIsUploading] = useState(false);
@@ -92,7 +94,11 @@ export function NextGenWasabiUploader({
   } = useNetworkAwareUpload();
   
   const { addUpload } = useUploadStore();
-  const { addUpload: addToCourseStore } = useCourseStore();
+  const { 
+    addUpload: addToCourseStore, 
+    updateUploadProgress: updateCourseStoreProgress,
+    updateUploadStatus 
+  } = useCourseStore();
   
   // Check for any existing uploads for the same file on mount
   useEffect(() => {
@@ -157,10 +163,11 @@ export function NextGenWasabiUploader({
       });
       return;
     }
-
+    
+    // Generate a unique ID for tracking this upload - define outside try block to be accessible in catch/finally
+    const uploadId = resumeUploadId || uuidv4();
+    
     try {
-      // Generate a unique ID for tracking this upload
-      const uploadId = resumeUploadId || uuidv4();
       
       // Add to both upload systems for tracking
       addUpload({
@@ -195,6 +202,8 @@ export function NextGenWasabiUploader({
       // Set uploading state
       setIsUploading(true);
       setUploadProgress(0);
+      updateCourseStoreProgress(uploadId, 0);
+      updateUploadStatus(uploadId, 'uploading');
       if (onUploadStart) {
         onUploadStart();
       }
@@ -208,6 +217,7 @@ export function NextGenWasabiUploader({
         try {
           setUploadPhase('encrypting');
           setUploadProgress(5);
+          updateCourseStoreProgress(uploadId, 5);
           if (onUploadProgress) onUploadProgress(5);
           
           // Generate secure encryption key with enhanced encryption
@@ -215,6 +225,7 @@ export function NextGenWasabiUploader({
           encryptionKey = keyData.key;
           
           setUploadProgress(10);
+          updateCourseStoreProgress(uploadId, 10);
           if (onUploadProgress) onUploadProgress(10);
           
           // Encrypt the file using our enhanced encryption
@@ -222,6 +233,7 @@ export function NextGenWasabiUploader({
             // Map progress to 10-30% range
             const scaledProgress = Math.floor(10 + (progress.percentComplete * 0.2));
             setUploadProgress(scaledProgress);
+            updateCourseStoreProgress(uploadId, scaledProgress);
             if (onUploadProgress) onUploadProgress(scaledProgress);
           });
           
@@ -244,6 +256,7 @@ export function NextGenWasabiUploader({
           );
           
           setUploadProgress(30);
+          updateCourseStoreProgress(uploadId, 30);
           if (onUploadProgress) onUploadProgress(30);
           
         } catch (encryptError) {
@@ -388,6 +401,7 @@ export function NextGenWasabiUploader({
             // Update overall progress (30-90% range)
             const overallProgress = Math.floor(30 + ((completedChunks / totalChunks) * 60));
             setUploadProgress(overallProgress);
+            updateCourseStoreProgress(uploadId, overallProgress);
             if (onUploadProgress) onUploadProgress(overallProgress);
           }
         } catch (error) {
@@ -430,6 +444,7 @@ export function NextGenWasabiUploader({
       // Step 3: Verify and complete the upload
       setUploadPhase('verifying');
       setUploadProgress(90);
+      updateCourseStoreProgress(uploadId, 90);
       if (onUploadProgress) onUploadProgress(90);
       
       // Complete the multipart upload
@@ -442,6 +457,7 @@ export function NextGenWasabiUploader({
       // Step 4: Register the file in our backend
       setUploadPhase('finalizing');
       setUploadProgress(95);
+      updateCourseStoreProgress(uploadId, 95);
       if (onUploadProgress) onUploadProgress(95);
       
       // Use a timeout to ensure the upload is fully processed on Wasabi's side
@@ -482,6 +498,8 @@ export function NextGenWasabiUploader({
       
       // Update upload status in stores
       setUploadProgress(100);
+      updateCourseStoreProgress(uploadId, 100);
+      updateUploadStatus(uploadId, 'completed');
       if (onUploadProgress) onUploadProgress(100);
       
       // Reset resume info since upload is complete
@@ -492,6 +510,17 @@ export function NextGenWasabiUploader({
         description: "Video has been uploaded and registered successfully"
       });
 
+      // If we have a course ID, invalidate the cache
+      if (completeData.lecture?.courseId && onCacheInvalidateNeeded) {
+        try {
+          console.log("Invalidating cache for course:", completeData.lecture.courseId);
+          await onCacheInvalidateNeeded(completeData.lecture.courseId);
+        } catch (error) {
+          console.error("Error invalidating cache:", error);
+          // Don't throw - we don't want to block the UI flow if cache invalidation fails
+        }
+      }
+      
       if (onUploadComplete && completeData.lecture) {
         onUploadComplete(completeData.lecture.id, result.key);
       }
@@ -499,6 +528,9 @@ export function NextGenWasabiUploader({
     } catch (error) {
       console.error("Upload error:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload video";
+      
+      // Update status to failed
+      updateUploadStatus(uploadId, 'failed', errorMessage);
       
       toast({
         title: "Upload Failed",
@@ -514,6 +546,8 @@ export function NextGenWasabiUploader({
       // We keep the progress at 100% if successful, or reset to 0 if failed
       if (uploadProgress < 100) {
         setUploadProgress(0);
+        // Also reset the course store progress
+        updateCourseStoreProgress(uploadId, 0);
       }
       setUploadPhase('preparing');
     }

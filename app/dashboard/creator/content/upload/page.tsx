@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,43 @@ export default function UploadContent() {
       fileInputRef.current.value = "";
     }
   }, [videoSource]);
+  
+  // Function to invalidate content page cache for a specific course
+  const invalidateContentCache = useCallback(async (courseId: string) => {
+    try {
+      // Create cache busting timestamp
+      const timestamp = new Date().getTime();
+      
+      console.log("Invalidating cache for course:", courseId);
+      
+      // Make HEAD requests to invalidate cache for all related paths
+      await Promise.all([
+        // Course page cache
+        fetch(`/api/courses/${courseId}?t=${timestamp}`, {
+          method: 'HEAD',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'X-Cache-Bust': timestamp.toString()
+          }
+        }),
+        // Also invalidate specific content page cache
+        fetch(`/api/content/${courseId}?t=${timestamp}`, {
+          method: 'HEAD',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'X-Cache-Bust': timestamp.toString()
+          }
+        })
+      ]);
+      
+      console.log("Cache invalidation completed");
+    } catch (error) {
+      console.error("Error invalidating cache:", error);
+      // Don't throw - we don't want to block the UI flow if cache invalidation fails
+    }
+  }, []);
 
   // Live stream form state
   const [liveForm, setLiveForm] = useState({
@@ -406,6 +443,9 @@ export default function UploadContent() {
                     fileInputRef.current.value = ""
                   }
 
+                  // Invalidate cache for the course content
+                  await invalidateContentCache(selectedCourse)
+
                   // Redirect to course page
                   router.push(`/dashboard/creator/content/${selectedCourse}`)
                 } else if (status === "failed") {
@@ -447,6 +487,9 @@ export default function UploadContent() {
                               if (fileInputRef.current) {
                                 fileInputRef.current.value = ""
                               }
+
+                              // Invalidate cache for the course content
+                              await invalidateContentCache(selectedCourse)
 
                               router.push(`/dashboard/creator/content/${selectedCourse}`)
                             } else if (status === "failed") {
@@ -533,6 +576,9 @@ export default function UploadContent() {
           file: null,
           odyseeUrl: "",
         });
+        
+        // Invalidate cache for the course content before redirecting
+        await invalidateContentCache(selectedCourse);
 
         // Redirect to course page
         router.push(`/dashboard/creator/content/${selectedCourse}`);
@@ -974,13 +1020,13 @@ export default function UploadContent() {
                                   <span>Advanced Secure Storage</span>
                                 </div>
                                 <div className="ml-7 mt-1 flex flex-wrap gap-2">
-                                  <span className="inline-flex items-center px-2 py-0.5 bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-400 text-xs rounded-md">
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-300 text-xs rounded-md">
                                     <ShieldCheck className="h-3 w-3 mr-0.5" /> Enhanced Encryption
                                   </span>
-                                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-400 text-xs rounded-md">
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-xs rounded-md">
                                     Adaptive Chunking
                                   </span>
-                                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-400 text-xs rounded-md">
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 text-xs rounded-md">
                                     Up to 20GB
                                   </span>
                                 </div>
@@ -1108,6 +1154,7 @@ export default function UploadContent() {
                         isPreview={videoForm.isPreview}
                         file={videoForm.file}
                         enableEncryption={true}
+                        onCacheInvalidateNeeded={invalidateContentCache}
                         onUploadComplete={(lectureId, fileKey) => {
                           // Reset form - this will hide the uploader component
                           setVideoForm({

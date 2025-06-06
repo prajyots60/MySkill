@@ -52,7 +52,7 @@ export function OptimizedWasabiUploader({
   const { uploadFile } = useWasabiStorage();
   const { encryptFile, generateKey, isProcessing, isSupported } = useEncryptionWorker();
   const { addUpload } = useUploadStore();
-  const { addUpload: addToCourseStore } = useCourseStore();
+  const { addUpload: addToCourseStore, updateUploadProgress: updateCourseStoreProgress, updateUploadStatus } = useCourseStore();
   
   const isWebWorkerSupported = isSupported();
   const isLargeFile = file.size > LARGE_FILE_THRESHOLD;
@@ -77,9 +77,10 @@ export function OptimizedWasabiUploader({
       return;
     }
 
+    // Generate a unique ID for tracking this upload - define outside try block to be accessible in catch/finally
+    const uploadId = uuidv4();
+    
     try {
-      // Generate a unique ID for tracking this upload
-      const uploadId = uuidv4();
       
       // Add to both upload systems for tracking
       addUpload({
@@ -114,6 +115,8 @@ export function OptimizedWasabiUploader({
       // Set uploading state
       setIsUploading(true);
       setUploadProgress(0);
+      updateCourseStoreProgress(uploadId, 0);
+      updateUploadStatus(uploadId, 'uploading');
       if (onUploadStart) {
         onUploadStart();
       }
@@ -129,6 +132,7 @@ export function OptimizedWasabiUploader({
         try {
           setUploadPhase('encrypting');
           setUploadProgress(5);
+          updateCourseStoreProgress(uploadId, 5);
           if (onUploadProgress) onUploadProgress(5);
           
           // Generate secure encryption key
@@ -150,6 +154,7 @@ export function OptimizedWasabiUploader({
           }
           
           setUploadProgress(10);
+          updateCourseStoreProgress(uploadId, 10);
           if (onUploadProgress) onUploadProgress(10);
           
           // Encrypt the file - passing IV to ensure consistent encryption
@@ -161,6 +166,7 @@ export function OptimizedWasabiUploader({
               // Map progress to 10-30% range
               const scaledProgress = Math.floor(10 + (progress * 0.2));
               setUploadProgress(scaledProgress);
+              updateCourseStoreProgress(uploadId, scaledProgress);
               if (onUploadProgress) onUploadProgress(scaledProgress);
             }
           );
@@ -173,6 +179,7 @@ export function OptimizedWasabiUploader({
           );
           
           setUploadProgress(30);
+          updateCourseStoreProgress(uploadId, 30);
           if (onUploadProgress) onUploadProgress(30);
           
         } catch (encryptError) {
@@ -226,6 +233,7 @@ export function OptimizedWasabiUploader({
           // Map progress to 30-90% range
           const scaledProgress = Math.floor(30 + (progress * 0.6));
           setUploadProgress(scaledProgress);
+          updateCourseStoreProgress(uploadId, scaledProgress);
           if (onUploadProgress) onUploadProgress(scaledProgress);
         }
       );
@@ -237,6 +245,7 @@ export function OptimizedWasabiUploader({
       // Step 3: Register the file in our backend
       setUploadPhase('finalizing');
       setUploadProgress(90);
+      updateCourseStoreProgress(uploadId, 90);
       if (onUploadProgress) onUploadProgress(90);
       
       // Use a timeout to ensure the upload is fully processed on Wasabi's side
@@ -278,6 +287,8 @@ export function OptimizedWasabiUploader({
       
       // Update upload status in stores
       setUploadProgress(100);
+      updateCourseStoreProgress(uploadId, 100);
+      updateUploadStatus(uploadId, 'completed');
       if (onUploadProgress) onUploadProgress(100);
       
       toast({
@@ -293,6 +304,9 @@ export function OptimizedWasabiUploader({
       console.error("Upload error:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to upload video";
       
+      // Update status to failed
+      updateUploadStatus(uploadId, 'failed', errorMessage);
+      
       toast({
         title: "Upload Failed",
         description: errorMessage,
@@ -304,7 +318,11 @@ export function OptimizedWasabiUploader({
       }
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
+      // Only reset progress if upload failed (progress < 100)
+      if (uploadProgress < 100) {
+        setUploadProgress(0);
+        updateCourseStoreProgress(uploadId, 0);
+      }
       setUploadPhase('preparing');
     }
   }, [

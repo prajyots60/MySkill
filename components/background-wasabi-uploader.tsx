@@ -37,7 +37,7 @@ export function BackgroundWasabiUploader({
 }: BackgroundUploaderProps) {
   const [useEncryption, setUseEncryption] = useState(enableEncryption);
   const [isStarting, setIsStarting] = useState(false);
-  const { addUpload: addToCourseStore } = useCourseStore();
+  const { addUpload: addToCourseStore, updateUploadProgress: updateCourseStoreProgress, updateUploadStatus } = useCourseStore();
   const { addUpload } = useUploadStore();
   
   // Format bytes to human-readable size

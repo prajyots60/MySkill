@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import VideoPlayer from "@/components/video-player";
-import SampleVideoPlayer from '@/components/sample-video-player';
 import WasabiLecturePlayer from "@/components/wasabi-lecture-player"
 import { LectureComments } from "@/components/lecture-comments"
 import { LiveChat } from "@/components/live-chat"
