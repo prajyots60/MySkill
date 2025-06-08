@@ -31,10 +31,11 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, themeColor = "default",
       lectureCount={course.lectureCount || 0}
       duration={course.duration ? String(course.duration) : ""}
       isPublished={course.isPublished}
-      level={course.level || "Beginner"}
       isTrending={course.isTrending || false}
       tags={course.tags || []}
       price={course.price || 0}
+      rating={course.rating || 0}
+      reviewCount={course.reviewCount || 0}
     />
   )
 }

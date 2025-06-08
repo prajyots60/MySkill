@@ -71,9 +71,11 @@ export interface Course {
   }
   // Additional fields for UI display
   rating?: number
+  reviewCount?: number
   lectureCount?: number
   totalDuration?: string
   level?: string | null
+  isTrending?: boolean
 }
 
 export interface Section {

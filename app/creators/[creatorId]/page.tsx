@@ -35,12 +35,7 @@ export async function generateMetadata(
       title: `${creator.name} - Creator Profile`,
       description: creator.bio?.substring(0, 160) || `Learn from ${creator.name} on our platform`,
       images: creator.image ? [creator.image] : undefined,
-      type: 'profile',
-      profile: {
-        firstName: creator.name.split(' ')[0],
-        lastName: creator.name.split(' ').slice(1).join(' '),
-        username: creator.name.replace(/\s+/g, '').toLowerCase(),
-      },
+      type: 'profile'
     },
   }
 }
@@ -81,7 +76,13 @@ export default async function CreatorProfilePage({
               creator={creator}
               coursesData={{
                 courses: coursesData.courses,
-                featuredCourses: coursesData.courses.slice(0, 3)
+                featuredCourses: coursesData.courses.slice(0, 3),
+                pagination: {
+                  total: coursesData.pagination?.total || 0,
+                  totalPages: coursesData.pagination?.pages || 0,
+                  currentPage: coursesData.pagination?.currentPage || 1,
+                  perPage: 12
+                }
               }}
             />
           </Suspense>

@@ -13,7 +13,8 @@ import Link from "next/link"
 import { StudentNotifications } from "@/components/student-notifications"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
 import { RecommendedCreators } from "@/components/recommended-creators"
-import type { Course } from "@/lib/types"
+import { OptimizedCourseCard } from "@/components/optimized-course-card"
+import type { Course } from "@/types/course"
 import { toast } from "@/components/ui/use-toast"
 
 interface EnrolledCourse extends Course {
@@ -331,7 +332,7 @@ export default function StudentDashboard() {
                         </div>
                         <div className="flex items-center gap-2 mb-3">
                           <Avatar className="h-5 w-5">
-                            <AvatarImage src={course.creatorImage || "/placeholder.svg"} alt={course.creatorName} />
+                            <AvatarImage src={course.creatorImage || "/placeholder.svg"} alt={course.creatorName ?? ""} />
                             <AvatarFallback>{course.creatorName?.charAt(0) || "C"}</AvatarFallback>
                           </Avatar>
                           <span className="text-sm text-muted-foreground">{course.creatorName}</span>
@@ -421,52 +422,26 @@ export default function StudentDashboard() {
               ) : recommendedCourses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {recommendedCourses.map((course) => (
-                    <Card
+                    <OptimizedCourseCard
                       key={course.id}
-                      className="overflow-hidden flex flex-col group hover:shadow-lg transition-all duration-200 border-none shadow-md"
-                    >
-                      <div className="relative h-48 overflow-hidden">
-                        <img
-                          src={course.thumbnail || "/placeholder.svg"}
-                          alt={course.title}
-                          className="object-cover w-full h-full transition-transform group-hover:scale-105 duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      </div>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
-                          {course.title}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={course.creatorImage || "/placeholder.svg"} alt={course.creatorName} />
-                            <AvatarFallback>{course.creatorName?.charAt(0) || "C"}</AvatarFallback>
-                          </Avatar>
-                          <span>{course.creatorName}</span>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow pb-2">
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{course.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {course.tags?.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-2 flex justify-between items-center border-t">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center">
-                            <BookOpen className="h-4 w-4 mr-1" />
-                            <span>{course.lectureCount || 0} lectures</span>
-                          </div>
-                        </div>
-                        <Button asChild variant="outline" className="group-hover:bg-primary group-hover:text-white">
-                          <Link href={`/content/${course.id}`}>View</Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
+                      id={course.id}
+                      title={course.title}
+                      description={course.description}
+                      thumbnailUrl={course.thumbnail || ""}
+                      authorName={course.creatorName || ""}
+                      authorImage={course.creatorImage || ""}
+                      authorId={course.creatorId || ""}
+                      enrollmentCount={course.enrollmentCount || 0}
+                      lectureCount={course.lectureCount || 0}
+                      duration={course.totalDuration || ""}
+                      updatedAt={new Date(course.updatedAt || new Date())}
+                      isPublished={course.isPublished}
+                      isTrending={course.isTrending || false}
+                      tags={course.tags || []}
+                      price={course.price || 0}
+                      rating={typeof course.rating === 'number' ? course.rating : 0}
+                      reviewCount={course.reviewCount || 0}
+                    />
                   ))}
                 </div>
               ) : (

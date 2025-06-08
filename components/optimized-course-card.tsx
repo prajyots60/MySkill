@@ -24,6 +24,7 @@ interface OptimizedCourseCardProps {
   isEnrolled?: boolean
   creator?: { id: string } // Add this to handle the nested creator object
   rating?: number // Add rating to the props
+  reviewCount?: number // Add reviewCount to the props
 }
 
 export function OptimizedCourseCard({
@@ -45,6 +46,7 @@ export function OptimizedCourseCard({
   isEnrolled = false,
   creator, // Add this to handle the nested creator object
   rating = 0, // Add rating to the props
+  reviewCount = 0, // Add reviewCount to the props with default value
 }: OptimizedCourseCardProps) {
   const formattedDate = new Date(updatedAt).toLocaleDateString()
   
@@ -77,7 +79,12 @@ export function OptimizedCourseCard({
           <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">{title}</CardTitle>
           <div className="flex items-center gap-1 text-amber-500">
             <Star className="h-4 w-4 fill-current" />
-            <span className="text-sm font-medium">{rating?.toFixed(1) || "0.0"}</span>
+            <span className="text-sm font-medium">
+              {typeof rating === 'number' ? rating.toFixed(1) : "0.0"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ({reviewCount || 0})
+            </span>
           </div>
         </div>
         <CardDescription className="flex items-center gap-2">

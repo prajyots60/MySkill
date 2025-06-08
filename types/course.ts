@@ -16,6 +16,8 @@ export interface Course {
   creatorId: string | null
   isTrending?: boolean
   totalDuration?: string
+  rating?: number
+  reviewCount?: number
 }
 
 export interface CourseResponse {
