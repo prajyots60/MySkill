@@ -61,7 +61,7 @@ export function NextGenWasabiUploader({
   onUploadError,
   onUploadStart,
   onUploadProgress,
-  enableEncryption = true,
+  enableEncryption = false,
   onCacheInvalidateNeeded
 }: NextGenUploadProps) {
   const [useEncryption, setUseEncryption] = useState(enableEncryption);

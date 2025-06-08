@@ -1153,7 +1153,7 @@ export default function UploadContent() {
                         description={videoForm.description}
                         isPreview={videoForm.isPreview}
                         file={videoForm.file}
-                        enableEncryption={true}
+                        enableEncryption={false}
                         onCacheInvalidateNeeded={invalidateContentCache}
                         onUploadComplete={(lectureId, fileKey) => {
                           // Reset form - this will hide the uploader component
