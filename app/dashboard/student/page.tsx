@@ -14,7 +14,7 @@ import { StudentNotifications } from "@/components/student-notifications"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
 import { RecommendedCreators } from "@/components/recommended-creators"
 import { OptimizedCourseCard } from "@/components/optimized-course-card"
-import type { Course } from "@/types/course"
+import type { Course } from "@/lib/types"
 import { toast } from "@/components/ui/use-toast"
 
 interface EnrolledCourse extends Course {

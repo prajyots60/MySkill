@@ -78,6 +78,14 @@ export interface Course {
   isTrending?: boolean
 }
 
+export interface CourseResponse {
+  success: boolean
+  courses: Course[]
+  totalCount: number
+  fromCache: boolean
+  message?: string
+}
+
 export interface Section {
   id: string
   title: string

@@ -103,7 +103,7 @@ export default function RelatedCourses({ courseId }: RelatedCoursesProps) {
                       <Star className="h-3 w-3 text-amber-500 fill-current" />
                       <span className="text-xs">{course.rating?.toFixed(1) || "0.0"}</span>
                       <span className="text-xs text-muted-foreground ml-2">
-                        {course.price ? `$${course.price.toFixed(2)}` : "Free"}
+                        {course.price ? `₹${course.price.toFixed(2)}` : "Free"}
                       </span>
                     </div>
                   </div>

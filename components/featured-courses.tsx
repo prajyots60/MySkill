@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowRight, Star, TrendingUp, BookOpen } from "lucide-react"
 import Link from "next/link"
-import type { Course } from "@/types/course"
+import type { Course } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 
 export function FeaturedCourses() {
@@ -69,8 +69,7 @@ export function FeaturedCourses() {
         enrollmentCount: 1245,
         tags: ["Web Development", "HTML", "CSS", "JavaScript"],
         isPublished: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
         creatorId: "creator-1",
         price: null,
         level: "Beginner",
@@ -89,8 +88,7 @@ export function FeaturedCourses() {
         enrollmentCount: 987,
         tags: ["Data Science", "Python", "Machine Learning"],
         isPublished: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
         creatorId: "creator-2",
         price: null,
         level: "Beginner",
@@ -109,8 +107,7 @@ export function FeaturedCourses() {
         enrollmentCount: 756,
         tags: ["Mobile Development", "React Native", "JavaScript"],
         isPublished: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
         creatorId: "creator-3",
         price: null,
         level: "Intermediate",

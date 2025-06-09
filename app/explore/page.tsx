@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Filter, Flame, GraduationCap, Tag, ChevronDown } from "lucide-react"
 import { OptimizedCourseCard } from "@/components/optimized-course-card"
 import { useSearchParams } from "next/navigation"
-import type { Course } from "@/types/course"
+import type { Course } from "@/lib/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,39 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+
+// Helper function to safely convert updatedAt to a Date object
+const toDate = (dateValue: any): Date => {
+  if (dateValue instanceof Date) return dateValue;
+  if (!dateValue) return new Date();
+  return new Date(dateValue);
+}
+
+// Wrapper component to standardize Course data for OptimizedCourseCard
+function CourseCardWrapper({ course }: { course: Course }) {
+  return (
+    <OptimizedCourseCard
+      key={course.id}
+      id={course.id}
+      title={course.title}
+      description={course.description}
+      thumbnailUrl={course.thumbnail || ""}
+      authorName={course.creatorName || ""}
+      authorImage={course.creatorImage || ""}
+      authorId={course.creatorId || ""}
+      enrollmentCount={course.enrollmentCount || 0}
+      updatedAt={toDate(course.updatedAt)}
+      lectureCount={course.lectureCount || 0}
+      duration={course.totalDuration || ""}
+      isPublished={course.isPublished}
+      isTrending={course.isTrending || false}
+      tags={course.tags || []}
+      price={course.price || 0}
+      rating={typeof course.rating === 'number' ? course.rating : 0}
+      reviewCount={course.reviewCount || 0}
+    />
+  )
+}
 
 const categories = [
   "All Categories",
@@ -319,26 +352,7 @@ export default function ExplorePage() {
                   ))
                 ) : filteredCourses.length > 0 ? (
                   filteredCourses.map((course) => (
-                    <OptimizedCourseCard
-                      key={course.id}
-                      id={course.id}
-                      title={course.title}
-                      description={course.description}
-                      thumbnailUrl={course.thumbnail || ""}
-                      authorName={course.creatorName || ""}
-                      authorImage={course.creatorImage || ""}
-                      authorId={course.creatorId || ""}
-                      enrollmentCount={course.enrollmentCount || 0}
-                      updatedAt={new Date(course.updatedAt)}
-                      lectureCount={course.lectureCount || 0}
-                      duration={course.totalDuration || ""}
-                      isPublished={course.isPublished}
-                      isTrending={course.isTrending || false}
-                      tags={course.tags || []}
-                      price={course.price || 0}
-                      rating={typeof course.rating === 'number' ? course.rating : 0}
-                      reviewCount={course.reviewCount || 0}
-                    />
+                    <CourseCardWrapper key={course.id} course={course} />
                   ))
                 ) : (
                   <div className="text-center py-12 bg-muted/30 rounded-lg col-span-full">
@@ -376,26 +390,7 @@ export default function ExplorePage() {
                   filteredCourses
                     .filter((course) => course.isTrending)
                     .map((course) => (
-                      <OptimizedCourseCard
-                        key={course.id}
-                        id={course.id}
-                        title={course.title}
-                        description={course.description}
-                        thumbnailUrl={course.thumbnail || ""}
-                        authorName={course.creatorName || ""}
-                        authorImage={course.creatorImage || ""}
-                        authorId={course.creatorId || ""}
-                        enrollmentCount={course.enrollmentCount || 0}
-                        updatedAt={new Date(course.updatedAt)}
-                        lectureCount={course.lectureCount || 0}
-                        duration={course.totalDuration || ""}
-                        isPublished={course.isPublished}
-                        isTrending={course.isTrending || false}
-                        tags={course.tags || []}
-                        price={course.price || 0}
-                        rating={typeof course.rating === 'number' ? course.rating : 0}
-                        reviewCount={course.reviewCount || 0}
-                      />
+                      <CourseCardWrapper key={course.id} course={course} />
                     ))}
                 {/* Observer target for infinite scrolling - trending tab */}
                 {!loading && filteredCourses.filter((course) => course.isTrending).length > 0 && hasMore && (
@@ -417,28 +412,9 @@ export default function ExplorePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {!loading &&
                   filteredCourses
-                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                    .sort((a, b) => toDate(b.updatedAt).getTime() - toDate(a.updatedAt).getTime())
                     .map((course) => (
-                      <OptimizedCourseCard
-                        key={course.id}
-                        id={course.id}
-                        title={course.title}
-                        description={course.description}
-                        thumbnailUrl={course.thumbnail || ""}
-                        authorName={course.creatorName || ""}
-                        authorImage={course.creatorImage || ""}
-                        authorId={course.creatorId || ""}
-                        enrollmentCount={course.enrollmentCount || 0}
-                        updatedAt={new Date(course.updatedAt)}
-                        lectureCount={course.lectureCount || 0}
-                        duration={course.totalDuration || ""}
-                        isPublished={course.isPublished}
-                        isTrending={course.isTrending || false}
-                        tags={course.tags || []}
-                        price={course.price || 0}
-                        rating={typeof course.rating === 'number' ? course.rating : 0}
-                        reviewCount={course.reviewCount || 0}
-                      />
+                      <CourseCardWrapper key={course.id} course={course} />
                     ))}
                 {/* Observer target for infinite scrolling - new tab */}
                 {!loading && filteredCourses.length > 0 && hasMore && (
@@ -462,26 +438,7 @@ export default function ExplorePage() {
                   filteredCourses
                     .filter((course) => course.price === 0)
                     .map((course) => (
-                      <OptimizedCourseCard
-                        key={course.id}
-                        id={course.id}
-                        title={course.title}
-                        description={course.description}
-                        thumbnailUrl={course.thumbnail || ""}
-                        authorName={course.creatorName || ""}
-                        authorImage={course.creatorImage || ""}
-                        authorId={course.creatorId || ""}
-                        enrollmentCount={course.enrollmentCount || 0}
-                        updatedAt={new Date(course.updatedAt)}
-                        lectureCount={course.lectureCount || 0}
-                        duration={course.totalDuration || ""}
-                        isPublished={course.isPublished}
-                        isTrending={course.isTrending || false}
-                        tags={course.tags || []}
-                        price={course.price || 0}
-                        rating={typeof course.rating === 'number' ? course.rating : 0}
-                        reviewCount={course.reviewCount || 0}
-                      />
+                      <CourseCardWrapper key={course.id} course={course} />
                     ))}
                 {/* Observer target for infinite scrolling - free tab */}
                 {!loading && filteredCourses.filter((course) => course.price === 0).length > 0 && hasMore && (

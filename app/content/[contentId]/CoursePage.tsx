@@ -1470,48 +1470,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
               </Suspense>
             )}
             
-            {/* Course guarantees */}
-            <Card className="border shadow-md overflow-hidden">
-              <CardHeader className="bg-muted/30 py-4">
-                <CardTitle className="text-lg flex items-center">
-                  <CheckCircle className="h-5 w-5 mr-2 text-primary" />
-                  Course Guarantees
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5">
-                <ul className="space-y-4">
-                  <li className="flex gap-3">
-                    <div className="bg-primary/10 rounded-full p-1 h-7 w-7 flex items-center justify-center shrink-0">
-                      <Clock className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Lifetime Access</h4>
-                      <p className="text-sm text-muted-foreground">Learn at your own pace with unlimited access</p>
-                    </div>
-                  </li>
-                  
-                  <li className="flex gap-3">
-                    <div className="bg-primary/10 rounded-full p-1 h-7 w-7 flex items-center justify-center shrink-0">
-                      <GraduationCap className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Certificate of Completion</h4>
-                      <p className="text-sm text-muted-foreground">Receive a certificate when you complete the course</p>
-                    </div>
-                  </li>
-                  
-                  <li className="flex gap-3">
-                    <div className="bg-primary/10 rounded-full p-1 h-7 w-7 flex items-center justify-center shrink-0">
-                      <Globe className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Mobile Access</h4>
-                      <p className="text-sm text-muted-foreground">Learn on any device - desktop, tablet, or mobile</p>
-                    </div>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+            
           </div>
         </div>
       </div>

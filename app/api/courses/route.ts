@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
 import { redis } from "@/lib/redis"
 import { REDIS_KEYS } from "@/lib/constants"
-import type { Course, CourseResponse } from "@/types/course"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import createBatch from "@/lib/utils/db-batch"
