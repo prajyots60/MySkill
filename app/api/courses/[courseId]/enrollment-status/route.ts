@@ -78,13 +78,16 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       return NextResponse.json(response)
     }
 
-    // If the course is free or the lecture is a preview, they have access
-    if (course.price === 0 || course.price === null || isPreviewLecture) {
-      const response = { isEnrolled: true, isFree: course.price === 0 || course.price === null, isPreviewLecture }
+    // For preview lectures, allow access regardless of enrollment status
+    if (isPreviewLecture) {
+      const response = { isEnrolled: false, hasAccess: true, isPreviewLecture: true }
       const cacheKey = `enrollment:${courseId}:${session.user.id}${lectureId ? `:${lectureId}` : ''}`
       await redis.set(cacheKey, response, { ex: 3600 }) // 1 hour cache
       return NextResponse.json(response)
     }
+    
+    // Note: For free courses, we still need to check actual enrollment status
+    // Free courses require enrollment, but the enrollment process is just simplified
 
     // Check if user is enrolled
     const enrollment = await prisma.enrollment.findFirst({
