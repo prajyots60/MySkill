@@ -123,7 +123,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [showUnenrollDialog, setShowUnenrollDialog] = useState(false)
   const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [enrollmentChecked, setEnrollmentChecked] = useState(false) // Add state to track enrollment check
+  const [enrollmentChecked, setEnrollmentChecked] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<ReviewStats | null>(null)
 
@@ -133,11 +133,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     
     try {
       setLoading(true)
-      setEnrollmentChecked(false) // Reset enrollment check status
+      setEnrollmentChecked(false)
       
       const courseResponse = await fetch(`/api/courses/${contentId}`, { 
         next: {
-          revalidate: 300 // 5 minutes, but serves stale data while revalidating
+          revalidate: 300
         }
       })
 
@@ -148,6 +148,19 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       const courseData = await courseResponse.json()
       setCourse(courseData.course)
       setSections(courseData.course.sections || [])
+      
+      // Initialize stats from course data
+      setStats({
+        averageRating: courseData.course.rating || 0,
+        totalReviews: courseData.course.reviewCount || 0,
+        distribution: {
+          1: { count: 0, percentage: 0 },
+          2: { count: 0, percentage: 0 },
+          3: { count: 0, percentage: 0 },
+          4: { count: 0, percentage: 0 },
+          5: { count: 0, percentage: 0 }
+        }
+      })
 
       // Check enrollment status for authenticated users
       if (session?.user) {
@@ -178,12 +191,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         }
       }
       
-      setEnrollmentChecked(true) // Mark enrollment check as complete
+      setEnrollmentChecked(true)
       setLoading(false)
     } catch (error) {
       console.error("Error loading course data:", error)
       setError(error instanceof Error ? error.message : "Failed to load course")
-      setEnrollmentChecked(true) // Still mark as checked even on error
+      setEnrollmentChecked(true)
       setLoading(false)
     }
   }, [contentId, session])

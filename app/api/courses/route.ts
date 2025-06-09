@@ -242,6 +242,14 @@ async function fetchAndCacheCourses(
   // Execute all queries in a single transaction
   const [courses, totalCount] = await batch.execute()
 
+  // Add debug logging
+  console.log("Raw courses data:", JSON.stringify(courses.map((c: DatabaseCourse) => ({
+    id: c.id,
+    title: c.title,
+    reviews: c.reviews,
+    reviewCount: c.reviews?.length
+  })), null, 2))
+
   // Process courses to format data
   const processedCourses: ProcessedCourse[] = courses.map((course: DatabaseCourse) => {
     // Calculate average rating if reviews exist
@@ -249,7 +257,7 @@ async function fetchAndCacheCourses(
       ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / course.reviews.length
       : 0;
       
-    return {
+    const processedCourse = {
       id: course.id,
       title: course.title,
       description: course.description,
@@ -262,7 +270,7 @@ async function fetchAndCacheCourses(
       enrollmentCount: course._count.enrollments,
       lectureCount: course.sections.reduce((total, section) => total + section._count.lectures, 0),
       creator: course.creator,
-      creatorId: course.creator?.id || "", // Add explicit creatorId property
+      creatorId: course.creator?.id || "",
       creatorName: course.creator?.name || "",
       creatorImage: course.creator?.image || "",
       isEnrolled: course.enrollments && course.enrollments.length > 0,
@@ -270,6 +278,17 @@ async function fetchAndCacheCourses(
       rating: parseFloat(averageRating.toFixed(1)),
       reviewCount: course.reviews?.length || 0
     }
+
+    // Add debug logging for each processed course
+    console.log(`Processed course ${course.id}:`, {
+      title: course.title,
+      rawReviews: course.reviews,
+      averageRating,
+      finalRating: processedCourse.rating,
+      reviewCount: processedCourse.reviewCount
+    })
+
+    return processedCourse
   })
 
   // Cache the results
