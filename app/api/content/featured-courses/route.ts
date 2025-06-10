@@ -47,7 +47,13 @@ export async function GET() {
         _count: {
           select: {
             enrollments: true,
+            reviews: true, // Add review count
           },
+        },
+        reviews: {
+          select: {
+            rating: true,
+          }
         },
         sections: {
           select: {
@@ -89,24 +95,35 @@ export async function GET() {
     }
 
     // Process courses
-    const processedCourses = courses.map((course) => ({
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      thumbnail: course.thumbnail,
-      price: course.price,
-      level: "beginner",
-      tags: course.tags || [],
-      createdAt: course.createdAt,
-      updatedAt: course.updatedAt,
-      enrollmentCount: course._count.enrollments,
-      lectureCount: course.sections.reduce((total, section) => total + section._count.lectures, 0),
-      creator: course.creator,
-      creatorName: course.creator?.name || "",
-      creatorImage: course.creator?.image || "",
-      isEnrolled: course.enrollments && course.enrollments.length > 0,
-      type: course.type,
-    }))
+    const processedCourses = courses.map((course) => {
+      // Calculate average rating
+      let averageRating = 0;
+      if (course.reviews && course.reviews.length > 0) {
+        const totalRating = course.reviews.reduce((sum, review) => sum + review.rating, 0);
+        averageRating = totalRating / course.reviews.length;
+      }
+      
+      return {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        thumbnail: course.thumbnail,
+        price: course.price,
+        level: "beginner",
+        tags: course.tags || [],
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
+        enrollmentCount: course._count.enrollments,
+        lectureCount: course.sections.reduce((total, section) => total + section._count.lectures, 0),
+        creator: course.creator,
+        creatorName: course.creator?.name || "",
+        creatorImage: course.creator?.image || "",
+        isEnrolled: course.enrollments && course.enrollments.length > 0,
+        type: course.type,
+        rating: averageRating,
+        reviewCount: course._count.reviews || 0,
+      };
+    })
 
     // Cache the results
     try {

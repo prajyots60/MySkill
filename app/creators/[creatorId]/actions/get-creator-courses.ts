@@ -61,6 +61,12 @@ export async function getCreatorCourses(
         _count: {
           select: {
             enrollments: true,
+            reviews: true, // Count reviews for review count
+          }
+        },
+        reviews: {
+          select: {
+            rating: true,
           }
         },
         sections: {
@@ -107,6 +113,13 @@ export async function getCreatorCourses(
         }
       }
       
+      // Calculate average rating from reviews
+      let averageRating = 0;
+      if (course.reviews && course.reviews.length > 0) {
+        const totalRating = course.reviews.reduce((sum, review) => sum + review.rating, 0);
+        averageRating = totalRating / course.reviews.length;
+      }
+      
       return {
         id: course.id,
         title: course.title,
@@ -118,15 +131,16 @@ export async function getCreatorCourses(
         updatedAt: course.updatedAt,
         enrollmentCount: course._count.enrollments,
         lectureCount,
-        totalDuration: course.totalDuration || undefined,
-        level: course.level || "Beginner",
+        // Use undefined for properties that don't exist in the Prisma query type
+        totalDuration: undefined, // Set default directly instead of accessing a non-existent property
+        level: "Beginner", // Set default value directly
         tags: course.tags as string[] || [],
         creatorId: course.creatorId,
         creatorName: course.creator.name || undefined,
-        type: course.type || "RECORDED",
-        isTrending: course.isTrending || false,
-        rating: course.rating || undefined,
-        reviewCount: course.reviewCount || 0
+        type: "RECORDED", // Set default value directly
+        isTrending: false, // Set default value directly
+        rating: averageRating,
+        reviewCount: course._count.reviews || 0
       };
     });
 

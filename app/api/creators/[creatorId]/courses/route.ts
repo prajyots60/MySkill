@@ -79,7 +79,13 @@ export async function GET(
         _count: {
           select: {
             enrollments: true,
+            reviews: true, // Add review count
           },
+        },
+        reviews: {
+          select: {
+            rating: true,
+          }
         },
         sections: {
           select: {
@@ -104,19 +110,30 @@ export async function GET(
     })
 
     // Transform the data
-    const transformedCourses = courses.map((course) => ({
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      thumbnail: course.thumbnail,
-      type: course.type,
-      price: course.price,
-      createdAt: course.createdAt,
-      tags: course.tags,
-      enrollmentCount: course._count.enrollments,
-      lectureCount: course.sections.reduce((acc, section) => acc + section._count.lectures, 0),
-      creator: course.creator,
-    }))
+    const transformedCourses = courses.map((course) => {
+      // Calculate average rating
+      let averageRating = 0;
+      if (course.reviews && course.reviews.length > 0) {
+        const totalRating = course.reviews.reduce((sum, review) => sum + review.rating, 0);
+        averageRating = totalRating / course.reviews.length;
+      }
+      
+      return {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        thumbnail: course.thumbnail,
+        type: course.type,
+        price: course.price,
+        createdAt: course.createdAt,
+        tags: course.tags,
+        enrollmentCount: course._count.enrollments,
+        lectureCount: course.sections.reduce((acc, section) => acc + section._count.lectures, 0),
+        creator: course.creator,
+        rating: averageRating,
+        reviewCount: course._count.reviews || 0,
+      };
+    })
 
     const result = {
       courses: transformedCourses,
