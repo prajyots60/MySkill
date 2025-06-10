@@ -69,6 +69,8 @@ export interface CreatorProfile {
   courseCount: number
   followerCount: number
   studentCount?: number
+  averageRating: number
+  reviewCount: number
   isOwnProfile?: boolean
 }
 
@@ -135,7 +137,13 @@ export async function getCreatorProfile(creatorId: string): Promise<{
           select: {
             _count: {
               select: {
-                enrollments: true // Count enrollments for each course
+                enrollments: true, // Count enrollments for each course
+                reviews: true // Count reviews for each course
+              }
+            },
+            reviews: {
+              select: {
+                rating: true // Get all ratings to calculate average
               }
             }
           }
@@ -151,6 +159,28 @@ export async function getCreatorProfile(creatorId: string): Promise<{
     const totalStudents = user.contents.reduce((total, course) => {
       return total + course._count.enrollments;
     }, 0);
+
+    // Calculate average rating across all courses
+    let totalRatings = 0;
+    let totalReviews = 0;
+    let averageRating = 0;
+
+    user.contents.forEach(course => {
+      // Count all reviews
+      const courseReviewCount = course._count.reviews || 0;
+      totalReviews += courseReviewCount;
+
+      // Sum all ratings
+      if (course.reviews && course.reviews.length > 0) {
+        const courseRatingSum = course.reviews.reduce((sum, review) => sum + review.rating, 0);
+        totalRatings += courseRatingSum;
+      }
+    });
+
+    // Calculate average if there are any reviews
+    if (totalReviews > 0) {
+      averageRating = totalRatings / totalReviews;
+    }
 
     // Transform data to match expected format
     const creator: CreatorProfile = {
@@ -188,6 +218,8 @@ export async function getCreatorProfile(creatorId: string): Promise<{
       courseCount: user._count.contents,
       followerCount: user._count.followers,
       studentCount: totalStudents, // Add the accurate student count here
+      averageRating: averageRating,
+      reviewCount: totalReviews,
       isOwnProfile
     }
 
