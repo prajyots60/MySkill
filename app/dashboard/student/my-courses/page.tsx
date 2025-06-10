@@ -309,10 +309,11 @@ export default function MyCoursesPage() {
                     updatedAt={new Date(course.updatedAt || Date.now())}
                     lectureCount={course.totalLectures}
                     duration={course.totalDuration || ""}
-                    level={course.level || "Beginner"}
                     tags={course.tags || []}
-                    price={course.price}
+                    price={course.price ?? undefined}
                     isEnrolled={true}
+                    rating={course.rating}
+                    reviewCount={course.reviewCount}
                   />
                 ))}
               </div>
@@ -355,10 +356,11 @@ export default function MyCoursesPage() {
                     updatedAt={new Date(course.updatedAt || Date.now())}
                     lectureCount={course.totalLectures}
                     duration={course.totalDuration || ""}
-                    level={course.level || "Beginner"}
                     tags={course.tags || []}
-                    price={course.price}
+                    price={course.price ?? undefined}
                     isEnrolled={true}
+                    rating={course.rating}
+                    reviewCount={course.reviewCount}
                   />
                 ))}
               </div>

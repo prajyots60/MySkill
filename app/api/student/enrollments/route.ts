@@ -60,9 +60,10 @@ export async function GET(req: NextRequest) {
       requestHeaders.get('Pragma') === 'no-cache'
 
     // Try to get from cache if not bypassing
+    let cachedData: any = null
     if (!shouldBypassCache) {
       const cacheKey = `student:enrollments:${userId}`
-      const cachedData = await redis.get(cacheKey)
+      cachedData = await redis.get(cacheKey)
 
       if (cachedData) {
         return NextResponse.json({
@@ -74,8 +75,22 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch enrollments and progress data separately with retry logic
-    let enrollments = []
-    let progressData = []
+    let enrollments: any[] = []
+    let progressData: {
+      userId: string;
+      lectureId: string;
+      isComplete: boolean;
+      percentage: number;
+      updatedAt: Date;
+      lecture: {
+        id: string;
+        title: string;
+        section: {
+          id: string;
+          contentId: string;
+        };
+      };
+    }[] = []
     
     try {
       // Get all enrollments with course data
@@ -110,6 +125,11 @@ export async function GET(req: NextRequest) {
               _count: {
                 select: {
                   enrollments: true,
+                },
+              },
+              reviews: {
+                select: {
+                  rating: true,
                 },
               },
             },
@@ -196,7 +216,7 @@ export async function GET(req: NextRequest) {
     // Process enrollments into courses with progress
     const processedCourses = enrollments.map((enrollment) => {
       const course = enrollment.content
-      const totalLectures = course.sections.reduce((total, section) => total + section.lectures.length, 0)
+      const totalLectures = course.sections.reduce((total: number, section: { lectures: any[] }) => total + section.lectures.length, 0)
 
       // Find next lecture to watch (first incomplete lecture)
       let nextLecture = null
@@ -227,6 +247,12 @@ export async function GET(req: NextRequest) {
       // Determine if course is completed
       const isCompleted = progress.percentage === 100
 
+      // Calculate average rating
+      const ratings = course.reviews.map((review: { rating: number }) => review.rating);
+      const rating = ratings.length > 0 
+        ? parseFloat((ratings.reduce((sum: number, r: number) => sum + r, 0) / ratings.length).toFixed(1))
+        : 0;
+
       return {
         id: course.id,
         title: course.title,
@@ -240,7 +266,6 @@ export async function GET(req: NextRequest) {
         createdAt: course.createdAt,
         isPublished: course.isPublished,
         price: course.price,
-        level: course.level,
         tags: course.tags,
         isTrending: course.isTrending,
         totalLectures,
@@ -250,6 +275,8 @@ export async function GET(req: NextRequest) {
         lastAccessed: progress.lastAccessed,
         enrolledAt: enrollment.createdAt, // Using createdAt instead of enrolledAt
         isCompleted,
+        rating: rating,
+        reviewCount: ratings.length
       }
     })
 

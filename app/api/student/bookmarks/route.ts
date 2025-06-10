@@ -65,6 +65,11 @@ export async function GET(request: Request) {
             },
           },
         },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: "desc",
@@ -72,20 +77,30 @@ export async function GET(request: Request) {
     })
 
     // Transform the data
-    const transformedBookmarks = bookmarks.map((course) => ({
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      thumbnail: course.thumbnail,
-      price: course.price,
-      creatorName: course.creator?.name || null,
-      creatorImage: course.creator?.image || null,
-      enrollmentCount: course._count.enrollments,
-      lectureCount: course.sections.reduce((acc, section) => acc + section._count.lectures, 0),
-      updatedAt: course.updatedAt,
-      level: course.level,
-      tags: course.tags,
-    }))
+    const transformedBookmarks = bookmarks.map((course) => {
+      // Calculate average rating
+      const ratings = course.reviews.map(review => review.rating);
+      const rating = ratings.length > 0 
+        ? parseFloat((ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1))
+        : 0;
+        
+      return {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        thumbnail: course.thumbnail,
+        price: course.price,
+        creatorName: course.creator?.name || null,
+        creatorImage: course.creator?.image || null,
+        enrollmentCount: course._count.enrollments,
+        lectureCount: course.sections.reduce((acc, section) => acc + section._count.lectures, 0),
+        updatedAt: course.updatedAt,
+        level: null, // Handle case where level might be undefined
+        tags: course.tags,
+        rating: rating,
+        reviewCount: ratings.length
+      }
+    })
 
     // Cache the results if not bypassing cache
     if (!shouldBypassCache) {

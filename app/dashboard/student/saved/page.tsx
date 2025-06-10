@@ -24,11 +24,14 @@ interface BookmarkedCourse {
   lectureCount: number
   duration?: string
   isPublished?: boolean
-  level?: string
   isTrending?: boolean
   tags: string[]
   price?: number
   isEnrolled?: boolean
+  rating?: number
+  reviewCount?: number
+  // Note: Keeping level in the interface for data consistency even though it's not used in OptimizedCourseCard
+  level?: string
 }
 
 interface FollowedInstructor {
@@ -190,28 +193,29 @@ export default function SavedCoursesPage() {
                   </CardHeader>
                 </Card>
               ) : (
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {bookmarks.map((course) => (
-                    <div key={course.id} className="transform transition-all hover:scale-[1.02]">
-                      <OptimizedCourseCard
-                        id={course.id}
-                        title={course.title}
-                        description={course.description}
-                        thumbnailUrl={course.thumbnailUrl}
-                        authorName={course.authorName}
-                        authorImage={course.authorImage}
-                        enrollmentCount={course.enrollmentCount || undefined}
-                        updatedAt={new Date(course.updatedAt)}
-                        lectureCount={course.lectureCount}
-                        duration={course.duration}
-                        isPublished={course.isPublished}
-                        level={course.level}
-                        isTrending={course.isTrending}
-                        tags={course.tags}
-                        price={course.price}
-                        isEnrolled={course.isEnrolled}
-                      />
-                    </div>
+                    <OptimizedCourseCard
+                      key={course.id}
+                      id={course.id}
+                      title={course.title}
+                      description={course.description}
+                      thumbnailUrl={course.thumbnailUrl}
+                      authorName={course.authorName}
+                      authorImage={course.authorImage}
+                      enrollmentCount={course.enrollmentCount || undefined}
+                      updatedAt={new Date(course.updatedAt)}
+                      lectureCount={course.lectureCount}
+                      duration={course.duration}
+                      isPublished={course.isPublished}
+                      isTrending={course.isTrending}
+                      tags={course.tags}
+                      price={course.price}
+                      isEnrolled={course.isEnrolled}
+                      rating={course.rating}
+                      reviewCount={course.reviewCount}
+                    />
+                    
                   ))}
                 </div>
               )}
