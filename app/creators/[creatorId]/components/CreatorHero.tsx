@@ -366,10 +366,7 @@ const CreatorHero: React.FC<CreatorHeroProps> = ({ creator, themeColor }) => {
                         <span className="font-medium mr-1">{followerCount}</span>
                         <span>{followerCount === 1 ? 'follower' : 'followers'}</span>
                       </div>
-                      <Button variant="outline" size="sm">
-                        <Mail className="mr-2 h-4 w-4" />
-                        Message
-                      </Button>
+                      
                     </div>
                   )}
                 </div>
