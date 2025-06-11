@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   ChevronRight,
   Info,
+  TrendingUp as TrendingUpIcon,
 } from "lucide-react"
 import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
 import { BarChart, LineChart } from "../analytics/charts"
@@ -92,6 +93,9 @@ export default function EarningsPage() {
       conversionRate: "0.00"
     }
   }
+  
+  // Calculate gross revenue (before platform commission)
+  const grossRevenue = earnings.totalEarnings / 0.9;  // Since earnings is 90% of gross
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
@@ -125,16 +129,41 @@ export default function EarningsPage() {
       {/* Key metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="bg-gradient-to-br from-primary/5 via-primary/10 to-background">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Earnings</CardTitle>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Gross Revenue</CardTitle>
+            <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 cursor-help" title="Total sales before platform commission">
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">${grossRevenue.toLocaleString()}</div>
+                <div className="text-xs text-green-500 flex items-center mt-1">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  {earnings.earningsGrowth}% from last period
+                </div>
+              </div>
+              <div className="p-2 bg-primary/10 rounded-full">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-primary/5 via-primary/10 to-background">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Your Earnings</CardTitle>
+            <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 cursor-help" title="Your earnings after 10% platform commission">
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold">${earnings.totalEarnings.toLocaleString()}</div>
-                <div className="text-xs text-green-500 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  {earnings.earningsGrowth}% from last period
+                <div className="text-xs text-muted-foreground mt-1">
+                  After 10% platform commission
                 </div>
               </div>
               <div className="p-2 bg-primary/10 rounded-full">
@@ -208,23 +237,40 @@ export default function EarningsPage() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Earnings Over Time</CardTitle>
-                <CardDescription>Monthly earnings trend</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Earnings Over Time</CardTitle>
+                  <CardDescription>Monthly earnings trend (after platform fee)</CardDescription>
+                </div>
+                <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 cursor-help" title="Shows your earnings after the 10% platform commission">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </div>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <LineChart data={earnings.earningsOverTime} xKey="date" yKey="value" color="#10b981" />
               </CardContent>
+              <CardFooter className="pt-0">
+                <p className="text-xs text-muted-foreground">Values shown are your net earnings after the 10% platform commission</p>
+              </CardFooter>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Earnings by Course</CardTitle>
-                <CardDescription>Revenue breakdown by course</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Revenue by Course</CardTitle>
+                  <CardDescription>Gross revenue breakdown by course</CardDescription>
+                </div>
+                <div className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 cursor-help" title="Shows the total sales amount before platform commission">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </div>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <BarChart data={earnings.courseEarnings} xKey="name" yKey="value" color="#8b5cf6" />
               </CardContent>
+              <CardFooter className="pt-0 flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">Values shown are gross revenue before platform commission</p>
+                <p className="text-xs font-medium">Your earnings: 90% of these values</p>
+              </CardFooter>
             </Card>
           </div>
 
@@ -241,33 +287,46 @@ export default function EarningsPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Course</TableHead>
                     <TableHead>Student</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right" title="Total sale amount">Gross</TableHead>
+                    <TableHead className="text-right" title="Your earnings after 10% platform fee">Net (90%)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {earnings.transactions.slice(0, 5).map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            transaction.type === "sale"
-                              ? "default"
-                              : transaction.type === "payout"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                        >
-                          {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{transaction.course || "—"}</TableCell>
-                      <TableCell>{transaction.student || "—"}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {transaction.type === "refund" ? "-" : ""}${transaction.amount.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {earnings.transactions.slice(0, 5).map((transaction) => {
+                    // For sales, calculate both gross and net
+                    const isRefund = transaction.type === "refund";
+                    const isPayout = transaction.type === "payout";
+                    // If it's a payout or refund, show the same amount in both columns
+                    const grossAmount = transaction.amount;
+                    const netAmount = isPayout ? transaction.amount : transaction.amount * 0.9;
+                    
+                    return (
+                      <TableRow key={transaction.id}>
+                        <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              transaction.type === "sale"
+                                ? "default"
+                                : transaction.type === "payout"
+                                  ? "secondary"
+                                  : "destructive"
+                            }
+                          >
+                            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{transaction.course || "—"}</TableCell>
+                        <TableCell>{transaction.student || "—"}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {isRefund ? "-" : ""}${grossAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {isRefund ? "-" : ""}${netAmount.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
