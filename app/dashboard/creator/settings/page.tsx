@@ -43,10 +43,12 @@ import {
   Award,
   ChevronDown,
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { useYouTubeStore } from "@/lib/store/youtube-store"
 import { updateCreatorProfile } from "@/app/creators/[creatorId]/actions/get-creator"
 import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker"
+import { useUploadStore } from "@/lib/store/upload-store"
+import type { UploadTask } from "@/lib/store/upload-store"
 
 // Define the available theme colors for creator profiles
 const themeColors = [
@@ -63,8 +65,9 @@ const themeColors = [
 export default function CreatorSettingsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const { toast } = useToast()
   const [saving, setSaving] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState<boolean[]>([false, false, false])
+  const { addUpload, updateUploadProgress, updateUploadStatus } = useUploadStore()
 
   // Use YouTube store
   const { connected: youtubeConnected } = useYouTubeStore()
@@ -472,6 +475,67 @@ export default function CreatorSettingsPage() {
     }
   }
 
+  // Add file upload handler
+  const handleCoverImageUpload = async (file: File, index: number) => {
+    try {
+      setUploadingImages((prev) => ({ ...prev, [index]: true }))
+      
+      // Create upload entry
+      const uploadId = addUpload({
+        id: `cover-${Date.now()}-${index}`,
+        file,
+        title: file.name,
+        sectionId: "cover-image",
+        isPreview: true,
+        status: "uploading",
+        progress: 0,
+        videoSource: "wasabi",
+        isRestartable: false,
+      })
+
+      // Upload to ImageKit
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("index", index.toString())
+
+      const response = await fetch("/api/imagekit/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to upload image")
+      }
+
+      const data = await response.json()
+
+      // Update profile form
+      setProfileForm((prev) => {
+        const newCoverImages = [...prev.coverImages]
+        newCoverImages[index] = data.url
+        return { ...prev, coverImages: newCoverImages }
+      })
+
+      // Update upload status
+      updateUploadProgress(uploadId, 100)
+      updateUploadStatus(uploadId, "completed")
+
+      toast({
+        title: "Cover image uploaded",
+        description: `Cover image ${index + 1} has been uploaded successfully.`,
+      })
+    } catch (error) {
+      console.error("Error uploading cover image:", error)
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload cover image. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingImages((prev) => ({ ...prev, [index]: false }))
+    }
+  }
+
   if (status === "loading") {
     return (
       <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center min-h-[60vh]">
@@ -654,48 +718,95 @@ export default function CreatorSettingsPage() {
                         <Label>
                           Cover Images (Up to 3) <span className="text-red-500">*</span>
                         </Label>
-                        <div className="space-y-3">
-                          <div>
-                            <Label htmlFor="coverImage1" className="text-sm text-muted-foreground">Cover Image 1 (Primary)</Label>
-                            <Input 
-                              id="coverImage1"
-                              value={profileForm.coverImages[0]}
-                              onChange={(e) => setProfileForm(prev => {
-                                const newCoverImages = [...prev.coverImages]
-                                newCoverImages[0] = e.target.value
-                                return { ...prev, coverImages: newCoverImages }
-                              })} 
-                              placeholder="https://example.com/your-cover-image.jpg"
-                            />
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {[0, 1, 2].map((index) => (
+                            <div key={index} className="space-y-2">
+                              <div className="relative aspect-video border-2 border-dashed border-gray-300 rounded-lg overflow-hidden group">
+                                {profileForm.coverImages[index] ? (
+                                  <>
+                                    <img
+                                      src={profileForm.coverImages[index]}
+                                      alt={`Cover ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            const response = await fetch(`/api/imagekit/upload?url=${encodeURIComponent(profileForm.coverImages[index])}&index=${index}`, {
+                                              method: 'DELETE',
+                                            })
 
-                          <div>
-                            <Label htmlFor="coverImage2" className="text-sm text-muted-foreground">Cover Image 2 (Optional)</Label>
-                            <Input 
-                              id="coverImage2"
-                              value={profileForm.coverImages[1]}
-                              onChange={(e) => setProfileForm(prev => {
-                                const newCoverImages = [...prev.coverImages]
-                                newCoverImages[1] = e.target.value
-                                return { ...prev, coverImages: newCoverImages }
-                              })} 
-                              placeholder="https://example.com/your-second-cover-image.jpg"
-                            />
-                          </div>
+                                            if (!response.ok) {
+                                              throw new Error('Failed to delete image')
+                                            }
 
-                          <div>
-                            <Label htmlFor="coverImage3" className="text-sm text-muted-foreground">Cover Image 3 (Optional)</Label>
-                            <Input 
-                              id="coverImage3"
-                              value={profileForm.coverImages[2]}
-                              onChange={(e) => setProfileForm(prev => {
-                                const newCoverImages = [...prev.coverImages]
-                                newCoverImages[2] = e.target.value
-                                return { ...prev, coverImages: newCoverImages }
-                              })} 
-                              placeholder="https://example.com/your-third-cover-image.jpg"
-                            />
-                          </div>
+                                            setProfileForm((prev) => {
+                                              const newCoverImages = [...prev.coverImages]
+                                              newCoverImages[index] = ""
+                                              return { ...prev, coverImages: newCoverImages }
+                                            })
+
+                                            toast({
+                                              title: "Cover image removed",
+                                              description: "The cover image has been removed successfully.",
+                                            })
+                                          } catch (error) {
+                                            console.error("Error removing cover image:", error)
+                                            toast({
+                                              title: "Error",
+                                              description: "Failed to remove cover image. Please try again.",
+                                              variant: "destructive",
+                                            })
+                                          }
+                                        }}
+                                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) {
+                                          handleCoverImageUpload(file, index)
+                                        }
+                                      }}
+                                      disabled={uploadingImages[index]}
+                                    />
+                                    {uploadingImages[index] ? (
+                                      <div className="flex flex-col items-center">
+                                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                        <span className="mt-2 text-sm text-gray-500">Uploading...</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <Upload className="w-8 h-8 text-gray-400" />
+                                        <span className="mt-2 text-sm text-gray-500">
+                                          Click to upload
+                                        </span>
+                                        <span className="text-xs text-gray-400 mt-1">
+                                          {index === 0 ? "Primary" : "Optional"}
+                                        </span>
+                                      </>
+                                    )}
+                                  </label>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground text-center">
+                                {index === 0 
+                                  ? "Primary cover image (required)"
+                                  : `Cover image ${index + 1} (optional)`}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           Banner images for your profile hero section (recommended size: 1500×500px). Up to 3 images will be shown as a carousel.
