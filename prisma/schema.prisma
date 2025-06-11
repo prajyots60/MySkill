@@ -124,6 +124,7 @@ model CreatorProfile {
   socialLinks            Json?
   website                String?
   coverImages            String[]
+  coverImageIds          String[]
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

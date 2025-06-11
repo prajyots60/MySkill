@@ -62,6 +62,42 @@ const themeColors = [
   { value: "indigo", label: "Indigo" },
 ]
 
+type ProfileForm = {
+  name: string
+  bio: string
+  mobileNumber: string
+  website: string
+  location: string
+  profileImage: string
+  coverImages: string[]
+  coverImageIds: string[]
+  tagline: string
+  customTitle: string
+  themeColor: string
+  expertise: string[]
+  newExpertise: string
+  categories: string[]
+  newCategory: string
+  languages: string[]
+  newLanguage: string
+  yearsTeaching: number
+  education: string
+  achievements: string
+  institutionName: string
+  institutionDescription: string
+  institutionWebsite: string
+  verified: boolean
+  badges: string[]
+  milestones: string[]
+  testimonials: string[]
+  customSections: string[]
+  resources: {
+    title: string
+    description: string
+    url: string
+  }[]
+}
+
 export default function CreatorSettingsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -84,6 +120,7 @@ export default function CreatorSettingsPage() {
     
     // Advanced creator profile fields
     coverImages: ["", "", ""], // Changed from coverImage to coverImages array with 3 empty slots
+    coverImageIds: [],
     tagline: "Empowering students through knowledge and practical skills",
     customTitle: "Your specialized teaching focus here",
     themeColor: "default",
@@ -166,6 +203,7 @@ export default function CreatorSettingsPage() {
                 mobileNumber: data.creator.mobileNumber || prev.mobileNumber,
                 profileImage: data.creator.image || prev.profileImage,
                 coverImages: data.creator.coverImages || prev.coverImages,
+                coverImageIds: data.creator.coverImageIds || [],
                 tagline: data.creator.tagline || prev.tagline,
                 customTitle: data.creator.customTitle || prev.customTitle,
                 themeColor: data.creator.themeColor || "default",
@@ -362,6 +400,7 @@ export default function CreatorSettingsPage() {
         mobileNumber: profileForm.mobileNumber,
         image: profileForm.profileImage,
         coverImages: profileForm.coverImages,
+        coverImageIds: profileForm.coverImageIds,
         tagline: profileForm.tagline,
         customTitle: profileForm.customTitle,
         expertise: profileForm.expertise,
@@ -509,11 +548,17 @@ export default function CreatorSettingsPage() {
 
       const data = await response.json()
 
-      // Update profile form
+      // Update profile form with both URL and ID
       setProfileForm((prev) => {
         const newCoverImages = [...prev.coverImages]
+        const newCoverImageIds = [...(prev.coverImageIds || [])]
         newCoverImages[index] = data.url
-        return { ...prev, coverImages: newCoverImages }
+        newCoverImageIds[index] = data.fileId
+        return { 
+          ...prev, 
+          coverImages: newCoverImages,
+          coverImageIds: newCoverImageIds
+        }
       })
 
       // Update upload status
@@ -533,6 +578,37 @@ export default function CreatorSettingsPage() {
       })
     } finally {
       setUploadingImages((prev) => ({ ...prev, [index]: false }))
+    }
+  }
+
+  const handleDeleteCoverImage = async (index: number) => {
+    try {
+      const response = await fetch(`/api/imagekit/upload?index=${index}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete image")
+      }
+
+      // Update profile form
+      setProfileForm((prev) => {
+        const newCoverImages = [...prev.coverImages]
+        newCoverImages[index] = ""
+        return { ...prev, coverImages: newCoverImages }
+      })
+
+      toast({
+        title: "Cover image removed",
+        description: "The cover image has been removed successfully.",
+      })
+    } catch (error) {
+      console.error("Error removing cover image:", error)
+      toast({
+        title: "Error",
+        description: "Failed to remove cover image. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -732,35 +808,7 @@ export default function CreatorSettingsPage() {
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                       <button
                                         type="button"
-                                        onClick={async () => {
-                                          try {
-                                            const response = await fetch(`/api/imagekit/upload?url=${encodeURIComponent(profileForm.coverImages[index])}&index=${index}`, {
-                                              method: 'DELETE',
-                                            })
-
-                                            if (!response.ok) {
-                                              throw new Error('Failed to delete image')
-                                            }
-
-                                            setProfileForm((prev) => {
-                                              const newCoverImages = [...prev.coverImages]
-                                              newCoverImages[index] = ""
-                                              return { ...prev, coverImages: newCoverImages }
-                                            })
-
-                                            toast({
-                                              title: "Cover image removed",
-                                              description: "The cover image has been removed successfully.",
-                                            })
-                                          } catch (error) {
-                                            console.error("Error removing cover image:", error)
-                                            toast({
-                                              title: "Error",
-                                              description: "Failed to remove cover image. Please try again.",
-                                              variant: "destructive",
-                                            })
-                                          }
-                                        }}
+                                        onClick={() => handleDeleteCoverImage(index)}
                                         className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                                       >
                                         <X className="w-4 h-4" />

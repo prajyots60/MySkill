@@ -48,26 +48,26 @@ export async function POST(req: NextRequest) {
     // Get current profile
     const profile = await prisma.creatorProfile.findUnique({
       where: { userId: session.user.id },
-      select: { coverImages: true }
+      select: { coverImages: true, coverImageIds: true }
     });
 
     // Update cover images array
     const coverImages = profile?.coverImages || ["", "", ""];
+    const coverImageIds = profile?.coverImageIds || ["", "", ""];
     const imageIndex = parseInt(index);
+    
     if (imageIndex >= 0 && imageIndex < 3) {
       // If there's an existing image at this index, delete it from ImageKit
-      if (coverImages[imageIndex]) {
-        const existingUrl = coverImages[imageIndex];
-        const fileId = existingUrl.split('/').pop()?.split('.')[0];
-        if (fileId) {
-          try {
-            await imagekit.deleteFile(fileId);
-          } catch (error) {
-            console.error("Error deleting old image:", error);
-          }
+      if (coverImageIds[imageIndex]) {
+        try {
+          await imagekit.deleteFile(coverImageIds[imageIndex]);
+        } catch (error) {
+          console.error("Error deleting old image:", error);
         }
       }
+      
       coverImages[imageIndex] = result.url;
+      coverImageIds[imageIndex] = result.fileId;
     }
 
     // Update profile
@@ -76,9 +76,11 @@ export async function POST(req: NextRequest) {
       create: {
         userId: session.user.id,
         coverImages,
+        coverImageIds,
       },
       update: {
         coverImages,
+        coverImageIds,
       },
     });
 
@@ -106,46 +108,59 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const imageUrl = searchParams.get("url");
     const index = searchParams.get("index");
 
-    if (!imageUrl || !index) {
+    if (!index) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
       );
     }
 
-    // Extract fileId from the URL
-    const fileId = imageUrl.split('/').pop()?.split('.')[0];
-    if (!fileId) {
+    // Get current profile
+    const profile = await prisma.creatorProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { coverImages: true, coverImageIds: true }
+    });
+
+    if (!profile) {
       return NextResponse.json(
-        { error: "Invalid image URL" },
+        { error: "Profile not found" },
+        { status: 404 }
+      );
+    }
+
+    const imageIndex = parseInt(index);
+    if (imageIndex < 0 || imageIndex >= 3) {
+      return NextResponse.json(
+        { error: "Invalid image index" },
         { status: 400 }
       );
     }
 
-    // Delete from ImageKit
-    await imagekit.deleteFile(fileId);
-
-    // Update profile in database
-    const profile = await prisma.creatorProfile.findUnique({
-      where: { userId: session.user.id },
-      select: { coverImages: true }
-    });
-
-    if (profile) {
-      const coverImages = [...profile.coverImages];
-      const imageIndex = parseInt(index);
-      if (imageIndex >= 0 && imageIndex < 3) {
-        coverImages[imageIndex] = "";
+    // Delete from ImageKit if there's a file ID
+    if (profile.coverImageIds[imageIndex]) {
+      try {
+        await imagekit.deleteFile(profile.coverImageIds[imageIndex]);
+      } catch (error) {
+        console.error("Error deleting from ImageKit:", error);
       }
-
-      await prisma.creatorProfile.update({
-        where: { userId: session.user.id },
-        data: { coverImages }
-      });
     }
+
+    // Update arrays
+    const coverImages = [...profile.coverImages];
+    const coverImageIds = [...profile.coverImageIds];
+    coverImages[imageIndex] = "";
+    coverImageIds[imageIndex] = "";
+
+    // Update profile
+    await prisma.creatorProfile.update({
+      where: { userId: session.user.id },
+      data: {
+        coverImages,
+        coverImageIds,
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

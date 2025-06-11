@@ -125,6 +125,7 @@ export async function getCreatorProfile(creatorId: string): Promise<{
             showResources: true,
             verified: true,
             socialLinks: true,
+            coverImageIds: true, // Added field for ImageKit file IDs
           }
         },
         _count: {
@@ -220,7 +221,8 @@ export async function getCreatorProfile(creatorId: string): Promise<{
       studentCount: totalStudents, // Add the accurate student count here
       averageRating: averageRating,
       reviewCount: totalReviews,
-      isOwnProfile
+      isOwnProfile,
+      coverImageIds: user.creatorProfile?.coverImageIds,
     }
 
     return { success: true, creator, isOwnProfile }

@@ -3,6 +3,37 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getCreatorProfile, updateCreatorProfile } from "@/app/creators/[creatorId]/actions/get-creator";
 
+type UpdateCreatorProfileInput = {
+  name?: string
+  bio?: string
+  mobileNumber?: string
+  website?: string
+  location?: string
+  image?: string
+  coverImages?: string[]
+  coverImageIds?: string[]
+  tagline?: string
+  customTitle?: string
+  themeColor?: string
+  expertise?: string[]
+  yearsTeaching?: number
+  education?: string
+  achievements?: string
+  institutionName?: string
+  institutionDescription?: string
+  institutionWebsite?: string
+  verified?: boolean
+  badges?: string[]
+  milestones?: string[]
+  testimonials?: string[]
+  customSections?: string[]
+  resources?: {
+    title: string
+    description: string
+    url: string
+  }[]
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { creatorId: string } }
