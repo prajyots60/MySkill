@@ -16,6 +16,7 @@ export default function AnalyticsDashboard() {
   const { data: session, status } = useSession()
   const [timeRange, setTimeRange] = useState("30days")
   const [selectedCourse, setSelectedCourse] = useState("all")
+  const [selectedCourseForDetail, setSelectedCourseForDetail] = useState(0) // Index of selected course for detail view
 
   // Fetch courses data
   const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
@@ -36,6 +37,11 @@ export default function AnalyticsDashboard() {
     (acc: number, course: any) => acc + (course.enrollmentCount || 0), 
     0
   ) : 0
+
+  // When changing the time range or courses, reset the selected course for detail view
+  useEffect(() => {
+    setSelectedCourseForDetail(0);
+  }, [timeRange, selectedCourse]);
 
   // Calculate real-time course revenue data
   const courseRevenueData = useMemo(() => {
@@ -246,7 +252,7 @@ export default function AnalyticsDashboard() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${analyticsData.grossRevenue.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₹{analyticsData.grossRevenue.toLocaleString()}</div>
                 <div className="text-xs flex items-center mt-1" style={{ color: analyticsData.revenueGrowth >= 0 ? '#10b981' : '#ef4444' }}>
                   <TrendingUp className="h-3 w-3 mr-1" />
                   {analyticsData.revenueGrowth}% from {timeRange === "7days" ? "last week" : 
@@ -384,7 +390,7 @@ export default function AnalyticsDashboard() {
                     <div key={index} className="flex flex-col items-center">
                       <span className="font-medium truncate max-w-full">{course.name}</span>
                       {selectedCourse === 'all' ? (
-                        <span className="text-purple-500">${course.value.toLocaleString()}</span>
+                        <span className="text-purple-500">₹{course.value.toLocaleString()}</span>
                       ) : (
                         <span className="text-blue-500">{course.students.toLocaleString()} students</span>
                       )}
@@ -429,36 +435,78 @@ export default function AnalyticsDashboard() {
                   xKey="name" 
                   yKey="value" 
                   color="#10b981" 
+                  onBarClick={(index) => setSelectedCourseForDetail(index)}
                 />
                 {courseRevenueData.length === 0 && analyticsData.coursePerformance.length === 0 && (
                   <div className="h-full flex items-center justify-center">
                     <p className="text-muted-foreground">No course revenue data available</p>
                   </div>
                 )}
-                {/* Display values above bars */}
-                <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
-                  {(courseRevenueData.length > 0 ? courseRevenueData : analyticsData.coursePerformance).slice(0, 3).map((course: any, index: number) => (
-                    <div key={index} className="flex flex-col items-center">
-                      <span className="font-medium truncate max-w-full">{course.name}</span>
-                      <span className="text-green-500">${course.value.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
+                
               </CardContent>
               {earningsData && earningsData.metrics && (
-                <CardFooter className="pt-0">
-                  <div className="w-full flex flex-wrap justify-between text-sm text-muted-foreground">
-                    <div>Total Sales: <span className="font-medium">{earningsData.metrics.totalSales}</span></div>
-                    <div>Refunds: <span className="font-medium">{earningsData.metrics.totalRefunds}</span></div>
-                    <div>Pending: <span className="font-medium">{earningsData.metrics.pendingTransactions}</span></div>
-                    <div>Conversion Rate: <span className="font-medium">{earningsData.metrics.conversionRate}%</span></div>
+                <CardFooter className="pt-3 pb-4">
+                  <div className="w-full flex flex-col space-y-3">
+                    {/* Course name and revenue in prominent display */}
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold mb-1">
+                        {courseRevenueData.length > 0 && courseRevenueData[selectedCourseForDetail] 
+                          ? courseRevenueData[selectedCourseForDetail].name 
+                          : (courseRevenueData.length > 0 ? courseRevenueData[0].name : "Course")}
+                      </h3>
+                      <p className="text-2xl font-bold text-primary">
+                        ₹{courseRevenueData.length > 0 && courseRevenueData[selectedCourseForDetail] 
+                          ? courseRevenueData[selectedCourseForDetail].value.toLocaleString() 
+                          : (courseRevenueData.length > 0 ? courseRevenueData[0].value.toLocaleString() : "0")}
+                      </p>
+                    </div>
+                    
+                    {/* Metrics in a clean two-column layout */}
+                    <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t">
+                      <div>
+                        <p className="text-muted-foreground">Total Sales:</p>
+                        <p className="font-medium">{earningsData.metrics.totalSales}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Refunds:</p>
+                        <p className="font-medium">{earningsData.metrics.totalRefunds}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pending:</p>
+                        <p className="font-medium">{earningsData.metrics.pendingTransactions}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Conversion Rate:</p>
+                        <p className="font-medium">{earningsData.metrics.conversionRate}%</p>
+                      </div>
+                    </div>
                   </div>
                 </CardFooter>
               )}
               {!earningsData?.metrics && (
-                <CardFooter className="pt-0">
-                  <div className="text-sm text-muted-foreground flex flex-col gap-1">
-                    <p>Gross Revenue: ${calculatedgrossRevenue.toLocaleString()}</p>
+                <CardFooter className="pt-3 pb-4">
+                  <div className="w-full flex flex-col space-y-3">
+                    {/* Course name and revenue in prominent display */}
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold mb-1">
+                        {courseRevenueData.length > 0 && courseRevenueData[selectedCourseForDetail] 
+                          ? courseRevenueData[selectedCourseForDetail].name 
+                          : (courseRevenueData.length > 0 ? courseRevenueData[0].name : "Course")}
+                      </h3>
+                      <p className="text-2xl font-bold text-primary">
+                        ₹{courseRevenueData.length > 0 && courseRevenueData[selectedCourseForDetail] 
+                          ? courseRevenueData[selectedCourseForDetail].value.toLocaleString() 
+                          : (courseRevenueData.length > 0 ? courseRevenueData[0].value.toLocaleString() : calculatedgrossRevenue.toLocaleString())}
+                      </p>
+                    </div>
+                    
+                    {/* Simple revenue information when metrics aren't available */}
+                    <div className="text-sm pt-2 border-t">
+                      <div className="flex justify-center">
+                        <p className="text-muted-foreground mr-2">Gross Revenue:</p>
+                        <p className="font-medium">₹{calculatedgrossRevenue.toLocaleString()}</p>
+                      </div>
+                    </div>
                   </div>
                 </CardFooter>
               )}
@@ -476,7 +524,7 @@ export default function AnalyticsDashboard() {
                 <CardFooter className="pt-0">
                   <div className="w-full flex flex-col gap-1 text-sm text-muted-foreground">
                     <div className="flex justify-between">
-                      <div>Total Revenue: <span className="font-medium">${calculatedgrossRevenue.toLocaleString()}</span></div>
+                      <div>Total Revenue: <span className="font-medium">₹{calculatedgrossRevenue.toLocaleString()}</span></div>
                       <div>Growth: <span className="font-medium text-green-500">{earningsData.earningsGrowth}%</span></div>
                     </div>
                   </div>
@@ -493,9 +541,9 @@ export default function AnalyticsDashboard() {
             <CardContent className="h-[300px] flex flex-col items-center justify-center">
               {earningsData && earningsData.pendingPayouts && earningsData.pendingPayouts > 0 ? (
                 <>
-                  <div className="text-xl font-semibold mb-2">${earningsData.pendingPayouts.toLocaleString()}</div>
+                  <div className="text-xl font-semibold mb-2">₹{earningsData.pendingPayouts.toLocaleString()}</div>
                   <p className="text-center text-muted-foreground">
-                    Pending payout amount. Last payout: ${earningsData.lastPayout.toLocaleString()} on {
+                    Pending payout amount. Last payout: ₹{earningsData.lastPayout.toLocaleString()} on {
                     earningsData.lastPayoutDate ? new Date(earningsData.lastPayoutDate).toLocaleDateString() : 'N/A'
                     }
                   </p>

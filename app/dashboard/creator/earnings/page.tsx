@@ -133,7 +133,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${grossRevenue.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₹{grossRevenue.toLocaleString()}</div>
                 <div className="text-xs text-green-500 flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1" />
                   {earnings.earningsGrowth}% from last period
@@ -156,7 +156,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${earnings.totalEarnings.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₹{earnings.totalEarnings.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   After 10% platform commission
                 </div>
@@ -175,7 +175,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${earnings.pendingPayouts.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₹{earnings.pendingPayouts.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">Next payout on 1st of month</div>
               </div>
               <div className="p-2 bg-primary/10 rounded-full">
@@ -192,7 +192,7 @@ export default function EarningsPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">${earnings.lastPayout.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₹{earnings.lastPayout.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {new Date(earnings.lastPayoutDate).toLocaleDateString()}
                 </div>
@@ -314,10 +314,10 @@ export default function EarningsPage() {
                         <TableCell>{transaction.course || "—"}</TableCell>
                         <TableCell>{transaction.student || "—"}</TableCell>
                         <TableCell className="text-right font-medium">
-                          {isRefund ? "-" : ""}${grossAmount.toFixed(2)}
+                          {isRefund ? "-" : ""}₹{grossAmount.toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {isRefund ? "-" : ""}${netAmount.toFixed(2)}
+                          {isRefund ? "-" : ""}₹{netAmount.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     );
@@ -407,7 +407,7 @@ export default function EarningsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {transaction.type === "refund" ? "-" : ""}${transaction.amount.toFixed(2)}
+                          {transaction.type === "refund" ? "-" : ""}₹{transaction.amount.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))
@@ -492,7 +492,7 @@ export default function EarningsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>Bank Account (••••4567)</TableCell>
-                          <TableCell className="text-right font-medium">${payout.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">₹{payout.amount.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                   </TableBody>
@@ -502,8 +502,8 @@ export default function EarningsPage() {
             <CardFooter className="bg-muted/50 flex items-start gap-2 text-sm">
               <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
               <p className="text-muted-foreground">
-                Payouts are processed automatically on the 1st of each month for balances over $50. For amounts less
-                than $50, the balance will roll over to the next month.
+                Payouts are processed automatically on the 1st of each month for balances over ₹5000. For amounts less
+                than ₹5000, the balance will roll over to the next month.
               </p>
             </CardFooter>
           </Card>
