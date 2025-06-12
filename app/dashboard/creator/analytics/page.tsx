@@ -123,14 +123,12 @@ export default function AnalyticsDashboard() {
 
   // Analytics data with real-time values where possible
   const analyticsData = {
-    totalStudents: totalStudents, // Real student count data
-    grossRevenue: calculatedgrossRevenue, // Gross revenue (before platform cut)
-    completionRate: 68, // Still mock data
-    averageRating: 4.7, // Still mock data
-    viewsGrowth: 24, // Still mock data 
-    studentsGrowth: 18, // Still mock data
-    revenueGrowth: earningsData?.earningsGrowth || 0, // Real growth data
-
+    totalStudents: totalStudents, 
+    grossRevenue: calculatedgrossRevenue, 
+    completionRate: 68, 
+    viewsGrowth: 24,  
+    studentsGrowth: 18, 
+    revenueGrowth: earningsData?.earningsGrowth || 0,
     // Time series data for charts
     viewsOverTime: [
       { date: "Jan", value: 1200 },
