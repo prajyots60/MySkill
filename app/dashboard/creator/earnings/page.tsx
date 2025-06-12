@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
 import { BarChart, LineChart } from "../analytics/charts"
+import EarningsLoading from "./loading"
 
 export default function EarningsPage() {
   const router = useRouter()
@@ -48,15 +49,9 @@ export default function EarningsPage() {
   // Filter transactions based on type (now handled by API)
   const filteredTransactions = earningsData?.transactions || []
 
+  // Show loading skeleton
   if (status === "loading" || coursesLoading || earningsLoading) {
-    return (
-      <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading earnings data...</p>
-        </div>
-      </div>
-    )
+    return <EarningsLoading />
   }
 
   if (status === "unauthenticated") {
