@@ -10,6 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, TrendingUp, Users, Eye, Clock, Download, DollarSign, Info } from "lucide-react"
 import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
 import { BarChart, LineChart, PieChart } from "./charts"
+import { 
+  AnalyticsSkeletonDashboard, 
+  AnalyticsRevenueSkeletonDashboard, 
+  AnalyticsStudentsSkeletonDashboard,
+  AnalyticsContentSkeletonDashboard,
+  SkeletonMetricCard,
+  SkeletonChartCard
+} from "./skeletons"
 
 export default function AnalyticsDashboard() {
   const router = useRouter()
@@ -184,11 +192,58 @@ export default function AnalyticsDashboard() {
 
   if (status === "loading" || coursesLoading) {
     return (
-      <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading analytics data...</p>
+      <div className="container mx-auto py-10 px-4 md:px-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div>
+            <div className="h-8 w-48 bg-muted/30 shimmer rounded"></div>
+            <div className="h-4 w-64 bg-muted/30 shimmer rounded mt-1"></div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="h-10 w-[180px] bg-muted/30 shimmer rounded"></div>
+            <div className="h-10 w-[180px] bg-muted/30 shimmer rounded"></div>
+            <div className="h-10 w-10 bg-muted/30 shimmer rounded"></div>
+          </div>
         </div>
+
+        {/* Key metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+        </div>
+        
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="w-full sm:w-auto flex flex-wrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
+            <TabsTrigger value="content">Content Performance</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SkeletonChartCard />
+              <SkeletonChartCard />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <SkeletonChartCard />
+              <SkeletonChartCard />
+              <SkeletonChartCard />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="revenue" className="space-y-6">
+            <AnalyticsRevenueSkeletonDashboard />
+          </TabsContent>
+          
+          <TabsContent value="students" className="space-y-6">
+            <AnalyticsStudentsSkeletonDashboard />
+          </TabsContent>
+          
+          <TabsContent value="content" className="space-y-6">
+            <AnalyticsContentSkeletonDashboard />
+          </TabsContent>
+        </Tabs>
       </div>
     )
   }
