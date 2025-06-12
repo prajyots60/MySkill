@@ -130,7 +130,15 @@ export function LineChart({ data, xKey, yKey, color }: LineChartProps) {
   return <svg ref={svgRef} width="100%" height="100%"></svg>
 }
 
-export function BarChart({ data, xKey, yKey, color }: BarChartProps) {
+interface BarChartProps {
+  data: ChartData[]
+  xKey: string
+  yKey: string
+  color: string
+  onBarClick?: (index: number) => void
+}
+
+export function BarChart({ data, xKey, yKey, color, onBarClick }: BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const { theme } = useTheme()
   const isDark = theme === "dark"
@@ -174,6 +182,14 @@ export function BarChart({ data, xKey, yKey, color }: BarChartProps) {
       .attr("fill", color)
       .attr("rx", 4)
       .attr("ry", 4)
+      .style("cursor", onBarClick ? "pointer" : "default")
+      .on("click", (event, d) => {
+        if (onBarClick) {
+          // Find the index of the clicked bar
+          const index = data.findIndex(item => item === d);
+          onBarClick(index);
+        }
+      })
 
     // Add X axis
     g.append("g")

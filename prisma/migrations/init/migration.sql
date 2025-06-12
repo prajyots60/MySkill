@@ -37,6 +37,9 @@ CREATE TYPE "QuestionType" AS ENUM ('MULTIPLE_CHOICE', 'CHECKBOX', 'SHORT_ANSWER
 -- CreateEnum
 CREATE TYPE "StorageProvider" AS ENUM ('LOCAL', 'WASABI', 'S3', 'GDRIVE');
 
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('LECTURE_ADDED', 'RESOURCE_ADDED', 'ANNOUNCEMENT', 'LIVE_SESSION', 'DEADLINE_REMINDER');
+
 -- CreateTable
 CREATE TABLE "Account" (
     "id" TEXT NOT NULL,
@@ -473,33 +476,19 @@ CREATE TABLE "CourseResource" (
 );
 
 -- CreateTable
-CREATE TABLE "UserDevice" (
+CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "deviceId" TEXT NOT NULL,
-    "deviceType" TEXT NOT NULL,
-    "browser" TEXT NOT NULL,
-    "operatingSystem" TEXT NOT NULL,
-    "ip" TEXT,
-    "userAgent" TEXT NOT NULL,
-    "firstLogin" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastLogin" TIMESTAMP(3) NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-
-    CONSTRAINT "UserDevice_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "SecurityViolation" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "violationType" TEXT NOT NULL,
-    "ipAddress" TEXT,
-    "userAgent" TEXT,
-    "details" JSONB,
+    "contentId" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "read" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "actionUrl" TEXT,
+    "relatedItemId" TEXT,
 
-    CONSTRAINT "SecurityViolation_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -728,28 +717,16 @@ CREATE INDEX "CourseResource_courseId_idx" ON "CourseResource"("courseId");
 CREATE INDEX "CourseResource_uploadedById_idx" ON "CourseResource"("uploadedById");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserDevice_deviceId_key" ON "UserDevice"("deviceId");
+CREATE INDEX "Notification_userId_idx" ON "Notification"("userId");
 
 -- CreateIndex
-CREATE INDEX "UserDevice_userId_idx" ON "UserDevice"("userId");
+CREATE INDEX "Notification_contentId_idx" ON "Notification"("contentId");
 
 -- CreateIndex
-CREATE INDEX "UserDevice_deviceId_idx" ON "UserDevice"("deviceId");
+CREATE INDEX "Notification_read_idx" ON "Notification"("read");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserDevice_userId_deviceId_key" ON "UserDevice"("userId", "deviceId");
-
--- CreateIndex
-CREATE INDEX "SecurityViolation_userId_idx" ON "SecurityViolation"("userId");
-
--- CreateIndex
-CREATE INDEX "SecurityViolation_ipAddress_idx" ON "SecurityViolation"("ipAddress");
-
--- CreateIndex
-CREATE INDEX "SecurityViolation_violationType_idx" ON "SecurityViolation"("violationType");
-
--- CreateIndex
-CREATE INDEX "SecurityViolation_createdAt_idx" ON "SecurityViolation"("createdAt");
+CREATE INDEX "Notification_createdAt_idx" ON "Notification"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -893,8 +870,8 @@ ALTER TABLE "CourseResource" ADD CONSTRAINT "CourseResource_courseId_fkey" FOREI
 ALTER TABLE "CourseResource" ADD CONSTRAINT "CourseResource_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserDevice" ADD CONSTRAINT "UserDevice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "Content"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SecurityViolation" ADD CONSTRAINT "SecurityViolation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

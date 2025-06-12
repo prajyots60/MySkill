@@ -39,7 +39,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" 
 import { SelectItem } from "@/components/ui/select";
 import ExamCreator from "@/components/exam-creator"; // Changed to default import
 import { formatDate } from "@/lib/utils/format"
- // Assuming formatDate is in lib/utils - this might need a specific path if not directly in utils
+import ExamsLoading from "./loading"
+ 
 
 interface Exam {
   id: string
@@ -128,7 +129,10 @@ export default function CreatorExamsPage() {
         setExams([])
         setFilteredExams([])
       } finally {
-        setIsLoading(false)
+        // Small delay to ensure the loading state is visible if the API response is very quick
+        setTimeout(() => {
+          setIsLoading(false)
+        }, 300)
       }
     }
     
@@ -519,7 +523,12 @@ export default function CreatorExamsPage() {
       </div>
     )
   }
-   // If the ExamCreator is showing, only display that
+   
+  if (isLoading) {
+    return <ExamsLoading />; 
+  }
+  
+  // If the ExamCreator is showing, only display that
   if (showExamCreator) {
     return (
       <div className="container py-10 px-4">
@@ -681,14 +690,7 @@ export default function CreatorExamsPage() {
         </div>
       </div>
       
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16 my-4">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-indigo-500 mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading your exams...</p>
-          </div>
-        </div>
-      ) : exams.length === 0 ? (
+      {exams.length === 0 && !isLoading ? (
         <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20 rounded-xl p-10 text-center shadow-sm my-6">
           <FileQuestion className="h-16 w-16 mx-auto mb-5 text-indigo-400" />
           <h2 className="text-2xl font-semibold mb-3 text-indigo-900 dark:text-indigo-200">No Exams Created Yet</h2>

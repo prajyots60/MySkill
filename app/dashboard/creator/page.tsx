@@ -566,7 +566,7 @@ export default function CreatorDashboardPage() {
             />
             <StatCard
               title="Total Revenue"
-              value={`$${stats.totalRevenue.toLocaleString()}`}
+              value={`₹${stats.totalRevenue.toLocaleString()}`}
               icon={DollarSign}
               trend="up"
               trendValue="32% this month"
