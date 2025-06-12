@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,6 +49,16 @@ import { updateCreatorProfile } from "@/app/creators/[creatorId]/actions/get-cre
 import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker"
 import { useUploadStore } from "@/lib/store/upload-store"
 import type { UploadTask } from "@/lib/store/upload-store"
+import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Define the available theme colors for creator profiles
 const themeColors = [
@@ -96,6 +106,99 @@ type ProfileForm = {
     description: string
     url: string
   }[]
+  tempCoverImage1: { url: string; index: number; file: File } | null
+}
+
+// Add this component before the main CreatorSettingsPage component
+const ImageCropper = ({ 
+  image, 
+  onCropComplete, 
+  onCancel 
+}: { 
+  image: string; 
+  onCropComplete: (croppedImage: string) => void; 
+  onCancel: () => void;
+}) => {
+  const [crop, setCrop] = useState<Crop>({
+    unit: '%',
+    width: 100,
+    height: 25, // This will maintain 4:1 ratio
+    x: 0,
+    y: 0
+  })
+  const [imageRef, setImageRef] = useState<HTMLImageElement | null>(null)
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    setImageRef(img)
+  }
+
+  const getCroppedImg = () => {
+    if (!imageRef) return
+
+    const canvas = document.createElement('canvas')
+    const scaleX = imageRef.naturalWidth / imageRef.width
+    const scaleY = imageRef.naturalHeight / imageRef.height
+    const pixelCrop = crop as PixelCrop
+    canvas.width = pixelCrop.width * scaleX
+    canvas.height = pixelCrop.height * scaleY
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) return
+
+    ctx.drawImage(
+      imageRef,
+      pixelCrop.x * scaleX,
+      pixelCrop.y * scaleY,
+      pixelCrop.width * scaleX,
+      pixelCrop.height * scaleY,
+      0,
+      0,
+      pixelCrop.width * scaleX,
+      pixelCrop.height * scaleY
+    )
+
+    // Convert to blob
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        onCropComplete(reader.result as string)
+      }
+      reader.readAsDataURL(blob)
+    }, 'image/jpeg', 0.95)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-background rounded-lg p-4 max-w-2xl w-full">
+        <h3 className="text-lg font-semibold mb-4">Crop Cover Image (4:1 ratio)</h3>
+        <div className="mb-4">
+          <ReactCrop
+            crop={crop}
+            onChange={(c) => setCrop(c)}
+            aspect={4/1}
+            className="max-h-[60vh]"
+          >
+            <img
+              src={image}
+              onLoad={onImageLoad}
+              alt="Crop preview"
+              className="max-w-full"
+            />
+          </ReactCrop>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={getCroppedImg}>
+            Crop & Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function CreatorSettingsPage() {
@@ -157,7 +260,10 @@ export default function CreatorSettingsPage() {
       description: "",
       url: "",
       buttonText: ""
-    }]
+    }],
+
+    // Temporary image state
+    tempCoverImage1: null as { url: string; index: number; file: File } | null
   })
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -514,70 +620,112 @@ export default function CreatorSettingsPage() {
     }
   }
 
-  // Add file upload handler
-  const handleCoverImageUpload = async (file: File, index: number) => {
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+
+    // Set temporary image for cropping
+    setProfileForm(prev => ({
+      ...prev,
+      tempCoverImage1: {
+        url: previewUrl,
+        index,
+        file
+      }
+    }));
+
+    // Reset the file input
+    e.target.value = '';
+  };
+
+  // Add this new function to handle the cropped image
+  const handleCroppedImage = async (croppedImageUrl: string) => {
     try {
-      setUploadingImages((prev) => ({ ...prev, [index]: true }))
+      const { tempCoverImage1 } = profileForm
+      if (!tempCoverImage1) return
+
+      setUploadingImages(prev => ({ ...prev, [tempCoverImage1.index]: true }))
       
+      // Convert base64 to blob
+      const response = await fetch(croppedImageUrl)
+      const blob = await response.blob()
+      const file = new File([blob], tempCoverImage1.file.name, { type: 'image/jpeg' })
+
       // Create upload entry
       const uploadId = addUpload({
-        id: `cover-${Date.now()}-${index}`,
+        id: `cover-${Date.now()}-${tempCoverImage1.index}`,
         file,
         title: file.name,
-        sectionId: "cover-image",
-        isPreview: true,
-        status: "uploading",
-        progress: 0,
-        videoSource: "wasabi",
-        isRestartable: false,
+        progress: 0
       })
 
       // Upload to ImageKit
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("index", index.toString())
+      formData.append("index", tempCoverImage1.index.toString())
 
-      const response = await fetch("/api/imagekit/upload", {
+      const uploadResponse = await fetch("/api/imagekit/upload", {
         method: "POST",
         body: formData,
       })
 
-      if (!response.ok) {
+      if (!uploadResponse.ok) {
         throw new Error("Failed to upload image")
       }
 
-      const data = await response.json()
+      const data = await uploadResponse.json()
 
       // Update profile form with both URL and ID
-      setProfileForm((prev) => {
+      setProfileForm(prev => {
         const newCoverImages = [...prev.coverImages]
-        const newCoverImageIds = [...(prev.coverImageIds || [])]
-        newCoverImages[index] = data.url
-        newCoverImageIds[index] = data.fileId
-        return { 
-          ...prev, 
+        newCoverImages[tempCoverImage1.index] = data.url
+        return {
+          ...prev,
           coverImages: newCoverImages,
-          coverImageIds: newCoverImageIds
+          coverImageIds: [...prev.coverImageIds, data.imageId],
+          tempCoverImage1: null
         }
       })
 
       // Update upload status
-      updateUploadProgress(uploadId, 100)
-      updateUploadStatus(uploadId, "completed")
+      updateUpload(uploadId, { progress: 100, status: 'completed' })
 
       toast({
         title: "Cover image uploaded",
-        description: `Cover image ${index + 1} has been uploaded successfully.`,
+        description: `Cover image ${tempCoverImage1.index + 1} has been uploaded successfully.`,
       })
     } catch (error) {
-      console.error("Error uploading cover image:", error)
+      console.error("Error uploading cropped image:", error)
       toast({
-        title: "Upload failed",
-        description: "Failed to upload cover image. Please try again.",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive"
       })
     } finally {
-      setUploadingImages((prev) => ({ ...prev, [index]: false }))
+      setUploadingImages(prev => ({ ...prev, [profileForm.tempCoverImage1?.index || 0]: false }))
     }
   }
 
@@ -630,6 +778,15 @@ export default function CreatorSettingsPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
+      {/* Add ImageCropper modal */}
+      {profileForm.tempCoverImage1 && (
+        <ImageCropper
+          image={profileForm.tempCoverImage1.url}
+          onCropComplete={handleCroppedImage}
+          onCancel={() => setProfileForm(prev => ({ ...prev, tempCoverImage1: null }))}
+        />
+      )}
+      
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold">Creator Settings</h1>
@@ -822,10 +979,7 @@ export default function CreatorSettingsPage() {
                                       accept="image/*"
                                       className="hidden"
                                       onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) {
-                                          handleCoverImageUpload(file, index)
-                                        }
+                                        handleCoverImageUpload(e, index)
                                       }}
                                       disabled={uploadingImages[index]}
                                     />
@@ -856,6 +1010,13 @@ export default function CreatorSettingsPage() {
                             </div>
                           ))}
                         </div>
+                        {profileForm.tempCoverImage1 && (
+                          <ImageCropper
+                            image={profileForm.tempCoverImage1.url}
+                            onCropComplete={handleCroppedImage}
+                            onCancel={() => setProfileForm(prev => ({ ...prev, tempCoverImage1: null }))}
+                          />
+                        )}
                         <p className="text-xs text-muted-foreground">
                           Banner images for your profile hero section (recommended size: 1500×500px). Up to 3 images will be shown as a carousel.
                         </p>
