@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redis } from "@/lib/redis";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +30,11 @@ export async function POST(request: Request) {
     const cacheKey = `course:${courseId}`;
     await redis.del(cacheKey);
 
+    // Revalidate Next.js cache for both course API and content pages
+    revalidatePath(`/api/courses/${courseId}`);
+    revalidatePath(`/api/content/${courseId}`);
+    revalidatePath(`/content/${courseId}`);
+    
     console.log(`Cache invalidated for courseId: ${courseId}`);
 
     return NextResponse.json({ 

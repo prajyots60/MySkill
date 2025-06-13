@@ -2,6 +2,9 @@ import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import CoursePage from "./CoursePage"
 
+// Make this page dynamic to avoid static rendering
+export const dynamic = 'force-dynamic';
+
 export default async function Page({ params }: { params: { contentId: string } }) {
   const { contentId } = await params
 

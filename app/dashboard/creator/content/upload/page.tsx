@@ -81,12 +81,9 @@ export default function UploadContent() {
   // Function to invalidate content page cache for a specific course
   const invalidateContentCache = useCallback(async (courseId: string) => {
     try {
-      // Create cache busting timestamp
-      const timestamp = new Date().getTime();
-      
       console.log("Invalidating cache for course:", courseId);
       
-      // Call our direct cache invalidation API to clear Redis cache
+      // Call our direct cache invalidation API to clear Redis cache and revalidate Next.js paths
       const cacheResponse = await fetch(`/api/cache/invalidate`, {
         method: 'POST',
         headers: {
@@ -96,32 +93,10 @@ export default function UploadContent() {
       });
       
       if (!cacheResponse.ok) {
-        console.error("Failed to invalidate Redis cache:", await cacheResponse.text());
+        console.error("Failed to invalidate cache:", await cacheResponse.text());
+      } else {
+        console.log("Cache invalidation completed");
       }
-      
-      // Also make HEAD requests to invalidate Next.js cache for all related paths
-      await Promise.all([
-        // Course page cache
-        fetch(`/api/courses/${courseId}?t=${timestamp}`, {
-          method: 'HEAD',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'X-Cache-Bust': timestamp.toString()
-          }
-        }),
-        // Also invalidate specific content page cache
-        fetch(`/api/content/${courseId}?t=${timestamp}`, {
-          method: 'HEAD',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'X-Cache-Bust': timestamp.toString()
-          }
-        })
-      ]);
-      
-      console.log("Cache invalidation completed");
     } catch (error) {
       console.error("Error invalidating cache:", error);
       // Don't throw - we don't want to block the UI flow if cache invalidation fails

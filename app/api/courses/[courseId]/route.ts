@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redis } from "@/lib/redis"
+import { unstable_cache } from 'next/cache'
 
 // Cache duration in seconds
 const CACHE_DURATION = 60 * 30 // 30 minutes

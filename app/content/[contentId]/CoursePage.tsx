@@ -135,10 +135,10 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       setLoading(true)
       setEnrollmentChecked(false)
       
-      const courseResponse = await fetch(`/api/courses/${contentId}`, { 
-        next: {
-          revalidate: 300
-        }
+      // Add timestamp to force fresh data after cache invalidation
+      const timestamp = new Date().getTime()
+      const courseResponse = await fetch(`/api/courses/${contentId}?_=${timestamp}`, { 
+        cache: 'no-store' // Don't cache this request
       })
 
       if (!courseResponse.ok) {
