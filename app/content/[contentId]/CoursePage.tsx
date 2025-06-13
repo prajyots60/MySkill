@@ -525,10 +525,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     }
   }
 
-  // Fetch course data
+  // Fetch course data and ensure enrollment is checked
   useEffect(() => {
+    // Reset loading states on initial load or content change
+    setLoading(true);
+    setEnrollmentChecked(false);
+    initialLoadComplete.current = false;
+    
     fetchCourseData()
-  }, [fetchCourseData])
+  }, [fetchCourseData, contentId])
 
   // React to successful payment events
   useEffect(() => {
@@ -579,15 +584,13 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     }
   }, [lastSuccessfulPayment, contentId, resetPaymentState]);
 
-  // Only check enrollment status on explicit session changes (login/logout)
-  // This prevents unnecessary double-rendering
+  // Check enrollment status on session changes and initial load
   useEffect(() => {
-    if (session?.user && contentId && course && !loading) {
-      console.log("Checking enrollment status due to session change only");
-      // We only want to recheck when the session user ID changes (login/logout)
+    if (session?.user && contentId && course && !initialLoadComplete.current) {
+      console.log("Checking enrollment status on initial load or session change");
       checkEnrollmentStatus();
     }
-  }, [session?.user?.id])
+  }, [session?.user?.id, contentId, course, checkEnrollmentStatus])
 
   useEffect(() => {
     async function fetchFollowerCount() {
@@ -705,18 +708,20 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     }
   };
 
-  // Create a ref to track if we've rendered at least once
+  // Create refs to track loading states
   const hasRendered = useRef(false);
+  const initialLoadComplete = useRef(false);
   
   // Combined loading state to prevent UI flicker
-  const isLoadingContent = (loading || !enrollmentChecked) && !hasRendered.current;
+  const isLoadingContent = loading || !enrollmentChecked || !initialLoadComplete.current;
   
-  // After first successful render, mark as rendered
+  // After first successful render with all data, mark as rendered
   useEffect(() => {
-    if (!loading && enrollmentChecked) {
+    if (!loading && enrollmentChecked && course) {
       hasRendered.current = true;
+      initialLoadComplete.current = true;
     }
-  }, [loading, enrollmentChecked]);
+  }, [loading, enrollmentChecked, course]);
   
   if (isLoadingContent) {
     return (
