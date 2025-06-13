@@ -86,7 +86,20 @@ export default function UploadContent() {
       
       console.log("Invalidating cache for course:", courseId);
       
-      // Make HEAD requests to invalidate cache for all related paths
+      // Call our direct cache invalidation API to clear Redis cache
+      const cacheResponse = await fetch(`/api/cache/invalidate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ courseId })
+      });
+      
+      if (!cacheResponse.ok) {
+        console.error("Failed to invalidate Redis cache:", await cacheResponse.text());
+      }
+      
+      // Also make HEAD requests to invalidate Next.js cache for all related paths
       await Promise.all([
         // Course page cache
         fetch(`/api/courses/${courseId}?t=${timestamp}`, {
@@ -1127,6 +1140,7 @@ export default function UploadContent() {
                         isPreview={videoForm.isPreview}
                         file={videoForm.file}
                         onUploadProgress={(progress) => setUploadProgress(progress)}
+                        onCacheInvalidateNeeded={invalidateContentCache}
                         onUploadComplete={(lectureId, videoId) => {
                           // Reset form - this will hide the uploader component
                           setVideoForm({
@@ -1141,6 +1155,11 @@ export default function UploadContent() {
                           if (fileInputRef.current) {
                             fileInputRef.current.value = "";
                           }
+                          
+                          // Add a small delay and then redirect to the course page
+                          setTimeout(() => {
+                            router.push(`/dashboard/creator/content/${selectedCourse}`);
+                          }, 1500);
                         }}
                       />
                     )}
@@ -1178,6 +1197,11 @@ export default function UploadContent() {
                             title: "Optimized Upload Complete",
                             description: "Your video has been uploaded with advanced encryption and optimized chunking.",
                           });
+
+                          // Add a small delay and then redirect to the course page
+                          setTimeout(() => {
+                            router.push(`/dashboard/creator/content/${selectedCourse}`);
+                          }, 1500);
                         }}
                         onUploadProgress={(progress) => {
                           setUploadProgress(progress);

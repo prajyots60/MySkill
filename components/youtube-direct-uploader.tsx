@@ -20,6 +20,7 @@ interface YouTubeDirectUploaderProps {
   onUploadError?: (error: Error) => void
   onUploadStart?: () => void
   onUploadProgress?: (progress: number) => void
+  onCacheInvalidateNeeded?: (courseId: string) => Promise<void>
 }
 
 const CHUNK_SIZE = 1024 * 1024 * 3 // 3MB chunks (to stay within Vercel's 4.5MB limit after base64 encoding)
@@ -33,7 +34,8 @@ export default function YouTubeDirectUploader({
   onUploadComplete,
   onUploadError,
   onUploadStart,
-  onUploadProgress
+  onUploadProgress,
+  onCacheInvalidateNeeded
 }: YouTubeDirectUploaderProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -356,6 +358,17 @@ export default function YouTubeDirectUploader({
         description: "Video has been uploaded successfully"
       })
 
+      // Invalidate cache if courseId is available
+      if (completeData.lecture?.courseId && onCacheInvalidateNeeded) {
+        try {
+          console.log("Invalidating cache for course:", completeData.lecture.courseId);
+          await onCacheInvalidateNeeded(completeData.lecture.courseId);
+        } catch (error) {
+          console.error("Error invalidating cache:", error);
+          // Don't throw - we don't want to block the UI flow if cache invalidation fails
+        }
+      }
+
       if (onUploadComplete) {
         onUploadComplete(completeData.lecture.id, videoId)
       }
@@ -398,7 +411,8 @@ export default function YouTubeDirectUploader({
     onUploadError, 
     onUploadStart, 
     onUploadProgress,
-    uploadMode
+    uploadMode,
+    onCacheInvalidateNeeded
   ])
 
   // Handle canceling upload
