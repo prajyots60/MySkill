@@ -42,6 +42,9 @@ import {
   User2,
   CheckCircle2,
   Users2,
+  AlertTriangle,
+  Hourglass,
+  RefreshCcw,
 } from "lucide-react"
 import Link from "next/link"
 import { SectionLectures } from "@/components/section-lectures"
@@ -126,6 +129,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   const [enrollmentChecked, setEnrollmentChecked] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<ReviewStats | null>(null)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [hasExpired, setHasExpired] = useState(false)
+  const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null)
 
   // Enhanced data fetching with strong cache busting
   const fetchCourseData = useCallback(async () => {
@@ -188,6 +194,23 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           
           setIsEnrolled(enrollmentData.isEnrolled)
           setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
+          
+          // Handle enrollment expiration data
+          setHasExpired(enrollmentData.hasExpired || false)
+          
+          if (enrollmentData.expiresAt) {
+            setExpiresAt(enrollmentData.expiresAt)
+            
+            // Calculate days until expiration
+            const expirationDate = new Date(enrollmentData.expiresAt)
+            const today = new Date()
+            const diffTime = expirationDate.getTime() - today.getTime()
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+            setDaysUntilExpiration(diffDays)
+          } else {
+            setExpiresAt(null)
+            setDaysUntilExpiration(null)
+          }
         }
       }
       
@@ -263,7 +286,10 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       }
     }
 
-    if (effectivelyEnrolled) {
+    if (hasExpired) {
+      // If enrollment has expired, show payment modal for renewal
+      setShowPaymentModal(true)
+    } else if (effectivelyEnrolled) {
       // If already enrolled or creator/admin, go to the first lecture
       if (sections.length > 0 && sections[0].lectures.length > 0) {
         router.push(`/content/${contentId}/player/${sections[0].lectures[0].id}`)
@@ -1119,6 +1145,66 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </>
                       )}
                     </Button>
+                    {/* Enrollment expiration information */}
+                    {hasExpired && (
+                      <div className="bg-destructive/10 border border-destructive rounded-md p-3 mb-4 flex flex-col">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          <span className="font-semibold text-destructive">Your course access has expired</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Your access to this course expired on {new Date(expiresAt!).toLocaleDateString()}. 
+                          Renew now to continue learning.
+                        </p>
+                        <Button 
+                          variant="destructive" 
+                          className="w-full" 
+                          onClick={() => setShowPaymentModal(true)}
+                        >
+                          <RefreshCcw className="h-4 w-4 mr-2" />
+                          Renew Access
+                        </Button>
+                      </div>
+                    )}
+
+                    {!hasExpired && expiresAt && daysUntilExpiration !== null && (
+                      <>
+                        {daysUntilExpiration <= 7 ? (
+                          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 mb-4 flex items-start gap-3">
+                            <Hourglass className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                {daysUntilExpiration <= 0 ? (
+                                  <>Your access expires today!</>
+                                ) : daysUntilExpiration === 1 ? (
+                                  <>Your access expires tomorrow</>
+                                ) : (
+                                  <>Your access expires in {daysUntilExpiration} days</>
+                                )}
+                              </p>
+                              <div className="flex mt-2 justify-between items-center">
+                                <span className="text-xs text-muted-foreground">
+                                  Expiry: {new Date(expiresAt).toLocaleDateString()}
+                                </span>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setShowPaymentModal(true)}
+                                >
+                                  Renew Early
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground mb-3 flex justify-center items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            Access until {new Date(expiresAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {/* Debug info - will be removed after confirming fix */}
                     <div className="text-xs text-muted-foreground mb-2 text-center">
                       {effectivelyEnrolled ? 

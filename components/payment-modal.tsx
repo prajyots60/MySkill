@@ -18,6 +18,7 @@ interface PaymentModalProps {
   courseId: string
   courseTitle: string
   price: number
+  isRenewal?: boolean
 }
 
 declare global {
@@ -32,6 +33,7 @@ export function PaymentModal({
   courseId,
   courseTitle,
   price,
+  isRenewal = false,
 }: PaymentModalProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
@@ -45,7 +47,7 @@ export function PaymentModal({
       const response = await fetch("/api/payment/razorpay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId }),
+        body: JSON.stringify({ courseId, isRenewal }),
       })
 
       const data = await response.json()
@@ -65,7 +67,7 @@ export function PaymentModal({
           amount: data.amount,
           currency: data.currency,
           name: "EduPlatform",
-          description: `Enrollment for ${courseTitle}`,
+          description: isRenewal ? `Renewal for ${courseTitle}` : `Enrollment for ${courseTitle}`,
           order_id: data.orderId,
           handler: async function (response: any) {
             try {
@@ -78,6 +80,7 @@ export function PaymentModal({
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_signature: response.razorpay_signature,
                   courseId,
+                  isRenewal,
                 }),
               })
 
@@ -87,7 +90,7 @@ export function PaymentModal({
                 throw new Error(verifyData.error || "Payment verification failed")
               }
 
-              toast.success("Payment successful!")
+              toast.success(isRenewal ? "Course access renewed successfully!" : "Payment successful!")
               
               // Double check enrollment status from server with cache busting
               try {
@@ -167,9 +170,11 @@ export function PaymentModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Complete Your Enrollment</DialogTitle>
+          <DialogTitle>{isRenewal ? "Renew Course Access" : "Complete Your Enrollment"}</DialogTitle>
           <DialogDescription>
-            Proceed with the payment to get instant access to the course.
+            {isRenewal 
+              ? "Proceed with the payment to renew your access to this course." 
+              : "Proceed with the payment to get instant access to the course."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -194,7 +199,7 @@ export function PaymentModal({
                 Processing...
               </>
             ) : (
-              "Pay Now"
+              isRenewal ? "Renew Access" : "Pay Now"
             )}
           </Button>
         </div>
