@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 import { redis } from "@/lib/redis"
 import { revalidatePath } from "next/cache"
 import createBatch from "@/lib/utils/db-batch"
-import dbMonitoring from "@/lib/db-monitoring"
+import { EnrollmentStatus } from "@prisma/client"
 
 // GET - Check enrollment status
 export async function GET(req: NextRequest, { params }: { params: { courseId: string } }) {
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest, { params }: { params: { courseId: st
     if (error instanceof Error && 
         (error.message.includes('connect') || 
          error.message.includes('Connection closed'))) {
-      dbMonitoring.trackError('enrollment_check_connection_error')
+      
     }
     
     return NextResponse.json({ success: false, message: "Failed to check enrollment status" }, { status: 500 })
@@ -134,7 +134,20 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
       return NextResponse.json({ success: false, message: "Already enrolled in this course" }, { status: 400 })
     }
 
-    // Create enrollment
+    // Get the course with accessDuration field
+    const courseDetails = await prisma.content.findUnique({
+      where: { id: courseId },
+      select: { accessDuration: true, price: true }
+    });
+    
+    // Calculate expiration date if course has accessDuration
+    const expiresAt = courseDetails?.accessDuration ? (() => {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() + courseDetails.accessDuration);
+      return startDate;
+    })() : null;
+    
+    // Create enrollment with expiration date
     const enrollment = await prisma.enrollment.create({
       data: {
         user: {
@@ -143,6 +156,9 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
         content: {
           connect: { id: courseId },
         },
+        status: EnrollmentStatus.ACTIVE,
+        expiresAt: expiresAt,
+        price: courseDetails?.price || 0,
       },
     })
 
@@ -170,7 +186,7 @@ export async function POST(req: NextRequest, { params }: { params: { courseId: s
     if (error instanceof Error && 
         (error.message.includes('connect') || 
          error.message.includes('Connection closed'))) {
-      dbMonitoring.trackError('enrollment_create_connection_error')
+      
     }
     
     return NextResponse.json({ success: false, message: "Failed to enroll in course" }, { status: 500 })
@@ -256,7 +272,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { courseId:
     if (error instanceof Error && 
         (error.message.includes('connect') || 
          error.message.includes('Connection closed'))) {
-      dbMonitoring.trackError('enrollment_delete_connection_error');
+      
     }
     
     const status = error instanceof Error && (error as any).cause?.status || 500;

@@ -60,7 +60,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
-  PanelRightOpen
+  PanelRightOpen,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Mail,
+  MessageSquareShare
 } from "lucide-react"
 import Link from "next/link"
 import type { Course, Lecture, Section } from "@/lib/types"
@@ -111,6 +116,9 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
   
   // UI state
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
+  const [showShareDialog, setShowShareDialog] = useState(false)
   const [showMobileNav, setShowMobileNav] = useState(false)
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false)
   const [activeTab, setActiveTab] = useState<string>("discussion")
@@ -375,6 +383,45 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     }
   )
 
+  // Fetch the lecture's like count and user's like status
+  useEffect(() => {
+    if (lectureId && session?.user && hasAccess) {
+      const fetchLikeData = async () => {
+        try {
+          const response = await fetch(`/api/lectures/${lectureId}/likes`)
+          if (response.ok) {
+            const data = await response.json()
+            setLikeCount(data.count)
+            setIsLiked(data.isLiked)
+          }
+        } catch (error) {
+          console.error("Error fetching lecture likes:", error)
+        }
+      }
+      
+      fetchLikeData()
+    }
+  }, [lectureId, session?.user, hasAccess])
+  
+  // Fetch the user's bookmark status for this lecture
+  useEffect(() => {
+    if (lectureId && session?.user && hasAccess) {
+      const fetchBookmarkStatus = async () => {
+        try {
+          const response = await fetch(`/api/lectures/${lectureId}/bookmark`)
+          if (response.ok) {
+            const data = await response.json()
+            setIsBookmarked(data.isBookmarked)
+          }
+        } catch (error) {
+          console.error("Error fetching bookmark status:", error)
+        }
+      }
+      
+      fetchBookmarkStatus()
+    }
+  }, [lectureId, session?.user, hasAccess])
+
   // Effect to update access states when relevant data changes
   useEffect(() => {
     if (enrollmentData) {
@@ -471,6 +518,8 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     }
   }, [loading, isEnrolled])
 
+
+
   const handleVideoComplete = async () => {
     if (currentLecture && course) {
       try {
@@ -549,12 +598,45 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     setShowMobileNav(false)
   }
 
-  const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked)
-    toast({
-      title: isBookmarked ? "Removed from bookmarks" : "Added to bookmarks",
-      description: isBookmarked ? "Lecture removed from your bookmarks" : "Lecture added to your bookmarks",
-    })
+  const toggleBookmark = async () => {
+    if (!session?.user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to bookmark this lecture",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lectures/${lectureId}/bookmark`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle bookmark")
+      }
+
+      const data = await response.json()
+      setIsBookmarked(data.isBookmarked)
+
+      toast({
+        title: data.isBookmarked ? "Added to bookmarks" : "Removed from bookmarks",
+        description: data.isBookmarked 
+          ? "Lecture added to your bookmarks" 
+          : "Lecture removed from your bookmarks",
+      })
+    } catch (error) {
+      console.error("Error toggling bookmark:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update bookmark status",
+        variant: "destructive"
+      })
+    }
   }
   
   const toggleSectionCollapse = (sectionId: string) => {
@@ -811,6 +893,131 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
     }
   };
 
+  const toggleLike = async () => {
+    if (!session?.user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to mark this lecture as helpful",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lectures/${lectureId}/likes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle like")
+      }
+
+      const data = await response.json()
+      setIsLiked(data.isLiked)
+      setLikeCount(data.count)
+
+      toast({
+        title: data.isLiked ? "Marked as helpful" : "Removed helpful mark",
+        description: data.isLiked 
+          ? "Thank you for your feedback" 
+          : "Your feedback has been updated",
+      })
+    } catch (error) {
+      console.error("Error toggling like:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update helpful status",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Handle sharing functionality with multiple platforms
+  const handleShare = (platform: string) => {
+    if (!currentLecture) return
+    
+    // Get the current URL for sharing
+    const currentUrl = typeof window !== 'undefined' 
+      ? window.location.href 
+      : `${process.env.NEXT_PUBLIC_APP_URL || ''}/content/${contentId}/player/${lectureId}`;
+      
+    const lectureTitle = encodeURIComponent(currentLecture.title);
+    const lectureDesc = encodeURIComponent(currentLecture.description || "Check out this lecture!");
+    
+    switch (platform) {
+      case "facebook":
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "twitter":
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${lectureTitle}`, "_blank");
+        break;
+      case "linkedin":
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "whatsapp":
+        window.open(`https://api.whatsapp.com/send?text=${lectureTitle}%20-%20${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "gmail":
+        window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=&su=${lectureTitle}&body=${lectureDesc}%0A%0A${encodeURIComponent(currentUrl)}&tf=1`, "_blank");
+        break;
+      case "email":
+        window.open(`mailto:?subject=${lectureTitle}&body=${lectureDesc}%0A%0A${encodeURIComponent(currentUrl)}`, "_blank");
+        break;
+      case "copy":
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(currentUrl)
+            .then(() => {
+              toast({
+                title: "Link Copied!",
+                description: "Lecture link has been copied to your clipboard",
+                variant: "default",
+              });
+            })
+            .catch((err) => {
+              console.error("Failed to copy: ", err);
+              toast({
+                title: "Copy Failed",
+                description: "Could not copy the link. Please try again.",
+                variant: "destructive",
+              });
+            });
+        } else {
+          // Fallback for browsers that don't support clipboard API
+          const textArea = document.createElement("textarea");
+          textArea.value = currentUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            toast({
+              title: "Link Copied!",
+              description: "Lecture link has been copied to your clipboard",
+              variant: "default",
+            });
+          } catch (err) {
+            console.error("Fallback: Failed to copy: ", err);
+            toast({
+              title: "Copy Failed",
+              description: "Could not copy the link. Please try again.",
+              variant: "destructive",
+            });
+          }
+          document.body.removeChild(textArea);
+        }
+        break;
+      default:
+        break;
+    }
+  };
+  
+  // For backward compatibility
+  const shareVideoUrl = () => {
+    handleShare("copy");
+  }
+
   return (
     <div className="bg-background min-h-screen">
       <style jsx global>{`
@@ -1042,13 +1249,20 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1">
-                      <ThumbsUp className="h-4 w-4" />
-                      Helpful
+                    <Button variant="ghost" size="sm" className="gap-1" onClick={toggleLike}>
+                      <ThumbsUp className={`h-4 w-4 ${isLiked ? "text-green-500 fill-green-500" : "text-muted-foreground"}`} />
+                      <span className="flex items-center">
+                        {isLiked ? "Liked" : "Like"}
+                        {likeCount > 0 && (
+                          <span className="ml-1.5 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                            {likeCount}
+                          </span>
+                        )}
+                      </span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Mark this lecture as helpful</p>
+                    <p>{isLiked ? "Remove like" : "Mark this like"}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1057,12 +1271,12 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="sm" className="gap-1" onClick={toggleBookmark}>
-                      <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`} />
+                      <Bookmark className={`h-4 w-4 transition-colors ${isBookmarked ? "text-primary fill-primary" : "text-muted-foreground"}`} />
                       {isBookmarked ? "Bookmarked" : "Bookmark"}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isBookmarked ? "Remove bookmark" : "Bookmark this lecture"}</p>
+                    <p>{isBookmarked ? "Remove from bookmarks" : "Save to bookmarks"}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1070,10 +1284,44 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1">
-                      <Share2 className="h-4 w-4" />
-                      Share
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-1">
+                          <Share2 className="h-4 w-4" />
+                          Share
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[200px]">
+                        <DropdownMenuItem onClick={() => handleShare("facebook")} className="cursor-pointer">
+                          <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                          Facebook
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("twitter")} className="cursor-pointer">
+                          <Twitter className="h-4 w-4 mr-2 text-blue-400" />
+                          Twitter
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("linkedin")} className="cursor-pointer">
+                          <Linkedin className="h-4 w-4 mr-2 text-blue-700" />
+                          LinkedIn
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("whatsapp")} className="cursor-pointer">
+                          <MessageSquareShare className="h-4 w-4 mr-2 text-green-500" />
+                          WhatsApp
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("gmail")} className="cursor-pointer">
+                          <Mail className="h-4 w-4 mr-2 text-red-500" />
+                          Gmail
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("email")} className="cursor-pointer">
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShare("copy")} className="cursor-pointer">
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Link
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Share this lecture</p>
@@ -1095,27 +1343,7 @@ export default function VideoPlayerPage({ contentId, lectureId }: VideoPlayerPag
                 </Tooltip>
               </TooltipProvider>
               
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1 ml-auto">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="gap-2">
-                    <Copy className="h-4 w-4" />
-                    <span>Copy URL</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => toggleLectureCompletion(currentLecture.id)}>
-                    <Forward className="h-4 w-4" />
-                    <span>{completedLectures[currentLecture.id] ? "Mark as incomplete" : "Mark as complete"}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2">
-                    <ExternalLink className="h-4 w-4" />
-                    <span>Open in new tab</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+             
             </div>
           </div>
 

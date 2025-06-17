@@ -89,16 +89,40 @@ export async function GET(request: Request, { params }: { params: { courseId: st
     // Note: For free courses, we still need to check actual enrollment status
     // Free courses require enrollment, but the enrollment process is just simplified
 
-    // Check if user is enrolled
+    // Check if user is enrolled and enrollment hasn't expired
+    const now = new Date();
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         userId: session.user.id,
         contentId: courseId,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: now } }
+        ]
       },
-    })
+    });
+
+    // If the enrollment has expired, we should return additional information
+    let hasExpired = false;
+    if (!enrollment) {
+      // Check if there is an expired enrollment
+      const expiredEnrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: session.user.id,
+          contentId: courseId,
+          expiresAt: { lte: now }
+        },
+      });
+      
+      if (expiredEnrollment) {
+        hasExpired = true;
+      }
+    }
 
     const response = { 
       isEnrolled: !!enrollment,
+      hasExpired,
+      expiresAt: enrollment?.expiresAt || null,
       success: true,  // Add success flag for better client-side handling
       timestamp: Date.now() // Add timestamp for debugging
     }

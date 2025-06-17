@@ -34,11 +34,14 @@ export async function GET(request: Request) {
     }
 
     // Get all bookmarked courses
-    const bookmarks = await prisma.content.findMany({
+    const bookmarkedCourses = await prisma.content.findMany({
       where: {
         bookmarks: {
           some: {
             userId: session.user.id,
+            contentId: {
+              not: null
+            }
           },
         },
         isPublished: true,
@@ -76,8 +79,43 @@ export async function GET(request: Request) {
       },
     })
 
-    // Transform the data
-    const transformedBookmarks = bookmarks.map((course) => {
+    // Get bookmarked lectures
+    const bookmarkedLectures = await prisma.bookmark.findMany({
+      where: {
+        userId: session.user.id,
+        lectureId: {
+          not: null
+        }
+      },
+      include: {
+        lecture: {
+          include: {
+            section: {
+              include: {
+                content: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    thumbnail: true,
+                    creator: {
+                      select: {
+                        id: true,
+                        name: true,
+                        image: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    // Transform the course bookmarks data
+    const transformedCourseBookmarks = bookmarkedCourses.map((course) => {
       // Calculate average rating
       const ratings = course.reviews.map(review => review.rating);
       const rating = ratings.length > 0 
@@ -98,19 +136,48 @@ export async function GET(request: Request) {
         level: null, // Handle case where level might be undefined
         tags: course.tags,
         rating: rating,
-        reviewCount: ratings.length
+        reviewCount: ratings.length,
+        type: "course"
       }
     })
+    
+    // Transform the lecture bookmarks data
+    const transformedLectureBookmarks = bookmarkedLectures.map((bookmark) => {
+      const lecture = bookmark.lecture;
+      const course = lecture?.section?.content;
+      
+      return {
+        id: lecture?.id,
+        lectureId: lecture?.id,
+        lectureTitle: lecture?.title,
+        lectureDescription: lecture?.description,
+        courseId: course?.id,
+        courseTitle: course?.title,
+        thumbnail: course?.thumbnail,
+        creatorName: course?.creator?.name || null,
+        creatorImage: course?.creator?.image || null,
+        creatorId: course?.creator?.id,
+        duration: lecture?.duration,
+        updatedAt: lecture?.updatedAt,
+        type: "lecture"
+      };
+    }).filter(item => item.courseId !== undefined)
 
+    // Combine both types of bookmarks into a single result
+    const allBookmarks = {
+      courses: transformedCourseBookmarks,
+      lectures: transformedLectureBookmarks
+    }
+    
     // Cache the results if not bypassing cache
     if (!shouldBypassCache) {
       const cacheKey = `student:bookmarks:${session.user.id}`
-      await redis.set(cacheKey, JSON.stringify(transformedBookmarks), { ex: 60 * 5 }) // 5 minutes
+      await redis.set(cacheKey, JSON.stringify(allBookmarks), { ex: 60 * 5 }) // 5 minutes
     }
 
     return NextResponse.json({
       success: true,
-      bookmarks: transformedBookmarks,
+      bookmarks: allBookmarks,
       fromCache: false,
     })
   } catch (error) {

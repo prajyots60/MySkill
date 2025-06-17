@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       razorpay_payment_id,
       razorpay_signature,
       courseId,
+      isRenewal,
     } = await req.json()
 
     // Verify payment signature
@@ -34,10 +35,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    // Get course details for price
+    // Get course details for price and accessDuration
     const course = await prisma.content.findUnique({
       where: { id: courseId },
-      select: { price: true },
+      select: { 
+        price: true,
+        accessDuration: true 
+      },
     })
 
     // Update payment status and create enrollment
@@ -72,6 +76,23 @@ export async function POST(req: Request) {
       },
     });
 
+    // Calculate expiration date if course has accessDuration
+    let expiresAt = null;
+    
+    if (course?.accessDuration) {
+      // For renewals, if the current enrollment hasn't expired yet, extend from current expiry date
+      if (isRenewal && existingEnrollment?.expiresAt && existingEnrollment.expiresAt > new Date()) {
+        const currentExpiryDate = new Date(existingEnrollment.expiresAt);
+        currentExpiryDate.setMonth(currentExpiryDate.getMonth() + course.accessDuration);
+        expiresAt = currentExpiryDate;
+      } else {
+        // For new enrollments or expired enrollments, start from now
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() + course.accessDuration);
+        expiresAt = startDate;
+      }
+    }
+      
     if (!existingEnrollment) {
       // Create enrollment record if it doesn't exist
       await prisma.enrollment.create({
@@ -81,15 +102,18 @@ export async function POST(req: Request) {
           status: EnrollmentStatus.ACTIVE,
           price: course?.price || 0,
           paymentId: payment.id,
+          expiresAt: expiresAt,
         },
       });
     } else {
-      // Update existing enrollment to ACTIVE if it's not already
+      // Update existing enrollment
       await prisma.enrollment.update({
         where: { id: existingEnrollment.id },
         data: {
-          status: EnrollmentStatus.ACTIVE,
+          status: EnrollmentStatus.ACTIVE, // Set status to ACTIVE (in case it was EXPIRED)
           paymentId: payment.id,
+          expiresAt: expiresAt, // Update expiration date
+          updatedAt: new Date(), // Update the updatedAt timestamp
         },
       });
     }

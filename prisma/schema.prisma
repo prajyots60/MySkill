@@ -76,18 +76,19 @@ model User {
   uploadedResources      CourseResource[]
   creatorProfile         CreatorProfile?
   dailymotionInfo        DailymotionInfo?
-  devices                UserDevice[]            // Track user devices
   documents              Document[]
   enrollments            Enrollment[]
   eventReminders         EventReminder[]
   createdExams           Exam[]
+  lectureLikes           LectureLike[]
   notifications          Notification[]
   payments               Payment[]               @relation("UserPayments")
   progress               Progress[]
   reviews                Review[]
-  securityViolations     SecurityViolation[]      // Track security violations
+  securityViolations     SecurityViolation[]
   sessions               Session[]
   studentExamResponses   StudentExamResponse[]
+  devices                UserDevice[]
   followers              UserFollow[]            @relation("UserFollowers")
   following              UserFollow[]            @relation("UserFollowing")
   userServiceConnections UserServiceConnection[]
@@ -215,10 +216,12 @@ model Lecture {
   streamData     Json?
   metadata       Json?
   secureMetadata Json?
+  bookmarks      Bookmark[]
   comments       Comment[]
   documents      Document[]
   eventReminders EventReminder[]
   exams          Exam[]
+  lectureLikes   LectureLike[]
   section        Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   progress       Progress[]
   resources      Resource[]
@@ -229,21 +232,27 @@ model Lecture {
 }
 
 model Enrollment {
-  id        String           @id @default(cuid())
-  userId    String
-  contentId String
-  createdAt DateTime         @default(now())
-  paymentId String?          @unique
-  price     Float?
-  status    EnrollmentStatus @default(ACTIVE)
-  updatedAt DateTime         @default(now()) @updatedAt
-  content   Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  payment   Payment?         @relation(fields: [paymentId], references: [id])
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  userId     String
+  contentId  String
+  createdAt  DateTime         @default(now())
+  enrolledAt DateTime         @default(now())
+  expiresAt  DateTime?
+  paymentId  String?          @unique
+  price      Float?
+  status     EnrollmentStatus @default(ACTIVE)
+  updatedAt  DateTime         @default(now()) @updatedAt
+  content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  payment    Payment?         @relation(fields: [paymentId], references: [id])
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
   @@index([userId])
   @@index([contentId])
+  @@index([enrolledAt])
+  @@index([expiresAt])
+  @@index([status])
+  @@index([userId, status])
 }
 
 model Payment {
@@ -332,13 +341,30 @@ model Bookmark {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String
-  contentId String
-  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String?
+  lectureId String?
+  content   Content? @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lecture   Lecture? @relation(fields: [lectureId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
+  @@unique([userId, lectureId])
   @@index([userId])
   @@index([contentId])
+  @@index([lectureId])
+}
+
+model LectureLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  lectureId String
+  lecture   Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+  @@index([userId])
+  @@index([lectureId])
 }
 
 model Resource {
@@ -567,12 +593,47 @@ model Notification {
   createdAt     DateTime         @default(now())
   actionUrl     String?
   relatedItemId String?
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   content       Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([contentId])
   @@index([read])
+  @@index([createdAt])
+}
+
+model UserDevice {
+  id              String   @id @default(cuid())
+  userId          String
+  deviceId        String   @unique
+  deviceType      String
+  browser         String
+  operatingSystem String
+  ip              String?
+  userAgent       String
+  firstLogin      DateTime @default(now())
+  lastLogin       DateTime @updatedAt
+  isActive        Boolean  @default(true)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model SecurityViolation {
+  id            String   @id @default(cuid())
+  userId        String
+  violationType String
+  ipAddress     String?
+  userAgent     String?
+  details       Json?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([violationType])
   @@index([createdAt])
 }
 
@@ -667,39 +728,4 @@ enum NotificationType {
   ANNOUNCEMENT
   LIVE_SESSION
   DEADLINE_REMINDER
-}
-
-model UserDevice {
-  id              String    @id @default(cuid())
-  userId          String
-  deviceId        String    @unique
-  deviceType      String
-  browser         String
-  operatingSystem String
-  ip              String?
-  userAgent       String
-  firstLogin      DateTime  @default(now())
-  lastLogin       DateTime  @updatedAt
-  isActive        Boolean   @default(true)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, deviceId])
-  @@index([userId])
-  @@index([deviceId])
-}
-
-model SecurityViolation {
-  id              String   @id @default(cuid())
-  userId          String
-  violationType   String
-  ipAddress       String?
-  userAgent       String?
-  details         Json?
-  createdAt       DateTime @default(now())
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([ipAddress])
-  @@index([violationType])
-  @@index([createdAt])
 }
