@@ -221,8 +221,8 @@ model Lecture {
   documents      Document[]
   eventReminders EventReminder[]
   exams          Exam[]
-  lectureLikes   LectureLike[]
   section        Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lectureLikes   LectureLike[]
   progress       Progress[]
   resources      Resource[]
 
@@ -236,12 +236,12 @@ model Enrollment {
   userId     String
   contentId  String
   createdAt  DateTime         @default(now())
-  enrolledAt DateTime         @default(now())
-  expiresAt  DateTime?
   paymentId  String?          @unique
   price      Float?
   status     EnrollmentStatus @default(ACTIVE)
   updatedAt  DateTime         @default(now()) @updatedAt
+  enrolledAt DateTime         @default(now())
+  expiresAt  DateTime?
   content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
   payment    Payment?         @relation(fields: [paymentId], references: [id])
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
