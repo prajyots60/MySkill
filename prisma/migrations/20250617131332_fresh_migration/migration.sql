@@ -219,6 +219,8 @@ CREATE TABLE "Enrollment" (
     "price" DOUBLE PRECISION,
     "status" "EnrollmentStatus" NOT NULL DEFAULT 'ACTIVE',
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "enrolledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
 
     CONSTRAINT "Enrollment_pkey" PRIMARY KEY ("id")
 );
@@ -290,9 +292,20 @@ CREATE TABLE "Bookmark" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" TEXT NOT NULL,
-    "contentId" TEXT NOT NULL,
+    "contentId" TEXT,
+    "lectureId" TEXT,
 
     CONSTRAINT "Bookmark_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LectureLike" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" TEXT NOT NULL,
+    "lectureId" TEXT NOT NULL,
+
+    CONSTRAINT "LectureLike_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -592,6 +605,18 @@ CREATE INDEX "Enrollment_userId_idx" ON "Enrollment"("userId");
 CREATE INDEX "Enrollment_contentId_idx" ON "Enrollment"("contentId");
 
 -- CreateIndex
+CREATE INDEX "Enrollment_enrolledAt_idx" ON "Enrollment"("enrolledAt");
+
+-- CreateIndex
+CREATE INDEX "Enrollment_expiresAt_idx" ON "Enrollment"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "Enrollment_status_idx" ON "Enrollment"("status");
+
+-- CreateIndex
+CREATE INDEX "Enrollment_userId_status_idx" ON "Enrollment"("userId", "status");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Enrollment_userId_contentId_key" ON "Enrollment"("userId", "contentId");
 
 -- CreateIndex
@@ -646,7 +671,22 @@ CREATE INDEX "Bookmark_userId_idx" ON "Bookmark"("userId");
 CREATE INDEX "Bookmark_contentId_idx" ON "Bookmark"("contentId");
 
 -- CreateIndex
+CREATE INDEX "Bookmark_lectureId_idx" ON "Bookmark"("lectureId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Bookmark_userId_contentId_key" ON "Bookmark"("userId", "contentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Bookmark_userId_lectureId_key" ON "Bookmark"("userId", "lectureId");
+
+-- CreateIndex
+CREATE INDEX "LectureLike_userId_idx" ON "LectureLike"("userId");
+
+-- CreateIndex
+CREATE INDEX "LectureLike_lectureId_idx" ON "LectureLike"("lectureId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LectureLike_userId_lectureId_key" ON "LectureLike"("userId", "lectureId");
 
 -- CreateIndex
 CREATE INDEX "Resource_courseId_idx" ON "Resource"("courseId");
@@ -856,7 +896,16 @@ ALTER TABLE "Document" ADD CONSTRAINT "Document_sectionId_fkey" FOREIGN KEY ("se
 ALTER TABLE "Bookmark" ADD CONSTRAINT "Bookmark_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "Content"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Bookmark" ADD CONSTRAINT "Bookmark_lectureId_fkey" FOREIGN KEY ("lectureId") REFERENCES "Lecture"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Bookmark" ADD CONSTRAINT "Bookmark_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LectureLike" ADD CONSTRAINT "LectureLike_lectureId_fkey" FOREIGN KEY ("lectureId") REFERENCES "Lecture"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LectureLike" ADD CONSTRAINT "LectureLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Resource" ADD CONSTRAINT "Resource_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Content"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -935,4 +984,3 @@ ALTER TABLE "UserDevice" ADD CONSTRAINT "UserDevice_userId_fkey" FOREIGN KEY ("u
 
 -- AddForeignKey
 ALTER TABLE "SecurityViolation" ADD CONSTRAINT "SecurityViolation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
