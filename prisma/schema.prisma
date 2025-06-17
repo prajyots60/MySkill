@@ -80,6 +80,7 @@ model User {
   enrollments            Enrollment[]
   eventReminders         EventReminder[]
   createdExams           Exam[]
+  lectureLikes           LectureLike[]
   notifications          Notification[]
   payments               Payment[]               @relation("UserPayments")
   progress               Progress[]
@@ -215,10 +216,12 @@ model Lecture {
   streamData     Json?
   metadata       Json?
   secureMetadata Json?
+  bookmarks      Bookmark[]
   comments       Comment[]
   documents      Document[]
   eventReminders EventReminder[]
   exams          Exam[]
+  lectureLikes   LectureLike[]
   section        Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   progress       Progress[]
   resources      Resource[]
@@ -338,13 +341,30 @@ model Bookmark {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String
-  contentId String
-  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String?
+  lectureId String?
+  content   Content? @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lecture   Lecture? @relation(fields: [lectureId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
+  @@unique([userId, lectureId])
   @@index([userId])
   @@index([contentId])
+  @@index([lectureId])
+}
+
+model LectureLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  lectureId String
+  lecture   Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+  @@index([userId])
+  @@index([lectureId])
 }
 
 model Resource {
