@@ -461,7 +461,7 @@ export default function CreatorDashboardPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
-      <h1 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+      <h1 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r dark:from-white dark:to-white from-black to-black">
         Creator Dashboard
       </h1>
 
@@ -536,7 +536,7 @@ export default function CreatorDashboardPage() {
           {/* Upcoming Lectures - Moved to top position for more visibility */}
           <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center text-lg text-primary">
+              <CardTitle className="flex items-center text-lg dark:text-white text-black">
                 <Calendar className="h-5 w-5 mr-2" />
                 Your Upcoming Live Sessions
               </CardTitle>
