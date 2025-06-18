@@ -46,10 +46,11 @@ export async function GET(request: Request) {
             name: true,
             image: true,
             bio: true,
+            createdAt: true,
             _count: {
               select: {
                 contents: true,
-                followers: true,
+                followers: { where: { follower: { role: "STUDENT" } } }, // Count followers who are students
               },
             },
           },
@@ -64,7 +65,8 @@ export async function GET(request: Request) {
       image: follow.following.image,
       bio: follow.following.bio,
       courseCount: follow.following._count.contents,
-      studentCount: follow.following._count.followers,
+      followerCount: follow.following._count.followers,
+      joinedDate: follow.following.createdAt?.toISOString(),
     }))
 
     // Cache the results if not bypassing cache

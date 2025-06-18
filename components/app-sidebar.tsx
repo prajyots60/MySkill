@@ -23,6 +23,7 @@ import {
   FileQuestion,
   BarChart,
   X,
+  UserCheck,
 } from "lucide-react"
 import {
   Sidebar,
@@ -268,6 +269,20 @@ export function AppSidebar() {
                         <Link href="/dashboard/student/saved" prefetch={true} scroll={false}>
                           <Bookmark className="h-4 w-4" />
                           <span className="text-[13px]">Saved</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/student/followed-creators")}
+                        tooltip="Followed Creators"
+                        className="group-data-[collapsible=icon]:justify-center"
+                      >
+                        <Link href="/dashboard/student/followed-creators" prefetch={true} scroll={false}>
+                          <UserCheck className="h-4 w-4" />
+                          <span className="text-[13px]">Followed</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

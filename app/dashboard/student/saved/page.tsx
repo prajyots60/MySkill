@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { UserPlus, Bookmark } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import Link from "next/link"
 
 interface BookmarkedCourse {
@@ -49,22 +49,12 @@ interface BookmarkedLecture {
   updatedAt: string
 }
 
-interface FollowedInstructor {
-  id: string
-  name: string
-  image?: string
-  bio?: string
-  courseCount: number
-  studentCount: number
-}
-
 export default function SavedCoursesPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const [courseBookmarks, setCourseBookmarks] = useState<BookmarkedCourse[]>([])
   const [lectureBookmarks, setLectureBookmarks] = useState<BookmarkedLecture[]>([])
-  const [followedInstructors, setFollowedInstructors] = useState<FollowedInstructor[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -80,21 +70,15 @@ export default function SavedCoursesPage() {
           "X-Cache-Bust": cacheBustTimestamp
         }
         
-        const [bookmarksResponse, instructorsResponse] = await Promise.all([
-          fetch("/api/student/bookmarks", { 
-            headers: cacheBustHeaders 
-          }),
-          fetch("/api/student/followed-instructors", {
-            headers: cacheBustHeaders
-          }),
-        ])
+        const bookmarksResponse = await fetch("/api/student/bookmarks", { 
+          headers: cacheBustHeaders 
+        });
 
         if (!bookmarksResponse.ok) {
           throw new Error("Failed to fetch bookmarks")
         }
 
         const bookmarksData = await bookmarksResponse.json()
-        const instructorsData = await instructorsResponse.json()
 
         // Transform the course bookmarks data
         const transformedCourseBookmarks = bookmarksData.bookmarks.courses.map((bookmark: any) => ({
@@ -115,7 +99,6 @@ export default function SavedCoursesPage() {
 
         setCourseBookmarks(transformedCourseBookmarks)
         setLectureBookmarks(transformedLectureBookmarks)
-        setFollowedInstructors(instructorsData.instructors || [])
       } catch (error) {
         console.error("Error fetching data:", error)
         setError(error instanceof Error ? error.message : "Failed to fetch data")
@@ -198,16 +181,6 @@ export default function SavedCoursesPage() {
                 Saved Lectures
                 <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                   {lectureBookmarks.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="instructors"
-                className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2 transition-all"
-              >
-                <UserPlus className="h-4 w-4" />
-                Followed Instructors
-                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                  {followedInstructors.length}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -328,60 +301,6 @@ export default function SavedCoursesPage() {
                           </div>
                         </div>
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="instructors" className="space-y-6">
-              {followedInstructors.length === 0 ? (
-                <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
-                  <CardHeader className="text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                      <UserPlus className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle>No Followed Instructors</CardTitle>
-                    <CardDescription className="text-lg">
-                      Follow your favorite instructors to stay updated with their latest courses.
-                    </CardDescription>
-                    <Button variant="outline" className="mt-4" onClick={() => router.push("/explore")}>
-                      Find Instructors
-                    </Button>
-                  </CardHeader>
-                </Card>
-              ) : (
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {followedInstructors.map((instructor) => (
-                    <Card key={instructor.id} className="transform transition-all hover:scale-[1.02] hover:shadow-lg">
-                      <CardHeader>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-16 w-16 border-2 border-primary/20">
-                            <AvatarImage src={instructor.image} alt={instructor.name} />
-                            <AvatarFallback className="bg-primary/10 text-primary">
-                              {instructor.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-1">
-                            <h3 className="font-semibold text-lg">{instructor.name}</h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {instructor.bio || "No bio available"}
-                            </p>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="space-y-1">
-                            <p className="text-muted-foreground">Courses</p>
-                            <p className="font-medium">{instructor.courseCount}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-muted-foreground">Students</p>
-                            <p className="font-medium">{instructor.studentCount}</p>
-                          </div>
-                        </div>
-                      </CardContent>
                     </Card>
                   ))}
                 </div>
