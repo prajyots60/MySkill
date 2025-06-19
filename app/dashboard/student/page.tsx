@@ -14,6 +14,7 @@ import { StudentNotifications } from "@/components/student-notifications"
 import { UpcomingLectures } from "@/components/upcoming-lectures"
 import { RecommendedCreators } from "@/components/recommended-creators"
 import { OptimizedCourseCard } from "@/components/optimized-course-card"
+import { RecentLecturesSlider } from "@/components/recent-lectures-slider"
 import type { Course } from "@/lib/types"
 import { toast } from "@/components/ui/use-toast"
 
@@ -255,6 +256,11 @@ export default function StudentDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+        
+        {/* Recent Lectures Slider - added new component */}
+        <div className="mb-8">
+          <RecentLecturesSlider />
         </div>
 
         {inProgressCourses.length === 0 && (

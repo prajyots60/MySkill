@@ -4,6 +4,8 @@
 
 /* Import premium animations */
 @import url('/styles/premium-animations.css');
+/* Import slider styles */
+@import url('../styles/slider.css');
 
 /* Shimmer animation for loading states */
 @keyframes shimmer {
