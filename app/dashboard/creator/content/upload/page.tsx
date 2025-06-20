@@ -431,6 +431,23 @@ export default function UploadContent() {
                     fileInputRef.current.value = ""
                   }
 
+                  // Send notifications to enrolled students
+                  try {
+                    await fetch("/api/notifications/new-content", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        sectionId: selectedSection,
+                        lectureTitle: videoForm.title,
+                      }),
+                    })
+                  } catch (error) {
+                    console.error("Error sending notifications:", error)
+                    // Don't block the upload process if notifications fail
+                  }
+
                   // Invalidate cache for the course content
                   await invalidateContentCache(selectedCourse)
 

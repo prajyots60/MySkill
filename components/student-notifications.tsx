@@ -6,112 +6,111 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Bell, Calendar, CheckCircle, Clock, FileText, Video, X } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-
-type NotificationType = "announcement" | "assignment" | "live" | "feedback" | "reminder"
+import { useSession } from "next-auth/react"
+import { NotificationType } from "@prisma/client"
 
 interface Notification {
   id: string
   type: NotificationType
   title: string
   message: string
-  courseId: string
-  courseName: string
+  contentId: string
   createdAt: Date
   read: boolean
   actionUrl?: string
-  dueDate?: Date
+  relatedItemId?: string
 }
 
 export function StudentNotifications() {
+  const { data: session } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call
-    const timeout = setTimeout(() => {
-      const mockNotifications: Notification[] = [
-        {
-          id: "1",
-          type: "announcement",
-          title: "New course materials available",
-          message: "Check out the new resources added to the Web Development course.",
-          courseId: "1",
-          courseName: "Web Development Fundamentals",
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          read: false,
-          actionUrl: "/content/1",
-        },
-        {
-          id: "2",
-          type: "live",
-          title: "Live Q&A Session Today",
-          message: "Join the live Q&A session with John Doe at 3:00 PM.",
-          courseId: "1",
-          courseName: "Web Development Fundamentals",
-          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-          read: false,
-          actionUrl: "/content/1/live",
-        },
-        {
-          id: "3",
-          type: "assignment",
-          title: "Assignment Due Soon",
-          message: "Your JavaScript Basics assignment is due in 2 days.",
-          courseId: "1",
-          courseName: "Web Development Fundamentals",
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-          read: true,
-          actionUrl: "/content/1/assignments",
-          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Due in 2 days
-        },
-        {
-          id: "4",
-          type: "feedback",
-          title: "Feedback Received",
-          message: "Your instructor has provided feedback on your recent project.",
-          courseId: "2",
-          courseName: "Data Science for Beginners",
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-          read: true,
-          actionUrl: "/content/2/feedback",
-        },
-      ]
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch("/api/notifications", {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+          },
+        })
 
-      setNotifications(mockNotifications)
-      setLoading(false)
-    }, 1500)
+        if (!response.ok) {
+          throw new Error("Failed to fetch notifications")
+        }
 
-    return () => clearTimeout(timeout)
-  }, [])
+        const data = await response.json()
+        setNotifications(data.notifications)
+      } catch (error) {
+        console.error("Error fetching notifications:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
-    )
+    if (session?.user) {
+      fetchNotifications()
+      // Set up polling for new notifications every minute
+      const interval = setInterval(fetchNotifications, 60000)
+      return () => clearInterval(interval)
+    }
+  }, [session])
+
+  const markAsRead = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}/mark-read`, {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to mark notification as read")
+      }
+
+      setNotifications((prev) =>
+        prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
+      )
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+    }
   }
 
-  const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+  const dismissNotification = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to dismiss notification")
+      }
+
+      setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+    } catch (error) {
+      console.error("Error dismissing notification:", error)
+    }
   }
 
   const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
-      case "announcement":
+      case "ANNOUNCEMENT":
         return <Bell className="h-5 w-5 text-blue-500" />
-      case "assignment":
-        return <FileText className="h-5 w-5 text-amber-500" />
-      case "live":
+      case "LECTURE_ADDED":
+        return <Video className="h-5 w-5 text-amber-500" />
+      case "LIVE_SESSION":
         return <Video className="h-5 w-5 text-red-500" />
-      case "feedback":
-        return <CheckCircle className="h-5 w-5 text-green-500" />
-      case "reminder":
+      case "RESOURCE_ADDED":
+        return <FileText className="h-5 w-5 text-green-500" />
+      case "DEADLINE_REMINDER":
         return <Clock className="h-5 w-5 text-purple-500" />
+      default:
+        return <Bell className="h-5 w-5 text-blue-500" />
     }
   }
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    const diffInSeconds = Math.floor((now.getTime() - new Date(date).getTime()) / 1000)
 
     if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
@@ -171,15 +170,6 @@ export function StudentNotifications() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">{notification.courseName}</span>
-                    {notification.dueDate && (
-                      <div className="flex items-center text-xs text-amber-500">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        <span>Due {notification.dueDate.toLocaleDateString()}</span>
-                      </div>
-                    )}
-                  </div>
                   {!notification.read && (
                     <Button
                       variant="ghost"

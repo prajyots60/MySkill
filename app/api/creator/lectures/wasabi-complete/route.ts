@@ -7,6 +7,7 @@ import { wasabiClientMinimal } from '@/lib/wasabi-minimal';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 import { applyRateLimit } from '@/lib/rate-limit';
+import { NotificationType } from '@prisma/client';
 
 const BUCKET_NAME = process.env.WASABI_BUCKET || '';
 
@@ -239,6 +240,36 @@ export async function POST(req: NextRequest) {
         secureMetadata
       }
     });
+
+    // Send notifications to enrolled students
+    try {
+      // Get all enrolled students for this course
+      const enrolledStudents = await prisma.enrollment.findMany({
+        where: {
+          contentId: section.content.id
+        },
+        select: {
+          userId: true
+        }
+      });
+
+      // Create notifications for all enrolled students
+      if (enrolledStudents.length > 0) {
+        await prisma.notification.createMany({
+          data: enrolledStudents.map(enrollment => ({
+            userId: enrollment.userId,
+            type: NotificationType.LECTURE_ADDED,
+            title: "New Content Available",
+            message: `New lecture "${title}" has been added to ${section.content.title}`,
+            contentId: section.content.id,
+            read: false,
+          }))
+        });
+      }
+    } catch (error) {
+      console.error("Error sending notifications:", error);
+      // Don't block the process if notifications fail
+    }
 
     // Add extra debug info for encrypted videos
     let debugInfo = {};
