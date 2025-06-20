@@ -79,7 +79,8 @@ export async function GET(request: Request, { params }: { params: { courseId: st
       )
     }
 
-    // Get rating data
+    // Always get fresh rating data directly from the database
+    // This ensures we have the latest stats even if the course itself is cached
     const ratingData = await prisma.$queryRaw<RatingData[]>`
       SELECT 
         AVG(rating)::float as "averageRating",

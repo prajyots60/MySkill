@@ -4,6 +4,17 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redis } from "@/lib/redis"
 
+// Define interfaces for the SQL query results
+interface ReviewStats {
+  averageRating: number | null;
+  totalReviews: string | number;
+  fiveStarCount: string | number;
+  fourStarCount: string | number;
+  threeStarCount: string | number;
+  twoStarCount: string | number;
+  oneStarCount: string | number;
+}
+
 // GET - Get reviews for a course
 export async function GET(request: Request, { params }: { params: { courseId: string } }) {
   try {
@@ -44,52 +55,52 @@ export async function GET(request: Request, { params }: { params: { courseId: st
     })
     
     // Get review statistics
-    const stats = await prisma.$queryRaw`
+    const stats = await prisma.$queryRaw<ReviewStats[]>`
       SELECT 
-        AVG(rating)::float as averageRating,
-        COUNT(*) as totalReviews,
-        SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as fiveStarCount,
-        SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as fourStarCount,
-        SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as threeStarCount,
-        SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END) as twoStarCount,
-        SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END) as oneStarCount
+        AVG(rating)::float as "averageRating",
+        COUNT(*)::text as "totalReviews",
+        SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END)::text as "fiveStarCount",
+        SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END)::text as "fourStarCount",
+        SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END)::text as "threeStarCount",
+        SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END)::text as "twoStarCount",
+        SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::text as "oneStarCount"
       FROM "Review"
       WHERE "contentId" = ${courseId}
     `
     
     // Format stats with percentages
     const formattedStats = {
-      averageRating: parseFloat(stats[0]?.averageRating?.toFixed(1) || "0"),
-      totalReviews: parseInt(stats[0]?.totalReviews || "0"),
+      averageRating: parseFloat((stats[0]?.averageRating?.toFixed(1) as string) || "0"),
+      totalReviews: parseInt(String(stats[0]?.totalReviews) || "0"),
       distribution: {
         5: {
-          count: parseInt(stats[0]?.fiveStarCount || "0"),
-          percentage: stats[0]?.totalReviews > 0 
-            ? Math.round((parseInt(stats[0]?.fiveStarCount || "0") / parseInt(stats[0]?.totalReviews)) * 100) 
+          count: parseInt(String(stats[0]?.fiveStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fiveStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
             : 0
         },
         4: {
-          count: parseInt(stats[0]?.fourStarCount || "0"),
-          percentage: stats[0]?.totalReviews > 0 
-            ? Math.round((parseInt(stats[0]?.fourStarCount || "0") / parseInt(stats[0]?.totalReviews)) * 100) 
+          count: parseInt(String(stats[0]?.fourStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fourStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
             : 0
         },
         3: {
-          count: parseInt(stats[0]?.threeStarCount || "0"),
-          percentage: stats[0]?.totalReviews > 0 
-            ? Math.round((parseInt(stats[0]?.threeStarCount || "0") / parseInt(stats[0]?.totalReviews)) * 100) 
+          count: parseInt(String(stats[0]?.threeStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.threeStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
             : 0
         },
         2: {
-          count: parseInt(stats[0]?.twoStarCount || "0"),
-          percentage: stats[0]?.totalReviews > 0 
-            ? Math.round((parseInt(stats[0]?.twoStarCount || "0") / parseInt(stats[0]?.totalReviews)) * 100) 
+          count: parseInt(String(stats[0]?.twoStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.twoStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
             : 0
         },
         1: {
-          count: parseInt(stats[0]?.oneStarCount || "0"),
-          percentage: stats[0]?.totalReviews > 0 
-            ? Math.round((parseInt(stats[0]?.oneStarCount || "0") / parseInt(stats[0]?.totalReviews)) * 100) 
+          count: parseInt(String(stats[0]?.oneStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.oneStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
             : 0
         }
       }
@@ -194,12 +205,68 @@ export async function POST(request: Request, { params }: { params: { courseId: s
       })
     }
 
-    // Invalidate any cached data
-    await redis.del(`course:${courseId}:reviews`)
+    // Invalidate all related cached data
+    await Promise.all([
+      redis.del(`course:${courseId}:reviews`),
+      redis.del(`course:${courseId}`) // Also clear the main course cache
+    ])
+    
+    // Get updated stats to return with the response
+    const stats = await prisma.$queryRaw<ReviewStats[]>`
+      SELECT 
+        AVG(rating)::float as "averageRating",
+        COUNT(*)::text as "totalReviews",
+        SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END)::text as "fiveStarCount",
+        SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END)::text as "fourStarCount",
+        SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END)::text as "threeStarCount",
+        SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END)::text as "twoStarCount",
+        SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::text as "oneStarCount"
+      FROM "Review"
+      WHERE "contentId" = ${courseId}
+    `
+    
+    // Format stats with percentages
+    const formattedStats = {
+      averageRating: parseFloat((stats[0]?.averageRating?.toFixed(1) as string) || "0"),
+      totalReviews: parseInt(String(stats[0]?.totalReviews) || "0"),
+      distribution: {
+        5: {
+          count: parseInt(String(stats[0]?.fiveStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fiveStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        4: {
+          count: parseInt(String(stats[0]?.fourStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fourStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        3: {
+          count: parseInt(String(stats[0]?.threeStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.threeStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        2: {
+          count: parseInt(String(stats[0]?.twoStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.twoStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        1: {
+          count: parseInt(String(stats[0]?.oneStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.oneStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
       review,
+      stats: formattedStats,
       isUpdate: !!existingReview,
     })
   } catch (error) {
@@ -239,10 +306,68 @@ export async function DELETE(request: Request, { params }: { params: { courseId:
       },
     })
 
-    // Invalidate any cached data
-    await redis.del(`course:${courseId}:reviews`)
+    // Invalidate all related cached data
+    await Promise.all([
+      redis.del(`course:${courseId}:reviews`),
+      redis.del(`course:${courseId}`) // Also clear the main course cache
+    ])
+    
+    // Get updated stats to return with the response
+    const stats = await prisma.$queryRaw<ReviewStats[]>`
+      SELECT 
+        AVG(rating)::float as "averageRating",
+        COUNT(*)::text as "totalReviews",
+        SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END)::text as "fiveStarCount",
+        SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END)::text as "fourStarCount",
+        SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END)::text as "threeStarCount",
+        SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END)::text as "twoStarCount",
+        SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::text as "oneStarCount"
+      FROM "Review"
+      WHERE "contentId" = ${courseId}
+    `
+    
+    // Format stats with percentages
+    const formattedStats = {
+      averageRating: parseFloat((stats[0]?.averageRating?.toFixed(1) as string) || "0"),
+      totalReviews: parseInt(String(stats[0]?.totalReviews) || "0"),
+      distribution: {
+        5: {
+          count: parseInt(String(stats[0]?.fiveStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fiveStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        4: {
+          count: parseInt(String(stats[0]?.fourStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.fourStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        3: {
+          count: parseInt(String(stats[0]?.threeStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.threeStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        2: {
+          count: parseInt(String(stats[0]?.twoStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.twoStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        },
+        1: {
+          count: parseInt(String(stats[0]?.oneStarCount) || "0"),
+          percentage: parseInt(String(stats[0]?.totalReviews)) > 0 
+            ? Math.round((parseInt(String(stats[0]?.oneStarCount) || "0") / parseInt(String(stats[0]?.totalReviews))) * 100) 
+            : 0
+        }
+      }
+    }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      stats: formattedStats
+    })
   } catch (error) {
     console.error("Error deleting review:", error)
     return NextResponse.json({ success: false, message: "Failed to delete review" }, { status: 500 })
