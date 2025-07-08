@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 // Get like count for a lecture
 export async function GET(
@@ -9,53 +9,50 @@ export async function GET(
   { params }: { params: { lectureId: string } }
 ) {
   try {
-    const lectureId = params.lectureId
-    
+    const { lectureId } = await params;
+
     // Verify that the lecture exists
     const lecture = await prisma.lecture.findUnique({
       where: {
-        id: lectureId
-      }
-    })
+        id: lectureId,
+      },
+    });
 
     if (!lecture) {
-      return NextResponse.json(
-        { error: "Lecture not found" },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Lecture not found" }, { status: 404 });
     }
 
     // Get the count of likes for this lecture
     const likeCount = await prisma.lectureLike.count({
       where: {
-        lectureId
-      }
-    })
+        lectureId,
+      },
+    });
 
     // Check if the current user has liked the lecture
-    const session = await getServerSession(authOptions)
-    let isLiked = false
+    const session = await getServerSession(authOptions);
+    let isLiked = false;
 
     if (session?.user?.id) {
       const userLike = await prisma.lectureLike.findFirst({
         where: {
           userId: session.user.id,
-          lectureId
-        }
-      })
-      isLiked = !!userLike
+          lectureId,
+        },
+      });
+      isLiked = !!userLike;
     }
 
-    return NextResponse.json({ 
-      count: likeCount, 
-      isLiked 
-    })
+    return NextResponse.json({
+      count: likeCount,
+      isLiked,
+    });
   } catch (error) {
-    console.error("[LECTURE_LIKES_GET]", error)
+    console.error("[LECTURE_LIKES_GET]", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
-    )
+    );
   }
 }
 
@@ -65,87 +62,81 @@ export async function POST(
   { params }: { params: { lectureId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
-    const lectureId = params.lectureId
-    const userId = session.user.id
-    
+
+    const lectureId = params.lectureId;
+    const userId = session.user.id;
+
     // Verify that the lecture exists
     const lecture = await prisma.lecture.findUnique({
       where: {
-        id: lectureId
-      }
-    })
+        id: lectureId,
+      },
+    });
 
     if (!lecture) {
-      return NextResponse.json(
-        { error: "Lecture not found" },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Lecture not found" }, { status: 404 });
     }
 
     // Check if the user has already liked the lecture
     const existingLike = await prisma.lectureLike.findFirst({
       where: {
         userId,
-        lectureId
-      }
-    })
+        lectureId,
+      },
+    });
 
     if (existingLike) {
       // Unlike the lecture
       await prisma.lectureLike.delete({
         where: {
-          id: existingLike.id
-        }
-      })
-      
+          id: existingLike.id,
+        },
+      });
+
       // Get new count
       const newCount = await prisma.lectureLike.count({
         where: {
-          lectureId
-        }
-      })
-      
-      return NextResponse.json({ 
-        message: "Lecture unliked successfully", 
+          lectureId,
+        },
+      });
+
+      return NextResponse.json({
+        message: "Lecture unliked successfully",
         isLiked: false,
-        count: newCount
-      })
+        count: newCount,
+      });
     } else {
       // Like the lecture
       await prisma.lectureLike.create({
         data: {
           userId,
-          lectureId
-        }
-      })
-      
+          lectureId,
+        },
+      });
+
       // Get new count
       const newCount = await prisma.lectureLike.count({
         where: {
-          lectureId
-        }
-      })
-      
-      return NextResponse.json({ 
-        message: "Lecture liked successfully", 
+          lectureId,
+        },
+      });
+
+      return NextResponse.json({
+        message: "Lecture liked successfully",
         isLiked: true,
-        count: newCount
-      })
+        count: newCount,
+      });
     }
   } catch (error) {
-    console.error("[LECTURE_LIKES_POST]", error)
+    console.error("[LECTURE_LIKES_POST]", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
-    )
+    );
   }
 }
