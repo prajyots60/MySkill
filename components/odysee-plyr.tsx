@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseOdyseeUrl, getOdyseeEmbedUrl } from "@/lib/odysee-helpers";
 import { getOdyseeDirectUrl } from "@/lib/odysee-direct-url";
 // Removed Plyr CSS import as we're using direct iframe approach
@@ -33,88 +33,11 @@ export function OdyseePlyr({
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
-
-  // State for tracking time and displaying custom end screen
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [showEndScreen, setShowEndScreen] = useState(false);
-
-  // References for tracking play state and time
-  const videoStartTime = useRef<number | null>(null);
-  const isPaused = useRef<boolean>(true);
-  const totalPausedTime = useRef<number>(0);
-  const lastPauseTime = useRef<number | null>(null);
-  const timeInterval = useRef<NodeJS.Timeout | null>(null);
-  const lastTimeUpdate = useRef<number>(0);
-
-  // Function to update current time based on our manual tracking
-  const updateManualTime = useCallback(() => {
-    if (!videoStartTime.current || isPaused.current) return;
-
-    const now = Date.now();
-    const elapsedSinceStart = (now - videoStartTime.current) / 1000;
-    const adjustedTime = elapsedSinceStart - totalPausedTime.current / 1000;
-
-    // Only update if it's reasonably different from the last time
-    if (Math.abs(adjustedTime - lastTimeUpdate.current) > 0.5) {
-      setCurrentTime(adjustedTime);
-      lastTimeUpdate.current = adjustedTime;
-    }
-
-    // Check if we're 5 seconds from the end and should show custom end screen
-    if (
-      customEndScreen &&
-      duration > 0 &&
-      duration - adjustedTime <= 5 &&
-      !showEndScreen
-    ) {
-      console.log("Showing custom end screen - 5 seconds before end", {
-        duration,
-        adjustedTime,
-        timeRemaining: duration - adjustedTime,
-      });
-      if (playerRef.current) {
-        // We don't actually pause the video since we can't control the iframe,
-        // but we show our overlay on top
-        playerRef.current.pause();
-      }
-      setShowEndScreen(true);
-    }
-  }, [duration, customEndScreen, showEndScreen]);
-
-  // Setup regular interval to check time
-  useEffect(() => {
-    if (timeInterval.current) {
-      clearInterval(timeInterval.current);
-    }
-
-    // Create an interval that updates more frequently as we approach the end
-    // This ensures more precision with the end screen timing
-    timeInterval.current = setInterval(() => {
-      // If we're getting close to the end (within 15 seconds), update more frequently
-      if (duration > 0 && duration - currentTime < 15) {
-        if (timeInterval.current) {
-          clearInterval(timeInterval.current);
-          timeInterval.current = setInterval(() => {
-            updateManualTime();
-          }, 250); // Update 4 times per second when close to the end
-        }
-      } else {
-        updateManualTime();
-      }
-    }, 1000);
-
-    return () => {
-      if (timeInterval.current) {
-        clearInterval(timeInterval.current);
-      }
-    };
-  }, [updateManualTime, duration, currentTime]);
-
+  const [duration, setDuration] = useState(0);
   useEffect(() => {
     // Function to get the embed URL
     const getEmbedUrl = () => {
@@ -143,22 +66,16 @@ export function OdyseePlyr({
     // Simplified player loader - using direct iframe approach for reliability
     const loadPlayer = async () => {
       try {
-        console.log(
-          "Starting OdyseePlyr initialization with simplified approach..."
-        );
         if (!containerRef.current) {
-          console.error("Container ref not available");
           return;
         }
 
         // Get the embed URL
         const embedUrl = getEmbedUrl();
         if (!embedUrl) {
-          console.error("Failed to get embed URL");
           return;
         }
 
-        console.log("Got embed URL:", embedUrl);
         setIsLoading(true);
 
         // Create a clean container for the player
@@ -195,9 +112,6 @@ export function OdyseePlyr({
         // Disable all external navigation from the iframe
         iframe.addEventListener("load", function () {
           try {
-            // Instead of blocking all clicks, we'll let the player work
-            console.log("Odysee iframe loaded - enabling player controls");
-
             // Check if the player loaded correctly
             setTimeout(() => {
               try {
@@ -224,11 +138,11 @@ export function OdyseePlyr({
                 aspectRatioWrapper.appendChild(logoBlocker);
                 aspectRatioWrapper.appendChild(nameBlocker);
               } catch (e) {
-                console.warn("Failed to create specific blockers:", e);
+                // Silent error handling
               }
             }, 1000);
           } catch (e) {
-            console.warn("Could not configure iframe after load:", e);
+            // Silent error handling
           }
         });
 
@@ -300,9 +214,6 @@ export function OdyseePlyr({
 
         // Add the top area blocker to the container
         containerRef.current.appendChild(topAreaBlocker);
-        console.log(
-          "Added top area click blocker for Odysee player (blocking top 70%)"
-        );
 
         // Apply custom CSS to ensure proper display and end screen styling
         const customCSS = `
@@ -378,16 +289,6 @@ export function OdyseePlyr({
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
           }
-          .debug-info {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            padding: 4px 8px;
-            font-size: 10px;
-            z-index: 100;
-          }
           
           /* Odysee brand blocker styles */
           .odysee-brand-blockers {
@@ -416,108 +317,49 @@ export function OdyseePlyr({
         styleEl.textContent = customCSS;
         document.head.appendChild(styleEl);
 
-        console.log("Using direct iframe approach instead of Plyr");
         setIsLoading(false);
 
-        // Set up manual time tracking
-        const startTimeTracking = () => {
-          videoStartTime.current = Date.now();
-          isPaused.current = false;
-          totalPausedTime.current = 0;
-          lastPauseTime.current = null;
-        };
-
-        // Define function to reset time tracking
-        const resetTimeTracking = () => {
-          videoStartTime.current = Date.now();
-          isPaused.current = false;
-          totalPausedTime.current = 0;
-          lastPauseTime.current = null;
-        };
-
-        // Start time tracking when iframe loads
-        iframe.onload = () => {
-          console.log("Odysee iframe loaded");
-          resetTimeTracking();
-
-          // Try to load metadata from Odysee
-          setTimeout(() => {
-            // Attempt to determine video duration through multiple methods
+        // Store a simple player reference for our custom controls
+        playerRef.current = {
+          play: () => {
             try {
-              // Try to inspect iframe content (may fail due to cross-origin)
-              if (iframe.contentWindow && iframe.contentWindow.document) {
-                const videoElement =
-                  iframe.contentWindow.document.querySelector("video");
-                if (videoElement) {
-                  setDuration(videoElement.duration);
-                  console.log(
-                    "Got video duration from iframe:",
-                    videoElement.duration
-                  );
-                }
+              if (iframeRef.current) {
+                // Send a postMessage to try to play the video
+                iframeRef.current.contentWindow?.postMessage(
+                  { action: "play" },
+                  "*"
+                );
+                // Also try focusing which might trigger autoplay
+                iframeRef.current.focus();
               }
             } catch (e) {
-              console.log(
-                "Unable to access iframe content due to cross-origin policy"
-              );
+              // Silent error handling
             }
-
-            // If duration is still 0, use a reasonable default (for our end screen timing)
-            if (duration === 0) {
-              // Fallback to estimating - typically videos are 5-15 minutes
-              const estimatedDuration = 600; // 10 minutes as fallback
-              console.log("Using estimated duration:", estimatedDuration);
-              setDuration(estimatedDuration);
-            }
-          }, 2000); // Wait 2 seconds after load to try to get metadata
-
-          // Store a simple player reference for our custom controls
-          playerRef.current = {
-            play: () => {
-              try {
-                if (iframeRef.current) {
-                  // Send a postMessage to try to play the video
-                  iframeRef.current.contentWindow?.postMessage(
-                    { action: "play" },
-                    "*"
-                  );
-                  // Also try focusing which might trigger autoplay
-                  iframeRef.current.focus();
-                  isPaused.current = false;
-                }
-              } catch (e) {
-                console.warn("Error playing iframe:", e);
-              }
-            },
-            pause: () => {
-              try {
-                if (iframeRef.current) {
-                  // Send a postMessage to try to pause the video
-                  iframeRef.current.contentWindow?.postMessage(
-                    { action: "pause" },
-                    "*"
-                  );
-                }
-              } catch (e) {
-                console.warn("Error pausing iframe:", e);
-              }
-
-              // Track pause state manually
-              isPaused.current = true;
-              if (lastPauseTime.current === null) {
-                lastPauseTime.current = Date.now();
-              }
-            },
-            restart: () => {
+          },
+          pause: () => {
+            try {
               if (iframeRef.current) {
-                // Reload the iframe to restart the video
-                const currentSrc = iframeRef.current.src;
-                iframeRef.current.src = currentSrc;
-                resetTimeTracking();
+                // Send a postMessage to try to pause the video
+                iframeRef.current.contentWindow?.postMessage(
+                  { action: "pause" },
+                  "*"
+                );
               }
-            },
-          };
+            } catch (e) {
+              // Silent error handling
+            }
+          },
+          restart: () => {
+            if (iframeRef.current) {
+              // Reload the iframe to restart the video
+              const currentSrc = iframeRef.current.src;
+              iframeRef.current.src = currentSrc;
+            }
+          },
+        };
 
+        // Set up iframe load event
+        iframe.onload = () => {
           setIsLoading(false);
           setPlayerReady(true);
           onReady?.();
@@ -528,32 +370,6 @@ export function OdyseePlyr({
           // Try to detect video play/pause events from Odysee
           try {
             if (event.data && typeof event.data === "object") {
-              // Log received messages for debugging
-              if (process.env.NODE_ENV === "development") {
-                console.log("Message from iframe:", event.data);
-              }
-
-              // Check for play event patterns
-              if (
-                event.data.event === "play" ||
-                (event.data.info && event.data.info.playerState === "playing")
-              ) {
-                isPaused.current = false;
-                if (lastPauseTime.current) {
-                  totalPausedTime.current += Date.now() - lastPauseTime.current;
-                  lastPauseTime.current = null;
-                }
-              }
-
-              // Check for pause event patterns
-              if (
-                event.data.event === "pause" ||
-                (event.data.info && event.data.info.playerState === "paused")
-              ) {
-                isPaused.current = true;
-                lastPauseTime.current = Date.now();
-              }
-
               // Check for ended event patterns
               if (
                 event.data.event === "ended" ||
@@ -563,32 +379,6 @@ export function OdyseePlyr({
                   setShowEndScreen(true);
                 }
                 onEnded?.();
-              }
-
-              // Try to capture time updates
-              if (event.data.currentTime && !isNaN(event.data.currentTime)) {
-                setCurrentTime(event.data.currentTime);
-
-                // Also check if we should show end screen
-                if (
-                  customEndScreen &&
-                  event.data.duration &&
-                  !isNaN(event.data.duration) &&
-                  event.data.duration > 0 &&
-                  event.data.duration - event.data.currentTime <= 5 &&
-                  !showEndScreen
-                ) {
-                  console.log(
-                    "Showing custom end screen from postMessage time",
-                    {
-                      messageDuration: event.data.duration,
-                      messageCurrentTime: event.data.currentTime,
-                      timeRemaining:
-                        event.data.duration - event.data.currentTime,
-                    }
-                  );
-                  setShowEndScreen(true);
-                }
               }
 
               // Update duration if available
@@ -601,7 +391,7 @@ export function OdyseePlyr({
               }
             }
           } catch (e) {
-            console.warn("Error handling iframe message:", e);
+            // Silent error handling
           }
         };
 
@@ -612,7 +402,6 @@ export function OdyseePlyr({
           window.removeEventListener("message", messageHandler);
         };
       } catch (err) {
-        console.error("Error initializing Odysee player:", err);
         setIsLoading(false);
         setError(
           "Failed to initialize player: " +
@@ -633,12 +422,9 @@ export function OdyseePlyr({
         try {
           playerRef.current.destroy();
         } catch (e) {
-          console.warn("Error destroying player on cleanup:", e);
+          // Silent error handling
         }
         playerRef.current = null;
-      }
-      if (timeInterval.current) {
-        clearInterval(timeInterval.current);
       }
     };
   }, [
@@ -656,14 +442,6 @@ export function OdyseePlyr({
   // Helper functions for custom end screen
   const handleContinue = () => {
     setShowEndScreen(false);
-    if (playerRef.current) {
-      // Let the video continue
-      isPaused.current = false;
-      if (lastPauseTime.current) {
-        totalPausedTime.current += Date.now() - lastPauseTime.current;
-        lastPauseTime.current = null;
-      }
-    }
     onEnded?.();
   };
 
@@ -672,24 +450,7 @@ export function OdyseePlyr({
     if (playerRef.current) {
       playerRef.current.restart();
     }
-    // Reset time tracking
-    if (videoStartTime.current) {
-      videoStartTime.current = Date.now();
-      totalPausedTime.current = 0;
-      lastPauseTime.current = null;
-      isPaused.current = false;
-    }
-    setCurrentTime(0);
   };
-
-  // Calculate time remaining
-  const remainingTime = Math.max(0, duration - currentTime);
-  const formattedRemaining = isFinite(remainingTime)
-    ? `${Math.floor(remainingTime / 60)}:${Math.floor(remainingTime % 60)
-        .toString()
-        .padStart(2, "0")}`
-    : "0:00";
-  const [showDebug, setShowDebug] = useState(false);
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -748,34 +509,6 @@ export function OdyseePlyr({
               Watch Again
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Debug timer information - can be toggled for troubleshooting */}
-      <button
-        onClick={() => setShowDebug(!showDebug)}
-        className="absolute top-0 right-0 bg-black/50 text-white text-xs p-1 z-50"
-        style={{ fontSize: "10px" }}
-      >
-        DBG
-      </button>
-
-      {showDebug && (
-        <div className="absolute top-0 left-0 bg-black/70 text-white p-2 z-50 text-xs">
-          Time: {Math.floor(currentTime / 60)}:
-          {Math.floor(currentTime % 60)
-            .toString()
-            .padStart(2, "0")}{" "}
-          /{Math.floor(duration / 60)}:
-          {Math.floor(duration % 60)
-            .toString()
-            .padStart(2, "0")}
-          (Remaining: {formattedRemaining})
-          <br />
-          Player: {playerRef.current ? "Initialized" : "Not initialized"}
-          <br />
-          Controls:{" "}
-          {playerRef.current?.elements?.controls ? "Found" : "Missing"}
         </div>
       )}
 
