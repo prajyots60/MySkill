@@ -1,14 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState, useMemo, memo } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect, useState, useMemo, memo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
   AlertCircle,
@@ -27,14 +34,22 @@ import {
   MessageSquare,
   Settings,
   ExternalLink,
-} from "lucide-react"
-import { useCreatorCourses, useCreatorEarnings } from "@/lib/react-query/queries"
-import Link from "next/link"
-import Image from "next/image"
-import { UpcomingLectures } from "@/components/upcoming-lectures"
-import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import {
+  useCreatorCourses,
+  useCreatorEarnings,
+} from "@/lib/react-query/queries";
+import Link from "next/link";
+import Image from "next/image";
+import { UpcomingLectures } from "@/components/upcoming-lectures";
+import { ProfileCompletionTracker } from "@/components/ui/profile-completion-tracker";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 // Memoized components for better performance
 const StatCard = memo(function StatCard({
@@ -47,54 +62,66 @@ const StatCard = memo(function StatCard({
   bgColor = "from-primary/10 to-background",
   iconColor = "text-primary",
 }: {
-  title: string
-  value: string | number
-  icon: React.ElementType
-  trend?: "up" | "down" | "neutral"
-  trendValue?: string | number
-  loading: boolean
-  bgColor?: string
-  iconColor?: string
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string | number;
+  loading: boolean;
+  bgColor?: string;
+  iconColor?: string;
 }) {
   return (
     <Card className={`bg-gradient-to-br ${bgColor}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold">
-              {loading ? <div className="h-8 w-16 animate-pulse bg-muted rounded" /> : value}
+              {loading ? (
+                <div className="h-8 w-16 animate-pulse bg-muted rounded" />
+              ) : (
+                value
+              )}
             </div>
             {trend && trendValue && (
               <div
                 className={`text-xs flex items-center mt-1 ${
-                  trend === "up" ? "text-green-500" : trend === "down" ? "text-red-500" : "text-muted-foreground"
+                  trend === "up"
+                    ? "text-green-500"
+                    : trend === "down"
+                    ? "text-red-500"
+                    : "text-muted-foreground"
                 }`}
               >
-                {trend === "up" ? <TrendingUp className="h-3 w-3 mr-1" /> : null}
+                {trend === "up" ? (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                ) : null}
                 {trendValue}
               </div>
             )}
           </div>
-          <div className="p-2 bg-primary/10 rounded-full">
+          <div className="p-2 bg-primary/10 rounded-full glow-primary">
             <Icon className={`h-5 w-5 ${iconColor}`} />
           </div>
         </div>
       </CardContent>
     </Card>
-  )
-})
+  );
+});
 
 const CourseCard = memo(function CourseCard({
   course,
   onView,
   onEdit,
 }: {
-  course: any
-  onView: () => void
-  onEdit: () => void
+  course: any;
+  onView: () => void;
+  onEdit: () => void;
 }) {
   return (
     <Card
@@ -125,7 +152,9 @@ const CourseCard = memo(function CourseCard({
       </div>
       <CardHeader className="pb-2 flex-grow">
         <CardTitle className="line-clamp-1">{course.title}</CardTitle>
-        <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+        <CardDescription className="line-clamp-2">
+          {course.description}
+        </CardDescription>
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -138,16 +167,16 @@ const CourseCard = memo(function CourseCard({
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-2">
-        <Button variant="outline" size="sm" onClick={onView}>
+        <Button className="btn-luxe-secondary" size="sm" onClick={onView}>
           View
         </Button>
-        <Button variant="outline" size="sm" onClick={onEdit}>
+        <Button className="btn-luxe-primary" size="sm" onClick={onEdit}>
           Edit
         </Button>
       </CardFooter>
     </Card>
-  )
-})
+  );
+});
 
 // Recent activity component
 const RecentActivity = memo(function RecentActivity() {
@@ -183,22 +212,22 @@ const RecentActivity = memo(function RecentActivity() {
       content: "New student enrolled in UI/UX Design Basics",
       time: "2 days ago",
     },
-  ]
+  ];
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "enrollment":
-        return <Users className="h-4 w-4 text-blue-500" />
+        return <Users className="h-4 w-4 text-blue-500" />;
       case "review":
-        return <Star className="h-4 w-4 text-yellow-500" />
+        return <Star className="h-4 w-4 text-yellow-500" />;
       case "sale":
-        return <DollarSign className="h-4 w-4 text-green-500" />
+        return <DollarSign className="h-4 w-4 text-green-500" />;
       case "comment":
-        return <MessageSquare className="h-4 w-4 text-purple-500" />
+        return <MessageSquare className="h-4 w-4 text-purple-500" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />
+        return <Clock className="h-4 w-4 text-gray-500" />;
     }
-  }
+  };
 
   return (
     <Card>
@@ -210,7 +239,9 @@ const RecentActivity = memo(function RecentActivity() {
         <div className="space-y-4">
           {activities.map((activity) => (
             <div key={activity.id} className="flex items-start gap-3">
-              <div className="p-2 bg-muted rounded-full">{getActivityIcon(activity.type)}</div>
+              <div className="p-2 bg-muted rounded-full">
+                {getActivityIcon(activity.type)}
+              </div>
               <div>
                 <p className="text-sm">{activity.content}</p>
                 <p className="text-xs text-muted-foreground">{activity.time}</p>
@@ -220,7 +251,7 @@ const RecentActivity = memo(function RecentActivity() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button variant="outline" className="w-full" asChild>
+        <Button className="btn-luxe-secondary w-full" asChild>
           <Link href="/dashboard/creator/analytics">
             View All Activity
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -228,55 +259,76 @@ const RecentActivity = memo(function RecentActivity() {
         </Button>
       </CardFooter>
     </Card>
-  )
-})
+  );
+});
 
 // Quick actions component
 const QuickActions = memo(function QuickActions() {
   return (
-    <Card>
+    <Card className="premium-card-luxe">
       <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
+        <CardTitle className="text-gradient-luxe">Quick Actions</CardTitle>
         <CardDescription>Common tasks and shortcuts</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" asChild>
+          <Button
+            className="btn-luxe-primary h-auto py-4 flex flex-col items-center justify-center gap-2"
+            asChild
+          >
             <Link href="/dashboard/creator/content/create">
               <Plus className="h-5 w-5" />
               <span className="text-xs">Create Course</span>
             </Link>
           </Button>
 
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" asChild>
+          <Button
+            className="btn-luxe-secondary h-auto py-4 flex flex-col items-center justify-center gap-2"
+            asChild
+          >
             <Link href="/dashboard/creator/content/upload">
               <Upload className="h-5 w-5" />
               <span className="text-xs">Upload Content</span>
             </Link>
           </Button>
 
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline" asChild>
+          <Button
+            className="btn-luxe-secondary h-auto py-4 flex flex-col items-center justify-center gap-2"
+            asChild
+          >
             <Link href="/dashboard/creator/analytics">
               <BarChart3 className="h-5 w-5" />
               <span className="text-xs">View Analytics</span>
             </Link>
           </Button>
 
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline" asChild>
+          <Button
+            className="h-auto py-4 flex flex-col items-center justify-center gap-2"
+            variant="outline"
+            asChild
+          >
             <Link href="/dashboard/creator/add-student">
               <Users className="h-5 w-5" />
               <span className="text-xs">Add Student</span>
             </Link>
           </Button>
 
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline" asChild>
+          <Button
+            className="h-auto py-4 flex flex-col items-center justify-center gap-2"
+            variant="outline"
+            asChild
+          >
             <Link href="/dashboard/creator/earnings">
               <DollarSign className="h-5 w-5" />
               <span className="text-xs">View Earnings</span>
             </Link>
           </Button>
 
-          <Button className="h-auto py-4 flex flex-col items-center justify-center gap-2" variant="outline" asChild>
+          <Button
+            className="h-auto py-4 flex flex-col items-center justify-center gap-2"
+            variant="outline"
+            asChild
+          >
             <Link href="/dashboard/creator/settings">
               <Settings className="h-5 w-5" />
               <span className="text-xs">Settings</span>
@@ -285,109 +337,130 @@ const QuickActions = memo(function QuickActions() {
         </div>
       </CardContent>
     </Card>
-  )
-})
+  );
+});
 
 export default function CreatorDashboardPage() {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  
-  const [activeTab, setActiveTab] = useState("overview")
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Use React Query for data fetching
-  const { data: courses, isLoading: coursesLoading } = useCreatorCourses()
+  const { data: courses, isLoading: coursesLoading } = useCreatorCourses();
 
   // Fetch earnings data with react-query
   const { data: earningsData } = useCreatorEarnings({
     timeRange: "30days",
-    transactionType: "all"
-  })
+    transactionType: "all",
+  });
 
   // Handle authentication
   useEffect(() => {
     if (status === "loading") {
       // Still loading, do nothing
-      return
+      return;
     }
 
     if (status === "unauthenticated") {
       // Redirect to sign in page
-      router.push("/auth/signin")
+      router.push("/auth/signin");
     } else {
       // Check if user has a role and redirect accordingly
-      const userRole = session?.user?.role
+      const userRole = session?.user?.role;
       if (userRole === "ADMIN") {
-        router.push("/admin")
+        router.push("/admin");
       } else if (userRole === "CREATOR") {
-        router.push("/dashboard/creator")
+        router.push("/dashboard/creator");
       } else {
         // Handle other roles or default case
-        router.push("/")
+        router.push("/");
       }
     }
-  }, [status, session, router])
+  }, [status, session, router]);
 
   // Profile completion state
-  const [creatorProfile, setCreatorProfile] = useState<Record<string, any> | null>(null)
-  const [profileLoading, setProfileLoading] = useState(true)
+  const [creatorProfile, setCreatorProfile] = useState<Record<
+    string,
+    any
+  > | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   // Fetch creator profile
   useEffect(() => {
     const fetchCreatorProfile = async () => {
       if (session?.user?.id) {
         try {
-          setProfileLoading(true)
-          const response = await fetch(`/api/creators/${session.user.id}/profile`)
+          setProfileLoading(true);
+          const response = await fetch(
+            `/api/creators/${session.user.id}/profile`
+          );
           if (response.ok) {
-            const data = await response.json()
+            const data = await response.json();
             if (data.creator) {
-              setCreatorProfile(data.creator)
+              setCreatorProfile(data.creator);
             }
           }
         } catch (error) {
-          console.error("Error fetching creator profile:", error)
+          console.error("Error fetching creator profile:", error);
         } finally {
-          setProfileLoading(false)
+          setProfileLoading(false);
         }
       }
-    }
-    
+    };
+
     if (status === "authenticated") {
-      fetchCreatorProfile()
+      fetchCreatorProfile();
     }
-  }, [session?.user?.id, status])
+  }, [session?.user?.id, status]);
 
   // Function to check if profile is complete
   const isProfileComplete = (profile: Record<string, any> | null) => {
     if (!profile) return false;
-    
+
     // Check required fields
-    const hasName = !!profile.name && profile.name.trim() !== '';
-    const hasBio = !!profile.bio && profile.bio.trim() !== '';
-    const hasExpertise = Array.isArray(profile.expertise) && profile.expertise.length > 0;
-    const hasTagline = !!profile.tagline && profile.tagline.trim() !== '';
-    const hasCoverImage = Array.isArray(profile.coverImages) && !!profile.coverImages[0];
-    const hasYearsTeaching = !!profile.yearsTeaching && profile.yearsTeaching.trim() !== '';
-    const hasCategories = Array.isArray(profile.categories) && profile.categories.length > 0;
-    
-    return hasName && hasBio && hasExpertise && hasTagline && hasCoverImage && hasYearsTeaching && hasCategories;
+    const hasName = !!profile.name && profile.name.trim() !== "";
+    const hasBio = !!profile.bio && profile.bio.trim() !== "";
+    const hasExpertise =
+      Array.isArray(profile.expertise) && profile.expertise.length > 0;
+    const hasTagline = !!profile.tagline && profile.tagline.trim() !== "";
+    const hasCoverImage =
+      Array.isArray(profile.coverImages) && !!profile.coverImages[0];
+    const hasYearsTeaching =
+      !!profile.yearsTeaching && profile.yearsTeaching.trim() !== "";
+    const hasCategories =
+      Array.isArray(profile.categories) && profile.categories.length > 0;
+
+    return (
+      hasName &&
+      hasBio &&
+      hasExpertise &&
+      hasTagline &&
+      hasCoverImage &&
+      hasYearsTeaching &&
+      hasCategories
+    );
   };
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = (profile: Record<string, any> | null) => {
     if (!profile) return 0;
-    
+
     // Count completed required fields
     let completedFields = 0;
-    
-    if (profile.name && profile.name.trim() !== '') completedFields++;
-    if (profile.bio && profile.bio.trim() !== '') completedFields++;
-    if (Array.isArray(profile.expertise) && profile.expertise.length > 0) completedFields++;
-    if (profile.tagline && profile.tagline.trim() !== '') completedFields++;
-    if (Array.isArray(profile.coverImages) && profile.coverImages[0]) completedFields++;
-    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== '') completedFields++;
-    if (Array.isArray(profile.categories) && profile.categories.length > 0) completedFields++;
-    
+
+    if (profile.name && profile.name.trim() !== "") completedFields++;
+    if (profile.bio && profile.bio.trim() !== "") completedFields++;
+    if (Array.isArray(profile.expertise) && profile.expertise.length > 0)
+      completedFields++;
+    if (profile.tagline && profile.tagline.trim() !== "") completedFields++;
+    if (Array.isArray(profile.coverImages) && profile.coverImages[0])
+      completedFields++;
+    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== "")
+      completedFields++;
+    if (Array.isArray(profile.categories) && profile.categories.length > 0)
+      completedFields++;
+
     // Calculate percentage (7 total required fields)
     return Math.round((completedFields / 7) * 100);
   };
@@ -395,18 +468,22 @@ export default function CreatorDashboardPage() {
   // Count remaining required fields
   const getRequiredFieldsRemaining = (profile: Record<string, any> | null) => {
     if (!profile) return 7;
-    
+
     // Count completed required fields
     let completedFields = 0;
-    
-    if (profile.name && profile.name.trim() !== '') completedFields++;
-    if (profile.bio && profile.bio.trim() !== '') completedFields++;
-    if (Array.isArray(profile.expertise) && profile.expertise.length > 0) completedFields++;
-    if (profile.tagline && profile.tagline.trim() !== '') completedFields++;
-    if (Array.isArray(profile.coverImages) && profile.coverImages[0]) completedFields++;
-    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== '') completedFields++;
-    if (Array.isArray(profile.categories) && profile.categories.length > 0) completedFields++;
-    
+
+    if (profile.name && profile.name.trim() !== "") completedFields++;
+    if (profile.bio && profile.bio.trim() !== "") completedFields++;
+    if (Array.isArray(profile.expertise) && profile.expertise.length > 0)
+      completedFields++;
+    if (profile.tagline && profile.tagline.trim() !== "") completedFields++;
+    if (Array.isArray(profile.coverImages) && profile.coverImages[0])
+      completedFields++;
+    if (profile.yearsTeaching && profile.yearsTeaching.trim() !== "")
+      completedFields++;
+    if (Array.isArray(profile.categories) && profile.categories.length > 0)
+      completedFields++;
+
     // Return remaining fields count
     return 7 - completedFields;
   };
@@ -420,28 +497,37 @@ export default function CreatorDashboardPage() {
         totalVideos: 0,
         totalViews: 0,
         totalRevenue: 0,
-      }
+      };
     }
 
     return {
       totalCourses: courses.length,
-      totalStudents: courses.reduce((acc: number, course: any) => acc + (course.enrollmentCount || 0), 0),
-      totalVideos: courses.reduce((acc: number, course: any) => acc + (course.lectureCount || 0), 0),
-      totalViews: courses.reduce((acc: number, course: any) => acc + (course.viewCount || 0), 0),
+      totalStudents: courses.reduce(
+        (acc: number, course: any) => acc + (course.enrollmentCount || 0),
+        0
+      ),
+      totalVideos: courses.reduce(
+        (acc: number, course: any) => acc + (course.lectureCount || 0),
+        0
+      ),
+      totalViews: courses.reduce(
+        (acc: number, course: any) => acc + (course.viewCount || 0),
+        0
+      ),
       totalRevenue: earningsData.totalEarnings, // Real earnings data
-    }
-  }, [courses, earningsData])
+    };
+  }, [courses, earningsData]);
 
   // Check for success message in URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const success = urlParams.get("success")
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get("success");
 
     if (success === "youtube_connected") {
       // Remove the query parameter
-      router.replace("/dashboard/creator")
+      router.replace("/dashboard/creator");
     }
-  }, [router])
+  }, [router]);
 
   if (status === "loading" || coursesLoading) {
     return (
@@ -451,17 +537,17 @@ export default function CreatorDashboardPage() {
           <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (status === "unauthenticated") {
-    router.push("/auth/signin")
-    return null
+    router.push("/auth/signin");
+    return null;
   }
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
-      <h1 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r dark:from-white dark:to-white from-black to-black">
+      <h1 className="text-gradient-luxe text-3xl font-bold mb-6">
         Creator Dashboard
       </h1>
 
@@ -473,34 +559,50 @@ export default function CreatorDashboardPage() {
               <ExternalLink className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-lg font-medium">Your Public Creator Profile</h2>
-              <p className="text-sm text-muted-foreground mt-1">View and share your public profile with students and followers.</p>
+              <h2 className="text-lg font-medium">
+                Your Public Creator Profile
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                View and share your public profile with students and followers.
+              </p>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 w-full sm:w-auto">
             {!isProfileComplete(creatorProfile) && (
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">
-                  {creatorProfile ? getRequiredFieldsRemaining(creatorProfile) : '7'} required fields remaining
+                  {creatorProfile
+                    ? getRequiredFieldsRemaining(creatorProfile)
+                    : "7"}{" "}
+                  required fields remaining
                 </span>
-                <Button asChild variant="outline" size="sm" className="ml-auto sm:ml-0">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto sm:ml-0"
+                >
                   <Link href="/dashboard/creator/settings">
                     Complete Profile
                   </Link>
                 </Button>
               </div>
             )}
-            
-            <Button 
+
+            <Button
               asChild={isProfileComplete(creatorProfile)}
-              variant="default" 
-              size="sm" 
+              variant="default"
+              size="sm"
               className="w-full sm:w-auto"
               disabled={!isProfileComplete(creatorProfile)}
             >
               {isProfileComplete(creatorProfile) ? (
-                <Link href={`/creators/${session?.user?.id}`} target="_blank" className="flex items-center gap-2">
+                <Link
+                  href={`/creators/${session?.user?.id}`}
+                  target="_blank"
+                  className="flex items-center gap-2"
+                >
                   View Public Profile
                   <ExternalLink className="h-4 w-4" />
                 </Link>
@@ -513,19 +615,29 @@ export default function CreatorDashboardPage() {
             </Button>
           </div>
         </div>
-        
+
         {/* Simple Progress Bar */}
         {!isProfileComplete(creatorProfile) && (
           <div className="h-1.5 bg-purple-200 dark:bg-purple-900/30 w-full">
-            <div 
-              className="h-full bg-purple-600 dark:bg-purple-500" 
-              style={{ width: `${creatorProfile ? calculateProfileCompletion(creatorProfile) : 0}%` }}
+            <div
+              className="h-full bg-purple-600 dark:bg-purple-500"
+              style={{
+                width: `${
+                  creatorProfile
+                    ? calculateProfileCompletion(creatorProfile)
+                    : 0
+                }%`,
+              }}
             />
           </div>
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="w-full sm:w-auto flex flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">My Courses</TabsTrigger>
@@ -545,17 +657,22 @@ export default function CreatorDashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <UpcomingLectures 
-                variant="creator" 
-                showTitle={false} 
-                className="border-none shadow-none bg-transparent" 
+              <UpcomingLectures
+                variant="creator"
+                showTitle={false}
+                className="border-none shadow-none bg-transparent"
               />
             </CardContent>
           </Card>
 
           {/* Key metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Total Courses" value={stats.totalCourses} icon={Video} loading={coursesLoading} />
+            <StatCard
+              title="Total Courses"
+              value={stats.totalCourses}
+              icon={Video}
+              loading={coursesLoading}
+            />
             <StatCard
               title="Total Students"
               value={stats.totalStudents}
@@ -598,10 +715,16 @@ export default function CreatorDashboardPage() {
                   {!courses || courses.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                       <Video className="h-10 w-10 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No courses yet</h3>
-                      <p className="text-muted-foreground mb-4">Create your first course to start teaching</p>
+                      <h3 className="text-lg font-medium mb-2">
+                        No courses yet
+                      </h3>
+                      <p className="text-muted-foreground mb-4">
+                        Create your first course to start teaching
+                      </p>
                       <Button asChild>
-                        <Link href="/dashboard/creator/content/create">Create Course</Link>
+                        <Link href="/dashboard/creator/content/create">
+                          Create Course
+                        </Link>
                       </Button>
                     </div>
                   ) : (
@@ -611,7 +734,11 @@ export default function CreatorDashboardPage() {
                           key={course.id}
                           course={course}
                           onView={() => router.push(`/content/${course.id}`)}
-                          onEdit={() => router.push(`/dashboard/creator/content/${course.id}`)}
+                          onEdit={() =>
+                            router.push(
+                              `/dashboard/creator/content/${course.id}`
+                            )
+                          }
                         />
                       ))}
                     </div>
@@ -630,14 +757,19 @@ export default function CreatorDashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Performance Overview</CardTitle>
-                  <CardDescription>Key metrics for the last 30 days</CardDescription>
+                  <CardDescription>
+                    Key metrics for the last 30 days
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   <div className="text-center">
                     <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Analytics Preview</h3>
+                    <h3 className="text-lg font-medium mb-2">
+                      Analytics Preview
+                    </h3>
                     <p className="text-muted-foreground mb-4 max-w-md">
-                      View detailed analytics about your courses, students, revenue, and more
+                      View detailed analytics about your courses, students,
+                      revenue, and more
                     </p>
                     <Button asChild>
                       <Link href="/dashboard/creator/analytics">
@@ -661,7 +793,9 @@ export default function CreatorDashboardPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h2 className="text-xl font-semibold">Your Courses</h2>
             <Button asChild>
-              <Link href="/dashboard/creator/content/create">Create New Course</Link>
+              <Link href="/dashboard/creator/content/create">
+                Create New Course
+              </Link>
             </Button>
           </div>
 
@@ -672,9 +806,13 @@ export default function CreatorDashboardPage() {
                   <Video className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-medium mb-2">No courses yet</h3>
-                <p className="text-muted-foreground mb-4">Create your first course to start teaching</p>
+                <p className="text-muted-foreground mb-4">
+                  Create your first course to start teaching
+                </p>
                 <Button asChild>
-                  <Link href="/dashboard/creator/content/create">Create Course</Link>
+                  <Link href="/dashboard/creator/content/create">
+                    Create Course
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -685,7 +823,9 @@ export default function CreatorDashboardPage() {
                   key={course.id}
                   course={course}
                   onView={() => router.push(`/content/${course.id}`)}
-                  onEdit={() => router.push(`/dashboard/creator/content/${course.id}`)}
+                  onEdit={() =>
+                    router.push(`/dashboard/creator/content/${course.id}`)
+                  }
                 />
               ))}
             </div>
@@ -696,14 +836,19 @@ export default function CreatorDashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Performance Analytics</CardTitle>
-              <CardDescription>View detailed analytics about your courses</CardDescription>
+              <CardDescription>
+                View detailed analytics about your courses
+              </CardDescription>
             </CardHeader>
             <CardContent className="h-[400px] flex items-center justify-center">
               <div className="text-center">
                 <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Analytics Dashboard</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  Analytics Dashboard
+                </h3>
                 <p className="text-muted-foreground mb-4 max-w-md">
-                  Get detailed insights about your courses, students, revenue, and more
+                  Get detailed insights about your courses, students, revenue,
+                  and more
                 </p>
                 <Button asChild>
                   <Link href="/dashboard/creator/analytics">
@@ -717,5 +862,5 @@ export default function CreatorDashboardPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

@@ -1,17 +1,33 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback, useRef } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { usePaymentEvents } from "@/hooks/use-payment-events"
-import { getUserProfile } from "@/lib/actions/user"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { usePaymentEvents } from "@/hooks/use-payment-events";
+import { getUserProfile } from "@/lib/actions/user";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   BookOpen,
   Clock,
@@ -45,37 +61,57 @@ import {
   AlertTriangle,
   Hourglass,
   RefreshCcw,
-} from "lucide-react"
-import Link from "next/link"
-import { SectionLectures } from "@/components/section-lectures"
-import { toast } from "@/hooks/use-toast"
-import type { User, Course, Section, Lecture, Document, Review, ReviewStats } from "@/lib/types"
-import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import dynamic from "next/dynamic"
-import { Suspense } from "react"
-import Image from "next/image"
-import { useLocalStorageWithExpiry } from "@/hooks/use-local-storage"
-import { useFollowData } from "@/hooks/use-follow-data"
-import CourseReviews from "@/components/course-reviews"
-import { CourseOverview } from "@/components/course-overview"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { PaymentModal } from "@/components/payment-modal"
+} from "lucide-react";
+import Link from "next/link";
+import { SectionLectures } from "@/components/section-lectures";
+import { toast } from "@/hooks/use-toast";
+import type {
+  User,
+  Course,
+  Section,
+  Lecture,
+  Document,
+  Review,
+  ReviewStats,
+} from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
+import Image from "next/image";
+import { useLocalStorageWithExpiry } from "@/hooks/use-local-storage";
+import { useFollowData } from "@/hooks/use-follow-data";
+import CourseReviews from "@/components/course-reviews";
+import { CourseOverview } from "@/components/course-overview";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PaymentModal } from "@/components/payment-modal";
 
 interface CoursePageProps {
-  contentId: string
+  contentId: string;
 }
 
 const formatPrice = (price: number | null | undefined) => {
-  if (price === null || price === undefined) return "Free"
-  if (price === 0) return "Free"
+  if (price === null || price === undefined) return "Free";
+  if (price === 0) return "Free";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(price)
-}
+  }).format(price);
+};
 
 // Dynamically import non-critical components
 const InstructorStats = dynamic(() => import("@/components/instructor-stats"), {
@@ -91,75 +127,83 @@ const InstructorStats = dynamic(() => import("@/components/instructor-stats"), {
       ))}
     </div>
   ),
-})
+});
 
 const RelatedCourses = dynamic(() => import("@/components/related-courses"), {
   ssr: false,
-})
+});
 
 // Fix CourseResources component import
-const CourseResources = dynamic(() => import("@/components/course-resources").then(mod => mod.default), {
-  loading: () => (
-    <Card>
-      <CardHeader className="pb-2">
-        <Skeleton className="h-6 w-32 mb-2" />
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </CardContent>
-    </Card>
-  ),
-})
+const CourseResources = dynamic(
+  () => import("@/components/course-resources").then((mod) => mod.default),
+  {
+    loading: () => (
+      <Card>
+        <CardHeader className="pb-2">
+          <Skeleton className="h-6 w-32 mb-2" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    ),
+  }
+);
 
 export default function CoursePage({ contentId }: CoursePageProps) {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const { lastSuccessfulPayment, resetPaymentState } = usePaymentEvents()
-  const [course, setCourse] = useState<Course | null>(null)
-  const [sections, setSections] = useState<Section[]>([])
-  const [isEnrolled, setIsEnrolled] = useState(false)
-  const [isEnrolling, setIsEnrolling] = useState(false)
-  const [isUnenrolling, setIsUnenrolling] = useState(false)
-  const [showUnenrollDialog, setShowUnenrollDialog] = useState(false)
-  const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [enrollmentChecked, setEnrollmentChecked] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState<ReviewStats | null>(null)
-  const [expiresAt, setExpiresAt] = useState<string | null>(null)
-  const [hasExpired, setHasExpired] = useState(false)
-  const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(null)
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const { lastSuccessfulPayment, resetPaymentState } = usePaymentEvents();
+  const [course, setCourse] = useState<Course | null>(null);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [isUnenrolling, setIsUnenrolling] = useState(false);
+  const [showUnenrollDialog, setShowUnenrollDialog] = useState(false);
+  const [effectivelyEnrolled, setEffectivelyEnrolled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [enrollmentChecked, setEnrollmentChecked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [hasExpired, setHasExpired] = useState(false);
+  const [daysUntilExpiration, setDaysUntilExpiration] = useState<number | null>(
+    null
+  );
 
   // Enhanced data fetching with strong cache busting
   const fetchCourseData = useCallback(async () => {
-    if (!contentId) return
-    
+    if (!contentId) return;
+
     try {
-      setLoading(true)
-      setEnrollmentChecked(false)
-      
+      setLoading(true);
+      setEnrollmentChecked(false);
+
       // Add timestamp to force fresh data after cache invalidation
-      const timestamp = new Date().getTime()
-      const courseResponse = await fetch(`/api/courses/${contentId}?_=${timestamp}`, { 
-        cache: 'no-store', // Don't cache this request
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
+      const timestamp = new Date().getTime();
+      const courseResponse = await fetch(
+        `/api/courses/${contentId}?_=${timestamp}`,
+        {
+          cache: "no-store", // Don't cache this request
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
         }
-      })
+      );
 
       if (!courseResponse.ok) {
-        throw new Error("Failed to load course")
+        throw new Error("Failed to load course");
       }
 
-      const courseData = await courseResponse.json()
-      setCourse(courseData.course)
-      setSections(courseData.course.sections || [])
-      
+      const courseData = await courseResponse.json();
+      setCourse(courseData.course);
+      setSections(courseData.course.sections || []);
+
       // Initialize stats from course data
       setStats({
         averageRating: courseData.course.rating || 0,
@@ -169,98 +213,114 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           2: { count: 0, percentage: 0 },
           3: { count: 0, percentage: 0 },
           4: { count: 0, percentage: 0 },
-          5: { count: 0, percentage: 0 }
-        }
-      })
+          5: { count: 0, percentage: 0 },
+        },
+      });
 
       // Check enrollment status for authenticated users
       if (session?.user) {
         // Add timestamp and random to prevent caching
-        const timestamp = new Date().getTime()
-        const random = Math.random().toString(36).substring(7)
-        
+        const timestamp = new Date().getTime();
+        const random = Math.random().toString(36).substring(7);
+
         const enrollmentResponse = await fetch(
           `/api/courses/${contentId}/enrollment-status?t=${timestamp}&r=${random}`,
           {
-            cache: 'no-store',
+            cache: "no-store",
             headers: {
               "Content-Type": "application/json",
               "Cache-Control": "no-cache, no-store, must-revalidate, private",
-              "Pragma": "no-cache",
-              "Expires": "0",
-            }
+              Pragma: "no-cache",
+              Expires: "0",
+            },
           }
-        )
+        );
 
         if (enrollmentResponse.ok) {
-          const enrollmentData = await enrollmentResponse.json()
-          const isCreator = session.user.id === courseData.course.creatorId
-          const isAdmin = session.user.role === "ADMIN"
-          
-          setIsEnrolled(enrollmentData.isEnrolled)
-          setEffectivelyEnrolled(enrollmentData.isEnrolled || isCreator || isAdmin)
-          
+          const enrollmentData = await enrollmentResponse.json();
+          const isCreator = session.user.id === courseData.course.creatorId;
+          const isAdmin = session.user.role === "ADMIN";
+
+          setIsEnrolled(enrollmentData.isEnrolled);
+          setEffectivelyEnrolled(
+            enrollmentData.isEnrolled || isCreator || isAdmin
+          );
+
           // Handle enrollment expiration data
-          setHasExpired(enrollmentData.hasExpired || false)
-          
+          setHasExpired(enrollmentData.hasExpired || false);
+
           if (enrollmentData.expiresAt) {
-            setExpiresAt(enrollmentData.expiresAt)
-            
+            setExpiresAt(enrollmentData.expiresAt);
+
             // Calculate days until expiration
-            const expirationDate = new Date(enrollmentData.expiresAt)
-            const today = new Date()
-            const diffTime = expirationDate.getTime() - today.getTime()
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-            setDaysUntilExpiration(diffDays)
+            const expirationDate = new Date(enrollmentData.expiresAt);
+            const today = new Date();
+            const diffTime = expirationDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            setDaysUntilExpiration(diffDays);
           } else {
-            setExpiresAt(null)
-            setDaysUntilExpiration(null)
+            setExpiresAt(null);
+            setDaysUntilExpiration(null);
           }
         }
       }
-      
-      setEnrollmentChecked(true)
-      setLoading(false)
+
+      setEnrollmentChecked(true);
+      setLoading(false);
     } catch (error) {
-      console.error("Error loading course data:", error)
-      setError(error instanceof Error ? error.message : "Failed to load course")
-      setEnrollmentChecked(true)
-      setLoading(false)
+      console.error("Error loading course data:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load course"
+      );
+      setEnrollmentChecked(true);
+      setLoading(false);
     }
-  }, [contentId, session, status])
+  }, [contentId, session, status]);
 
   // Listen for review update events
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     const handleReviewUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<{ courseId: string, stats: any }>;
-      
+      const customEvent = event as CustomEvent<{
+        courseId: string;
+        stats: any;
+      }>;
+
       // Only update if it's for the current course
-      if (customEvent.detail.courseId === contentId && customEvent.detail.stats) {
+      if (
+        customEvent.detail.courseId === contentId &&
+        customEvent.detail.stats
+      ) {
         setStats(customEvent.detail.stats);
-        
+
         // Optionally force refetch course data to update other places that show ratings
         fetchCourseData();
       }
     };
-    
-    window.addEventListener('course-review-updated', handleReviewUpdate as EventListener);
-    
+
+    window.addEventListener(
+      "course-review-updated",
+      handleReviewUpdate as EventListener
+    );
+
     return () => {
-      window.removeEventListener('course-review-updated', handleReviewUpdate as EventListener);
+      window.removeEventListener(
+        "course-review-updated",
+        handleReviewUpdate as EventListener
+      );
     };
-  }, [contentId, fetchCourseData])
-  
+  }, [contentId, fetchCourseData]);
+
   // Handle CTA button click
   const handleCTAClick = async () => {
     if (!session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to enroll in this course",
-      })
-      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
-      return
+      });
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`);
+      return;
     }
 
     // For paid courses, check if user has mobile number
@@ -272,233 +332,260 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         const userData = await getUserProfile(session.user.id);
 
         if (!userData.success) {
-          throw new Error(userData.error || "Failed to fetch user profile")
+          throw new Error(userData.error || "Failed to fetch user profile");
         }
 
         // Then check if mobile number exists
         if (!userData.user?.mobileNumber) {
           toast({
             title: "Mobile Number Required",
-            description: "A mobile number is required for paid course enrollment. Please add it in your settings.",
+            description:
+              "A mobile number is required for paid course enrollment. Please add it in your settings.",
             variant: "default",
-          })
+          });
           // Encode the current URL to return after adding mobile number
-          const returnUrl = encodeURIComponent(`/content/${contentId}`)
-          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please add your mobile number to enroll in paid courses")}`)
-          return
+          const returnUrl = encodeURIComponent(`/content/${contentId}`);
+          router.push(
+            `/settings?returnUrl=${returnUrl}&message=${encodeURIComponent(
+              "Please add your mobile number to enroll in paid courses"
+            )}`
+          );
+          return;
         }
 
         // Additional validation for mobile number format
-        const mobileNumber = userData.user.mobileNumber.trim()
+        const mobileNumber = userData.user.mobileNumber.trim();
         // Improved regex to validate international format: +{country code}{number}
         // Must start with + and have between 8 and 15 digits in total
         if (!mobileNumber.match(/^\+\d{1,4}[\d\s-]{7,14}$/)) {
           toast({
             title: "Invalid Mobile Number",
-            description: "Your mobile number must be in international format (e.g. +1234567890). Please update it in settings.",
+            description:
+              "Your mobile number must be in international format (e.g. +1234567890). Please update it in settings.",
             variant: "default",
-          })
-          const returnUrl = encodeURIComponent(`/content/${contentId}`)
-          router.push(`/settings?returnUrl=${returnUrl}&message=${encodeURIComponent("Please update your mobile number to international format (e.g. +1234567890)")}`)
-          return
+          });
+          const returnUrl = encodeURIComponent(`/content/${contentId}`);
+          router.push(
+            `/settings?returnUrl=${returnUrl}&message=${encodeURIComponent(
+              "Please update your mobile number to international format (e.g. +1234567890)"
+            )}`
+          );
+          return;
         }
-
       } catch (error) {
-        console.error("Error checking user profile:", error)
+        console.error("Error checking user profile:", error);
         toast({
           title: "Error",
-          description: "Unable to verify your information. Please try again later.",
+          description:
+            "Unable to verify your information. Please try again later.",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
     }
 
     if (hasExpired) {
       // If enrollment has expired, show payment modal for renewal
-      setShowPaymentModal(true)
+      setShowPaymentModal(true);
     } else if (effectivelyEnrolled) {
       // If already enrolled or creator/admin, go to the first lecture
       if (sections.length > 0 && sections[0].lectures.length > 0) {
-        router.push(`/content/${contentId}/player/${sections[0].lectures[0].id}`)
+        router.push(
+          `/content/${contentId}/player/${sections[0].lectures[0].id}`
+        );
       }
     } else if (course?.price === 0) {
-      handleEnroll()
+      handleEnroll();
     } else {
-      setShowPaymentModal(true)
+      setShowPaymentModal(true);
     }
-  }
+  };
 
-  const [userReview, setUserReview] = useState<Review | null>(null)
-  const [isBookmarked, setIsBookmarked] = useState(false)
-  const [isBookmarking, setIsBookmarking] = useState(false)
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
   const [cachedFollowerData, setCachedFollowerData] = useLocalStorageWithExpiry(
     `creator-followers-${course?.creatorId || "unknown"}`,
     { followerCount: 0 },
     15 // Cache for 15 minutes
-  )
-  const [followerCount, setFollowerCount] = useState(cachedFollowerData.followerCount)
+  );
+  const [followerCount, setFollowerCount] = useState(
+    cachedFollowerData.followerCount
+  );
 
   const handleEnroll = async () => {
     if (!session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to enroll in this course",
-      })
-      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
-      return
+      });
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`);
+      return;
     }
 
     try {
-      setIsEnrolling(true)
+      setIsEnrolling(true);
 
       const response = await fetch(`/api/courses/${contentId}/enrollment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to enroll")
+        throw new Error(data.message || "Failed to enroll");
       }
 
       // Update local state immediately
-      setIsEnrolled(true)
-      setEffectivelyEnrolled(true)
-      setEnrollmentChecked(true) // Explicitly mark enrollment as checked
+      setIsEnrolled(true);
+      setEffectivelyEnrolled(true);
+      setEnrollmentChecked(true); // Explicitly mark enrollment as checked
 
       toast({
         title: "Successfully Enrolled!",
         description: "You can now access all course content",
         variant: "default",
-      })
+      });
 
       // After successful enrollment, redirect to first lecture
       if (sections.length > 0 && sections[0].lectures.length > 0) {
-        router.push(`/content/${contentId}/player/${sections[0].lectures[0].id}`)
+        router.push(
+          `/content/${contentId}/player/${sections[0].lectures[0].id}`
+        );
       }
     } catch (error) {
-      console.error("Failed to enroll:", error)
+      console.error("Failed to enroll:", error);
       toast({
         title: "Enrollment Failed",
-        description: error instanceof Error ? error.message : "Failed to enroll in course",
+        description:
+          error instanceof Error ? error.message : "Failed to enroll in course",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsEnrolling(false)
+      setIsEnrolling(false);
     }
-  }
-  
+  };
+
   const handleUnenroll = async () => {
     if (!session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to manage your course enrollments",
-      })
-      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
-      return
+      });
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`);
+      return;
     }
 
     if (!effectivelyEnrolled) {
       toast({
         title: "Not Enrolled",
         description: "You are not currently enrolled in this course",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
     try {
-      setIsUnenrolling(true)
-      setShowUnenrollDialog(false) // Close dialog immediately
+      setIsUnenrolling(true);
+      setShowUnenrollDialog(false); // Close dialog immediately
 
       const response = await fetch(`/api/courses/${contentId}/enrollment`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache"
+          "Cache-Control": "no-cache",
         },
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to unenroll from course")
+        throw new Error(data.message || "Failed to unenroll from course");
       }
 
       // Update local state after successful API call
-      setIsEnrolled(false)
-      setEffectivelyEnrolled(false)
-      setEnrollmentChecked(true) // Explicitly mark enrollment as checked
+      setIsEnrolled(false);
+      setEffectivelyEnrolled(false);
+      setEnrollmentChecked(true); // Explicitly mark enrollment as checked
 
       toast({
         title: "Successfully Unenrolled",
         description: "You have been removed from this course",
         variant: "default",
-      })
-      
+      });
+
       // Redirect to explore page after unenroll
-      router.push("/explore")
+      router.push("/explore");
     } catch (error) {
-      console.error("Failed to unenroll:", error)
-      
+      console.error("Failed to unenroll:", error);
+
       // Revert state if unenroll failed
-      setIsEnrolled(true)
-      setEffectivelyEnrolled(true)
-      
+      setIsEnrolled(true);
+      setEffectivelyEnrolled(true);
+
       toast({
         title: "Action Failed",
-        description: error instanceof Error ? error.message : "Failed to unenroll from course",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to unenroll from course",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsUnenrolling(false)
+      setIsUnenrolling(false);
     }
-  }
+  };
 
   // Check enrollment status
   const checkEnrollmentStatus = async () => {
     if (!session?.user?.id) return;
-    
+
     try {
       setEnrollmentChecked(false); // Indicate we're checking enrollment
-      
+
       const isCreator = session.user.id === course?.creatorId;
       const isAdmin = session.user.role === "ADMIN";
-      
+
       if (isCreator || isAdmin) {
-        console.log(`User is ${isCreator ? 'creator' : 'admin'}, setting effective enrollment to true`);
+        console.log(
+          `User is ${
+            isCreator ? "creator" : "admin"
+          }, setting effective enrollment to true`
+        );
         setIsEnrolled(false); // They're not technically enrolled
         setEffectivelyEnrolled(true);
         setEnrollmentChecked(true); // Mark as checked
         return; // Skip API call for creators and admins
       }
-      
+
       // Add timestamp to prevent browser caching
       // Add both timestamp and random to ensure fresh response
       const timestamp = new Date().getTime();
       const random = Math.random().toString(36).substring(7);
-      const response = await fetch(`/api/courses/${contentId}/enrollment?t=${timestamp}&r=${random}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate, private",
-          "Pragma": "no-cache",
-          "Expires": "0",
-        },
-        // Add cache: 'no-store' to force fresh request
-        cache: 'no-store'
-      });
+      const response = await fetch(
+        `/api/courses/${contentId}/enrollment?t=${timestamp}&r=${random}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate, private",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+          // Add cache: 'no-store' to force fresh request
+          cache: "no-store",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to check enrollment status");
       }
 
       const data = await response.json();
-      
+
       if (!data.success) {
         console.error("Enrollment check returned unsuccessful:", data);
         setIsEnrolled(false);
@@ -507,7 +594,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       }
 
       console.log("Enrollment check successful, isEnrolled:", data.isEnrolled);
-      
+
       // Always update state to ensure UI reflects current enrollment status
       setIsEnrolled(data.isEnrolled);
       setEffectivelyEnrolled(data.isEnrolled);
@@ -518,26 +605,26 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     } finally {
       setEnrollmentChecked(true); // Always mark enrollment check as complete
     }
-  }
+  };
 
   // Check bookmark status
   useEffect(() => {
     const checkBookmarkStatus = async () => {
       if (session?.user) {
         try {
-          const response = await fetch(`/api/courses/${contentId}/bookmark`)
-          const data = await response.json()
+          const response = await fetch(`/api/courses/${contentId}/bookmark`);
+          const data = await response.json();
           if (response.ok) {
-            setIsBookmarked(data.isBookmarked)
+            setIsBookmarked(data.isBookmarked);
           }
         } catch (error) {
-          console.error("Error checking bookmark status:", error)
+          console.error("Error checking bookmark status:", error);
         }
       }
-    }
+    };
 
-    checkBookmarkStatus()
-  }, [contentId, session?.user])
+    checkBookmarkStatus();
+  }, [contentId, session?.user]);
 
   // Handle bookmark toggle
   const toggleBookmark = async () => {
@@ -545,39 +632,44 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to bookmark this course",
-      })
-      router.push(`/auth/signin?callbackUrl=/content/${contentId}`)
-      return
+      });
+      router.push(`/auth/signin?callbackUrl=/content/${contentId}`);
+      return;
     }
 
     try {
-      setIsBookmarking(true)
+      setIsBookmarking(true);
       const response = await fetch(`/api/courses/${contentId}/bookmark`, {
         method: "POST",
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to toggle bookmark")
+        throw new Error(data.message || "Failed to toggle bookmark");
       }
 
-      setIsBookmarked(data.isBookmarked)
+      setIsBookmarked(data.isBookmarked);
       toast({
-        title: data.isBookmarked ? "Added to bookmarks" : "Removed from bookmarks",
-        description: data.isBookmarked ? "Course added to your bookmarks" : "Course removed from your bookmarks",
-      })
+        title: data.isBookmarked
+          ? "Added to bookmarks"
+          : "Removed from bookmarks",
+        description: data.isBookmarked
+          ? "Course added to your bookmarks"
+          : "Course removed from your bookmarks",
+      });
     } catch (error) {
-      console.error("Failed to toggle bookmark:", error)
+      console.error("Failed to toggle bookmark:", error);
       toast({
         title: "Action Failed",
-        description: error instanceof Error ? error.message : "Failed to toggle bookmark",
+        description:
+          error instanceof Error ? error.message : "Failed to toggle bookmark",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsBookmarking(false)
+      setIsBookmarking(false);
     }
-  }
+  };
 
   // Fetch course data and ensure enrollment is checked
   useEffect(() => {
@@ -585,41 +677,46 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     setLoading(true);
     setEnrollmentChecked(false);
     initialLoadComplete.current = false;
-    
-    fetchCourseData()
-  }, [fetchCourseData, contentId])
+
+    fetchCourseData();
+  }, [fetchCourseData, contentId]);
 
   // React to successful payment events
   useEffect(() => {
     // Check if this contentId matches the course that was just paid for
-    if (lastSuccessfulPayment.courseId === contentId && lastSuccessfulPayment.timestamp) {
-      console.log("Payment success detected for this course, refreshing enrollment status");
-      
+    if (
+      lastSuccessfulPayment.courseId === contentId &&
+      lastSuccessfulPayment.timestamp
+    ) {
+      console.log(
+        "Payment success detected for this course, refreshing enrollment status"
+      );
+
       // Set enrollment check as loading to show loading state
       setEnrollmentChecked(false);
-      
+
       // Force immediate enrollment check with explicit cache bypass
       const forceCheckEnrollmentStatus = async () => {
         try {
           const timestamp = new Date().getTime();
           const response = await fetch(
-            `/api/courses/${contentId}/enrollment-status?t=${timestamp}&skipCache=true`, 
+            `/api/courses/${contentId}/enrollment-status?t=${timestamp}&skipCache=true`,
             {
               method: "GET",
               cache: "no-store",
               headers: {
                 "Content-Type": "application/json",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
+                Pragma: "no-cache",
+                Expires: "0",
               },
             }
           );
-          
+
           if (response.ok) {
             const data = await response.json();
             console.log("Forced enrollment check after payment:", data);
-            
+
             // Update states and trigger UI refresh
             setIsEnrolled(data.isEnrolled);
             setEffectivelyEnrolled(data.isEnrolled);
@@ -632,7 +729,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           resetPaymentState(contentId);
         }
       };
-      
+
       // Execute force check
       forceCheckEnrollmentStatus();
     }
@@ -641,83 +738,122 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   // Check enrollment status on session changes and initial load
   useEffect(() => {
     if (session?.user && contentId && course && !initialLoadComplete.current) {
-      console.log("Checking enrollment status on initial load or session change");
+      console.log(
+        "Checking enrollment status on initial load or session change"
+      );
       checkEnrollmentStatus();
     }
-  }, [session?.user?.id, contentId, course, checkEnrollmentStatus])
+  }, [session?.user?.id, contentId, course, checkEnrollmentStatus]);
 
   useEffect(() => {
     async function fetchFollowerCount() {
-      if (!course?.creatorId) return
+      if (!course?.creatorId) return;
       try {
         // Use the existing follow endpoint that returns follower count
-        const response = await fetch(`/api/users/${course.creatorId}/follow`)
-        const data = await response.json()
+        const response = await fetch(`/api/users/${course.creatorId}/follow`);
+        const data = await response.json();
         if (response.ok && data.followerCount !== undefined) {
-          setFollowerCount(data.followerCount)
-          setCachedFollowerData({ followerCount: data.followerCount })
+          setFollowerCount(data.followerCount);
+          setCachedFollowerData({ followerCount: data.followerCount });
         }
       } catch (error) {
-        console.error("Error fetching follower count:", error)
+        console.error("Error fetching follower count:", error);
       }
     }
-    fetchFollowerCount()
-  }, [course?.creatorId])
+    fetchFollowerCount();
+  }, [course?.creatorId]);
 
   const getTotalLectures = () => {
-    return sections.reduce((total, section) => total + section.lectures.length, 0)
-  }
+    return sections.reduce(
+      (total, section) => total + section.lectures.length,
+      0
+    );
+  };
 
   const getTotalDuration = () => {
     const totalSeconds = sections.reduce((total, section) => {
       return (
         total +
         section.lectures.reduce((sectionTotal, lecture) => {
-          return sectionTotal + (lecture.duration || 0)
+          return sectionTotal + (lecture.duration || 0);
         }, 0)
-      )
-    }, 0)
+      );
+    }, 0);
 
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
 
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-  }
-  
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  };
+
   // Handle sharing functionality
   const handleShare = (platform: string) => {
-    if (!course) return
-    
+    if (!course) return;
+
     // Get the current URL for sharing
-    const currentUrl = typeof window !== 'undefined' 
-      ? window.location.href 
-      : `${process.env.NEXT_PUBLIC_APP_URL || ''}/content/${contentId}`;
-      
+    const currentUrl =
+      typeof window !== "undefined"
+        ? window.location.href
+        : `${process.env.NEXT_PUBLIC_APP_URL || ""}/content/${contentId}`;
+
     const courseTitle = encodeURIComponent(course.title);
-    const courseDesc = encodeURIComponent(course.description || "Check out this course!");
-    
+    const courseDesc = encodeURIComponent(
+      course.description || "Check out this course!"
+    );
+
     switch (platform) {
       case "facebook":
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, "_blank");
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+            currentUrl
+          )}`,
+          "_blank"
+        );
         break;
       case "twitter":
-        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${courseTitle}`, "_blank");
+        window.open(
+          `https://twitter.com/intent/tweet?url=${encodeURIComponent(
+            currentUrl
+          )}&text=${courseTitle}`,
+          "_blank"
+        );
         break;
       case "linkedin":
-        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`, "_blank");
+        window.open(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+            currentUrl
+          )}`,
+          "_blank"
+        );
         break;
       case "whatsapp":
-        window.open(`https://api.whatsapp.com/send?text=${courseTitle}%20-%20${encodeURIComponent(currentUrl)}`, "_blank");
+        window.open(
+          `https://api.whatsapp.com/send?text=${courseTitle}%20-%20${encodeURIComponent(
+            currentUrl
+          )}`,
+          "_blank"
+        );
         break;
       case "gmail":
-        window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=&su=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(currentUrl)}&tf=1`, "_blank");
+        window.open(
+          `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=&su=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(
+            currentUrl
+          )}&tf=1`,
+          "_blank"
+        );
         break;
       case "email":
-        window.open(`mailto:?subject=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(currentUrl)}`, "_blank");
+        window.open(
+          `mailto:?subject=${courseTitle}&body=${courseDesc}%0A%0A${encodeURIComponent(
+            currentUrl
+          )}`,
+          "_blank"
+        );
         break;
       case "copy":
         if (navigator.clipboard) {
-          navigator.clipboard.writeText(currentUrl)
+          navigator.clipboard
+            .writeText(currentUrl)
             .then(() => {
               toast({
                 title: "Link Copied!",
@@ -734,13 +870,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
               });
             });
         } else {
-          
           const textArea = document.createElement("textarea");
           textArea.value = currentUrl;
           document.body.appendChild(textArea);
           textArea.select();
           try {
-            document.execCommand('copy');
+            document.execCommand("copy");
             toast({
               title: "Link Copied!",
               description: "Course link has been copied to your clipboard",
@@ -765,10 +900,11 @@ export default function CoursePage({ contentId }: CoursePageProps) {
   // Create refs to track loading states
   const hasRendered = useRef(false);
   const initialLoadComplete = useRef(false);
-  
+
   // Combined loading state to prevent UI flicker
-  const isLoadingContent = loading || !enrollmentChecked || !initialLoadComplete.current;
-  
+  const isLoadingContent =
+    loading || !enrollmentChecked || !initialLoadComplete.current;
+
   // After first successful render with all data, mark as rendered
   useEffect(() => {
     if (!loading && enrollmentChecked && course) {
@@ -776,7 +912,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       initialLoadComplete.current = true;
     }
   }, [loading, enrollmentChecked, course]);
-  
+
   if (isLoadingContent) {
     return (
       <div className="bg-background min-h-screen pb-12">
@@ -835,7 +971,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -847,41 +983,47 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           <Link href="/explore">Browse Courses</Link>
         </Button>
       </div>
-    )
+    );
   }
 
   if (!course) {
     return (
       <div className="container mx-auto py-10 px-4 md:px-6 text-center">
         <h1 className="text-3xl font-bold mb-6">Course Not Found</h1>
-        <p className="mb-6">The course you are looking for does not exist or has been removed.</p>
+        <p className="mb-6">
+          The course you are looking for does not exist or has been removed.
+        </p>
         <Button asChild>
           <Link href="/explore">Browse Courses</Link>
         </Button>
       </div>
-    )
+    );
   }
 
-  const isCreator = session?.user?.id === course.creatorId
-  const isAdmin = session?.user?.role === "ADMIN"
- 
-  const hasAccess = isEnrolled || isCreator || isAdmin
+  const isCreator = session?.user?.id === course.creatorId;
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  const hasAccess = isEnrolled || isCreator || isAdmin;
 
   return (
     <div className="bg-background min-h-screen pb-12">
       {/* Unenroll Confirmation Dialog */}
-      <AlertDialog open={showUnenrollDialog} onOpenChange={setShowUnenrollDialog}>
+      <AlertDialog
+        open={showUnenrollDialog}
+        onOpenChange={setShowUnenrollDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unenroll from this course?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove you from the course and delete your progress. You can re-enroll anytime, but your progress will be lost.
+              This will remove you from the course and delete your progress. You
+              can re-enroll anytime, but your progress will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleUnenroll} 
+            <AlertDialogAction
+              onClick={handleUnenroll}
               className="bg-red-500 hover:bg-red-600 text-white"
               disabled={isUnenrolling}
             >
@@ -897,7 +1039,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* Payment Modal */}
       {course && showPaymentModal && (
         <PaymentModal
@@ -908,7 +1050,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
           price={course.price || 0}
         />
       )}
-      
+
       {/* Hero section with gradient background */}
       <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-background pt-6 md:pt-10 pb-12 border-b">
         <div className="container mx-auto px-4 md:px-6">
@@ -918,25 +1060,35 @@ export default function CoursePage({ contentId }: CoursePageProps) {
             <div className="w-full lg:w-7/12 space-y-5">
               {/* Course category tags */}
               <div className="flex flex-wrap gap-2">
-                {course.tags && course.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border-none">
-                    {tag}
-                  </Badge>
-                ))}
-        
+                {course.tags &&
+                  course.tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border-none"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
               </div>
-              
+
               {/* Course title and description */}
               <div>
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-3">{course.title}</h1>
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">{course.description}</p>
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-3">
+                  {course.title}
+                </h1>
+                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+                  {course.description}
+                </p>
               </div>
-              
+
               {/* Key stats banner */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-center gap-2 sm:gap-3 md:gap-4 mt-2 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-border/30 shadow-sm">
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 bg-amber-500/10 text-amber-500 px-3.5 py-2 rounded-full w-full sm:w-auto">
                   <Star className="h-4 w-4 fill-current" />
-                  <span className="font-medium">{stats?.averageRating?.toFixed(1) || "0.0"}</span>
+                  <span className="font-medium">
+                    {stats?.averageRating?.toFixed(1) || "0.0"}
+                  </span>
                   <span className="text-sm text-muted-foreground ml-1">
                     ({stats?.totalReviews || 0} reviews)
                   </span>
@@ -944,37 +1096,45 @@ export default function CoursePage({ contentId }: CoursePageProps) {
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground bg-background/50 px-3.5 py-2 rounded-full w-full sm:w-auto">
                   <Users className="h-4 w-4 shrink-0" />
-                  <span className="text-sm">{course._count?.enrollments || 0} students enrolled</span>
+                  <span className="text-sm">
+                    {course._count?.enrollments || 0} students enrolled
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground bg-background/50 px-3.5 py-2 rounded-full w-full sm:w-auto">
                   <BookOpen className="h-4 w-4 shrink-0" />
                   <span className="text-sm">{getTotalLectures()} lectures</span>
                 </div>
-
               </div>
-              
+
               {/* Instructor section */}
               <div className="bg-background/40 backdrop-blur-sm rounded-lg border border-border/30">
                 <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between p-3 gap-3 sm:gap-2">
-                  <Link href={`/creators/${course.creatorId}`} className="flex items-center gap-3">
+                  <Link
+                    href={`/creators/${course.creatorId}`}
+                    className="flex items-center gap-3"
+                  >
                     <Avatar className="h-14 w-14 sm:h-12 sm:w-12 border-2 border-primary/20">
                       <AvatarImage
                         src={course.creator?.image || "/placeholder.svg"}
                         alt={course.creator?.name || ""}
                         className="object-cover"
                       />
-                      <AvatarFallback>{course.creator?.name?.charAt(0) || "C"}</AvatarFallback>
+                      <AvatarFallback>
+                        {course.creator?.name?.charAt(0) || "C"}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col gap-0.5 text-center sm:text-left">
-                      <span className="font-medium text-base leading-tight">{course.creator?.name}</span>
+                      <span className="font-medium text-base leading-tight">
+                        {course.creator?.name}
+                      </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1 justify-center sm:justify-start">
                         <GraduationCap className="h-3 w-3" />
                         Course Instructor
                       </span>
                     </div>
                   </Link>
-                  
+
                   <div className="flex flex-wrap justify-center sm:flex-nowrap items-center gap-2">
                     <div className="text-xs text-muted-foreground flex items-center border rounded-full px-2 py-1.5 bg-background/50 w-full sm:w-auto justify-center">
                       <Users2 className="h-3 w-3 mr-1" />
@@ -982,34 +1142,41 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     </div>
 
                     <div className="flex gap-1.5 w-full sm:w-auto justify-center">
-                      {session?.user && course?.creatorId !== session.user.id && (
-                        <FollowButton
-                          creatorId={course.creatorId}
-                          onFollowChange={(isFollowing, count) => {
-                            setFollowerCount(count)
-                          }}
-                          variant="secondary"
-                          className={cn(
-                            "h-6 px-2 py-0 text-xs font-medium transition-colors",
-                            "bg-purple-50 text-purple-600 hover:bg-purple-100 active:scale-95"
-                          )}
-                          iconClassName="h-3 w-3 mr-1"
-                          showIcon
-                          compact
-                        />
-                      )}
-                      
-                      {session?.user && effectivelyEnrolled && !isCreator && !isAdmin && (
-                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Enrolled
-                        </Badge>
-                      )}
+                      {session?.user &&
+                        course?.creatorId !== session.user.id && (
+                          <FollowButton
+                            creatorId={course.creatorId}
+                            onFollowChange={(isFollowing, count) => {
+                              setFollowerCount(count);
+                            }}
+                            variant="secondary"
+                            className={cn(
+                              "h-6 px-2 py-0 text-xs font-medium transition-colors",
+                              "bg-purple-50 text-purple-600 hover:bg-purple-100 active:scale-95"
+                            )}
+                            iconClassName="h-3 w-3 mr-1"
+                            showIcon
+                            compact
+                          />
+                        )}
+
+                      {session?.user &&
+                        effectivelyEnrolled &&
+                        !isCreator &&
+                        !isAdmin && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Enrolled
+                          </Badge>
+                        )}
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               {/* What you'll learn section - preview on desktop */}
               <div className="hidden md:block bg-background/40 backdrop-blur-sm p-6 rounded-lg border border-border/30">
                 <h3 className="text-xl font-semibold mb-4 flex items-center text-primary">
@@ -1022,12 +1189,19 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     "Build responsive websites from scratch",
                     "Create interactive web pages with JavaScript",
                     "Implement modern CSS layouts using Flexbox and Grid",
-                  ].slice(0, 4).map((item, i) => (
-                    <div key={i} className="flex items-start gap-3 bg-background/50 p-3 rounded-lg hover:bg-background/80 transition-colors">
-                      <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                      <span className="text-sm leading-tight text-foreground/90">{item}</span>
-                    </div>
-                  ))}
+                  ]
+                    .slice(0, 4)
+                    .map((item, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 bg-background/50 p-3 rounded-lg hover:bg-background/80 transition-colors"
+                      >
+                        <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                        <span className="text-sm leading-tight text-foreground/90">
+                          {item}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>
@@ -1035,7 +1209,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
             {/* Right content - course card */}
             <div className="w-full lg:w-5/12">
               <div className="sticky top-4">
-                <Card className="overflow-hidden border-none shadow-xl">
+                <Card className="premium-card-luxe overflow-hidden">
                   {/* Course thumbnail with overlay */}
                   <div className="aspect-video overflow-hidden relative">
                     <Image
@@ -1048,15 +1222,18 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       placeholder="blur"
                       blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQtJSAyVC08MTY3LjIyOkFTRjo9Tj4yMkhiSk46X2FfYDlMY1hgiV9fYW3/2wBDARUXFx4aHR4eHV9BNzJBX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX1//wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                     />
-                    
+
                     {/* Play preview button overlay */}
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => {
-                      // Preview video handler
-                      toast({
-                        title: "Coming Soon",
-                        description: "Video preview will be available soon"
-                      })
-                    }}>
+                    <div
+                      className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={() => {
+                        // Preview video handler
+                        toast({
+                          title: "Coming Soon",
+                          description: "Video preview will be available soon",
+                        });
+                      }}
+                    >
                       <div className="h-16 w-16 rounded-full bg-primary/80 text-white flex items-center justify-center">
                         <Play className="h-8 w-8 ml-1" />
                       </div>
@@ -1068,18 +1245,32 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                     <div className="mb-6">
                       <div className="flex justify-between items-center mb-2">
                         <div>
-                          <p className="text-3xl font-bold">{course.price ? formatPrice(course.price) : "Free"}</p>
-                          {course.originalPrice && course.originalPrice > (course.price ?? 0) && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground line-through">{formatPrice(course.originalPrice)}</span>
-                              <Badge variant="destructive" className="bg-red-500">
-                                {Math.round((1 - ((course.price ?? 0) / (course.originalPrice ?? 1))) * 100)}% off
-                              </Badge>
-                            </div>
-                          )}
+                          <p className="text-3xl font-bold">
+                            {course.price ? formatPrice(course.price) : "Free"}
+                          </p>
+                          {course.originalPrice &&
+                            course.originalPrice > (course.price ?? 0) && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground line-through">
+                                  {formatPrice(course.originalPrice)}
+                                </span>
+                                <Badge
+                                  variant="destructive"
+                                  className="bg-red-500"
+                                >
+                                  {Math.round(
+                                    (1 -
+                                      (course.price ?? 0) /
+                                        (course.originalPrice ?? 1)) *
+                                      100
+                                  )}
+                                  % off
+                                </Badge>
+                              </div>
+                            )}
                         </div>
                         <Button
-                          variant="ghost"
+                          variant="luxeSecondary"
                           size="icon"
                           onClick={toggleBookmark}
                           disabled={isBookmarking}
@@ -1088,70 +1279,88 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           {isBookmarking ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
-                            <Bookmark className={`h-5 w-5 ${isBookmarked ? "fill-current" : ""}`} />
+                            <Bookmark
+                              className={`h-5 w-5 ${
+                                isBookmarked ? "fill-current" : ""
+                              }`}
+                            />
                           )}
                         </Button>
                       </div>
-                      
                     </div>
 
                     {/* Course features */}
                     <div className="space-y-4 text-sm mb-6">
                       <div className="flex flex-wrap items-center gap-2">
                         {course.courseStatus && (
-                          <Badge variant="outline" className={cn(
-                            "px-2 py-0.5",
-                            course.courseStatus === "UPCOMING" && "bg-blue-500/10 text-blue-500 border-blue-200",
-                            course.courseStatus === "ONGOING" && "bg-green-500/10 text-green-500 border-green-200",
-                            course.courseStatus === "COMPLETED" && "bg-amber-500/10 text-amber-500 border-amber-200"
-                          )}>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "px-2 py-0.5",
+                              course.courseStatus === "UPCOMING" &&
+                                "bg-blue-500/10 text-blue-500 border-blue-200",
+                              course.courseStatus === "ONGOING" &&
+                                "bg-green-500/10 text-green-500 border-green-200",
+                              course.courseStatus === "COMPLETED" &&
+                                "bg-amber-500/10 text-amber-500 border-amber-200"
+                            )}
+                          >
                             <Calendar className="h-3.5 w-3.5 mr-1" />
-                            {course.courseStatus.charAt(0) + course.courseStatus.slice(1).toLowerCase()}
+                            {course.courseStatus.charAt(0) +
+                              course.courseStatus.slice(1).toLowerCase()}
                           </Badge>
                         )}
-                        
+
                         {course.deliveryMode && (
-                          <Badge variant="outline" className={cn(
-                            "px-2 py-0.5",
-                            course.deliveryMode === "VIDEO" && "bg-blue-500/10 text-blue-500 border-blue-200",
-                            course.deliveryMode === "LIVE" && "bg-red-500/10 text-red-500 border-red-200",
-                            course.deliveryMode === "HYBRID" && "bg-purple-500/10 text-purple-500 border-purple-200"
-                          )}>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "px-2 py-0.5",
+                              course.deliveryMode === "VIDEO" &&
+                                "bg-blue-500/10 text-blue-500 border-blue-200",
+                              course.deliveryMode === "LIVE" &&
+                                "bg-red-500/10 text-red-500 border-red-200",
+                              course.deliveryMode === "HYBRID" &&
+                                "bg-purple-500/10 text-purple-500 border-purple-200"
+                            )}
+                          >
                             {course.deliveryMode === "VIDEO" && "Pre-recorded"}
                             {course.deliveryMode === "LIVE" && "Live Sessions"}
-                            {course.deliveryMode === "HYBRID" && "Hybrid Format"}
+                            {course.deliveryMode === "HYBRID" &&
+                              "Hybrid Format"}
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 text-primary" />
                         <span>Available on web and mobile</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <Languages className="h-4 w-4 text-primary" />
                         <span>
-                          {course.languages && course.languages.length > 0 
-                            ? course.languages.join(", ") 
+                          {course.languages && course.languages.length > 0
+                            ? course.languages.join(", ")
                             : "English"}
                         </span>
                       </div>
-                      
+
                       {course.accessDuration && (
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-primary" />
-                          <span>Access for {course.accessDuration} {course.accessDuration === 1 ? "month" : "months"}</span>
+                          <span>
+                            Access for {course.accessDuration}{" "}
+                            {course.accessDuration === 1 ? "month" : "months"}
+                          </span>
                         </div>
                       )}
-                      
-                     
                     </div>
 
                     {/* Call to action */}
-                    <Button 
-                      variant="default"
-                      size="lg" 
+                    <Button
+                      variant="luxePrimary"
+                      size="lg"
                       className="w-full gap-2 mb-4"
                       onClick={handleCTAClick}
                       disabled={isEnrolling}
@@ -1169,7 +1378,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       ) : (
                         <>
                           <BookOpen className="h-4 w-4" />
-                          {course.price === 0 ? "Enroll Now - Free" : `Enroll Now • ${formatPrice(course.price)}`}
+                          {course.price === 0
+                            ? "Enroll Now - Free"
+                            : `Enroll Now • ${formatPrice(course.price)}`}
                         </>
                       )}
                     </Button>
@@ -1178,15 +1389,18 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <div className="bg-destructive/10 border border-destructive rounded-md p-3 mb-4 flex flex-col">
                         <div className="flex items-center gap-2 mb-2">
                           <AlertTriangle className="h-5 w-5 text-destructive" />
-                          <span className="font-semibold text-destructive">Your course access has expired</span>
+                          <span className="font-semibold text-destructive">
+                            Your course access has expired
+                          </span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Your access to this course expired on {new Date(expiresAt!).toLocaleDateString()}. 
-                          Renew now to continue learning.
+                          Your access to this course expired on{" "}
+                          {new Date(expiresAt!).toLocaleDateString()}. Renew now
+                          to continue learning.
                         </p>
-                        <Button 
-                          variant="destructive" 
-                          className="w-full" 
+                        <Button
+                          variant="luxePrimary"
+                          className="w-full"
                           onClick={() => setShowPaymentModal(true)}
                         >
                           <RefreshCcw className="h-4 w-4 mr-2" />
@@ -1195,67 +1409,79 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       </div>
                     )}
 
-                    {!hasExpired && expiresAt && daysUntilExpiration !== null && (
-                      <>
-                        {daysUntilExpiration <= 7 ? (
-                          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 mb-4 flex items-start gap-3">
-                            <Hourglass className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                                {daysUntilExpiration <= 0 ? (
-                                  <>Your access expires today!</>
-                                ) : daysUntilExpiration === 1 ? (
-                                  <>Your access expires tomorrow</>
-                                ) : (
-                                  <>Your access expires in {daysUntilExpiration} days</>
-                                )}
-                              </p>
-                              <div className="flex mt-2 justify-between items-center">
-                                <span className="text-xs text-muted-foreground">
-                                  Expiry: {new Date(expiresAt).toLocaleDateString()}
-                                </span>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setShowPaymentModal(true)}
-                                >
-                                  Renew Early
-                                </Button>
+                    {!hasExpired &&
+                      expiresAt &&
+                      daysUntilExpiration !== null && (
+                        <>
+                          {daysUntilExpiration <= 7 ? (
+                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 mb-4 flex items-start gap-3">
+                              <Hourglass className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                  {daysUntilExpiration <= 0 ? (
+                                    <>Your access expires today!</>
+                                  ) : daysUntilExpiration === 1 ? (
+                                    <>Your access expires tomorrow</>
+                                  ) : (
+                                    <>
+                                      Your access expires in{" "}
+                                      {daysUntilExpiration} days
+                                    </>
+                                  )}
+                                </p>
+                                <div className="flex mt-2 justify-between items-center">
+                                  <span className="text-xs text-muted-foreground">
+                                    Expiry:{" "}
+                                    {new Date(expiresAt).toLocaleDateString()}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowPaymentModal(true)}
+                                  >
+                                    Renew Early
+                                  </Button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-muted-foreground mb-3 flex justify-center items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            Access until {new Date(expiresAt).toLocaleDateString()}
-                          </div>
-                        )}
-                      </>
-                    )}
+                          ) : (
+                            <div className="text-xs text-muted-foreground mb-3 flex justify-center items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              Access until{" "}
+                              {new Date(expiresAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </>
+                      )}
 
                     {/* Debug info - will be removed after confirming fix */}
                     <div className="text-xs text-muted-foreground mb-2 text-center">
-                      {effectivelyEnrolled ? 
-                        (isCreator ? "✅ You are the creator of this course" : 
-                         isAdmin ? "✅ You have admin access" : 
-                         "✅ You are enrolled in this course") 
+                      {effectivelyEnrolled
+                        ? isCreator
+                          ? "✅ You are the creator of this course"
+                          : isAdmin
+                          ? "✅ You have admin access"
+                          : "✅ You are enrolled in this course"
                         : "❌ Not enrolled yet"}
                     </div>
 
                     {/* Unenroll option - only for non-creators/non-admins on free courses */}
-                    {effectivelyEnrolled && !isCreator && !isAdmin && (course.price === 0 || course.price === null) && (
-                      <div className="mb-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 flex items-center justify-center gap-2"
-                          onClick={() => setShowUnenrollDialog(true)}
-                        >
-                          <UserCheck className="h-4 w-4" />
-                          Unenroll from Course
-                        </Button>
-                      </div>
-                    )}
+                    {effectivelyEnrolled &&
+                      !isCreator &&
+                      !isAdmin &&
+                      (course.price === 0 || course.price === null) && (
+                        <div className="mb-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 flex items-center justify-center gap-2"
+                            onClick={() => setShowUnenrollDialog(true)}
+                          >
+                            <UserCheck className="h-4 w-4" />
+                            Unenroll from Course
+                          </Button>
+                        </div>
+                      )}
 
                     {/* Action buttons - Share only */}
                     <DropdownMenu>
@@ -1268,7 +1494,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <DropdownMenuContent align="center" className="w-56">
                         <DropdownMenuLabel>Share this course</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("facebook")}
                           className="cursor-pointer"
                         >
@@ -1277,7 +1503,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           </div>
                           <span>Facebook</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("twitter")}
                           className="cursor-pointer"
                         >
@@ -1286,7 +1512,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           </div>
                           <span>Twitter</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("linkedin")}
                           className="cursor-pointer"
                         >
@@ -1295,7 +1521,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           </div>
                           <span>LinkedIn</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("whatsapp")}
                           className="cursor-pointer"
                         >
@@ -1304,7 +1530,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           </div>
                           <span>WhatsApp</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("gmail")}
                           className="cursor-pointer"
                         >
@@ -1314,7 +1540,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           <span>Gmail</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("email")}
                           className="cursor-pointer"
                         >
@@ -1323,7 +1549,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           </div>
                           <span>Email</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleShare("copy")}
                           className="cursor-pointer"
                         >
@@ -1348,16 +1574,22 @@ export default function CoursePage({ contentId }: CoursePageProps) {
             <Suspense fallback={<Skeleton className="h-[200px]" />}>
               <Tabs defaultValue="curriculum" className="space-y-6">
                 <TabsList className="bg-muted/50 p-1 flex items-center justify-start rounded-md w-full overflow-x-auto scrollbar-none gap-1 min-h-[48px]">
-                  <TabsTrigger value="curriculum" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                  <TabsTrigger
+                    value="curriculum"
+                    className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3"
+                  >
                     <BookOpen className="h-4 w-4 mr-1.5 sm:mr-2" />
                     <span className="whitespace-nowrap">Curriculum</span>
                   </TabsTrigger>
-                  <TabsTrigger value="overview" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                  <TabsTrigger
+                    value="overview"
+                    className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3"
+                  >
                     <BarChart3 className="h-4 w-4 mr-1.5 sm:mr-2" />
                     <span className="whitespace-nowrap">Overview</span>
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="resources" 
+                  <TabsTrigger
+                    value="resources"
                     className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3"
                     disabled={(course.price ?? 0) > 0 && !effectivelyEnrolled}
                   >
@@ -1369,17 +1601,20 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       )}
                     </div>
                   </TabsTrigger>
-                  <TabsTrigger value="reviews" className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3">
+                  <TabsTrigger
+                    value="reviews"
+                    className="rounded-sm data-[state=active]:bg-background flex-shrink-0 h-9 px-3"
+                  >
                     <Star className="h-4 w-4 mr-1.5 sm:mr-2" />
                     <span className="whitespace-nowrap">Reviews</span>
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="curriculum" className="space-y-6">
-                  <Card className="border-none shadow-md">
+                  <Card className="premium-card-luxe">
                     <CardHeader className="bg-muted/30">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center">
+                        <CardTitle className="text-gradient-luxe flex items-center">
                           <BookOpen className="h-5 w-5 mr-2 text-primary" />
                           Course Content
                         </CardTitle>
@@ -1389,19 +1624,25 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </div>
                       </div>
                       <CardDescription>
-                        {sections.length} sections • {hasAccess ? "Full access" : "Preview available"}
+                        {sections.length} sections •{" "}
+                        {hasAccess ? "Full access" : "Preview available"}
                       </CardDescription>
                     </CardHeader>
 
                     <CardContent className="p-4">
                       {sections.length === 0 ? (
                         <div className="text-center py-12 bg-muted/30 rounded-lg">
-                          <p className="text-muted-foreground">No content available for this course yet.</p>
+                          <p className="text-muted-foreground">
+                            No content available for this course yet.
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-4">
                           {sections.map((section, index) => (
-                            <Card key={section.id} className="overflow-hidden border shadow-sm">
+                            <Card
+                              key={section.id}
+                              className="overflow-hidden border shadow-sm"
+                            >
                               <CardHeader className="bg-muted/20 py-3 px-4">
                                 <div className="flex justify-between items-center">
                                   <CardTitle className="text-lg font-medium flex items-center">
@@ -1412,11 +1653,21 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                                   </CardTitle>
                                   <div className="flex items-center gap-2">
                                     <Badge variant="outline">
-                                      {section.lectures.length} {section.lectures.length === 1 ? "lecture" : "lectures"}
+                                      {section.lectures.length}{" "}
+                                      {section.lectures.length === 1
+                                        ? "lecture"
+                                        : "lectures"}
                                     </Badge>
                                     {section.lectures.length > 0 && (
                                       <div className="text-xs text-muted-foreground">
-                                        {Math.floor(section.lectures.reduce((total, lecture) => total + (lecture.duration || 0), 0) / 60)} min
+                                        {Math.floor(
+                                          section.lectures.reduce(
+                                            (total, lecture) =>
+                                              total + (lecture.duration || 0),
+                                            0
+                                          ) / 60
+                                        )}{" "}
+                                        min
                                       </div>
                                     )}
                                   </div>
@@ -1427,11 +1678,31 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                                   section={section}
                                   courseId={contentId}
                                   isEnrolled={effectivelyEnrolled}
-                                  isFreeCourse={course.price === 0 || course.price === null}
+                                  isFreeCourse={
+                                    course.price === 0 || course.price === null
+                                  }
                                   showEditControls={isCreator}
-                                  onAddLecture={isCreator ? () => {/* ... */} : undefined}
-                                  onEditLecture={isCreator ? () => {/* ... */} : undefined}
-                                  onDeleteLecture={isCreator ? () => {/* ... */} : undefined}
+                                  onAddLecture={
+                                    isCreator
+                                      ? () => {
+                                          /* ... */
+                                        }
+                                      : undefined
+                                  }
+                                  onEditLecture={
+                                    isCreator
+                                      ? () => {
+                                          /* ... */
+                                        }
+                                      : undefined
+                                  }
+                                  onDeleteLecture={
+                                    isCreator
+                                      ? () => {
+                                          /* ... */
+                                        }
+                                      : undefined
+                                  }
                                 />
                               </CardContent>
                             </Card>
@@ -1443,10 +1714,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </TabsContent>
 
                 <TabsContent value="overview">
-                  <CourseOverview 
-                    courseId={contentId}
-                    isCreator={isCreator}
-                  />
+                  <CourseOverview courseId={contentId} isCreator={isCreator} />
                 </TabsContent>
 
                 <TabsContent value="resources" className="space-y-6">
@@ -1456,14 +1724,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                           <Lock className="h-8 w-8 text-primary" />
                         </div>
-                        <h3 className="text-xl font-semibold">Resources Locked</h3>
+                        <h3 className="text-xl font-semibold">
+                          Resources Locked
+                        </h3>
                         <p className="text-muted-foreground max-w-md">
-                          Course resources are only available to enrolled students. Enroll in this course to access downloadable materials, code samples, and other resources.
+                          Course resources are only available to enrolled
+                          students. Enroll in this course to access downloadable
+                          materials, code samples, and other resources.
                         </p>
-                        <Button 
-                          className="mt-2 gap-2"
-                          onClick={handleCTAClick}
-                        >
+                        <Button className="mt-2 gap-2" onClick={handleCTAClick}>
                           <BookOpen className="h-4 w-4" />
                           Enroll Now • {formatPrice(course.price)}
                         </Button>
@@ -1477,19 +1746,19 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                           Course Resources
                         </CardTitle>
                         <CardDescription>
-                          {isCreator 
-                            ? "Manage downloadable resources for this course" 
+                          {isCreator
+                            ? "Manage downloadable resources for this course"
                             : "Download materials provided by the instructor"}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
-                        <CourseResources 
-                          courseId={contentId} 
-                          isCreator={isCreator} 
-                          title="Course Resources" 
+                        <CourseResources
+                          courseId={contentId}
+                          isCreator={isCreator}
+                          title="Course Resources"
                           description="General materials for the entire course"
                         />
-                        
+
                         {sections.length > 0 && (
                           <div className="space-y-4 mt-8">
                             <h3 className="text-xl font-semibold flex items-center">
@@ -1525,16 +1794,23 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         </CardTitle>
                         <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">
                           <Star className="h-4 w-4 fill-current" />
-                          <span className="font-medium">{stats?.averageRating.toFixed(1) || "0.0"}</span>
+                          <span className="font-medium">
+                            {stats?.averageRating.toFixed(1) || "0.0"}
+                          </span>
                           <span className="text-sm text-muted-foreground ml-1">
                             ({stats?.totalReviews || 0} reviews)
                           </span>
                         </div>
                       </div>
-                      <CardDescription>See what students are saying about this course</CardDescription>
+                      <CardDescription>
+                        See what students are saying about this course
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <CourseReviews courseId={contentId} isEnrolled={isEnrolled} />
+                      <CourseReviews
+                        courseId={contentId}
+                        isEnrolled={isEnrolled}
+                      />
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -1557,11 +1833,15 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                         alt={course.creator?.name || ""}
                         className="object-cover"
                       />
-                      <AvatarFallback>{course.creator?.name?.charAt(0) || "C"}</AvatarFallback>
+                      <AvatarFallback>
+                        {course.creator?.name?.charAt(0) || "C"}
+                      </AvatarFallback>
                     </Avatar>
                   </Link>
                   <Link href={`/creators/${course.creatorId}`}>
-                    <h3 className="font-medium text-lg mb-1">{course.creator?.name}</h3>
+                    <h3 className="font-medium text-lg mb-1">
+                      {course.creator?.name}
+                    </h3>
                   </Link>
                   <p className="text-sm text-muted-foreground mb-3">
                     {(course.creator as any)?.title || "Course Instructor"}
@@ -1569,7 +1849,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                   <div className="flex items-center justify-center gap-3 mb-4 text-sm">
                     <div className="flex items-center">
                       <Star className="h-4 w-4 text-amber-500 fill-current mr-1" />
-                      <span className="font-medium">{stats?.averageRating.toFixed(1) || "0.0"}</span>
+                      <span className="font-medium">
+                        {stats?.averageRating.toFixed(1) || "0.0"}
+                      </span>
                     </div>
                     <div className="flex items-center">
                       <BookOpen className="h-4 w-4 text-muted-foreground mr-1" />
@@ -1580,15 +1862,17 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                       <span>{followerCount} students</span>
                     </div>
                   </div>
-                  
+
                   <p className="text-sm text-muted-foreground mb-4">
-                    {(course.creator as any)?.bio || 
-                    "Experienced instructor passionate about teaching and helping students master new skills."}
+                    {(course.creator as any)?.bio ||
+                      "Experienced instructor passionate about teaching and helping students master new skills."}
                   </p>
-                  
+
                   <div className="w-full">
                     <Link href={`/creators/${course.creatorId}`}>
-                      <Button variant="outline" className="w-full">View Profile</Button>
+                      <Button variant="luxeSecondary" className="w-full">
+                        View Profile
+                      </Button>
                     </Link>
                   </div>
                 </div>
@@ -1601,90 +1885,93 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 <RelatedCourses courseId={contentId} />
               </Suspense>
             )}
-            
-            
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 interface FollowButtonProps {
-  creatorId?: string
-  onFollowChange: (isFollowing: boolean, followerCount: number) => void
-  variant?: string
-  className?: string
-  iconClassName?: string
-  showIcon?: boolean
-  compact?: boolean
+  creatorId?: string;
+  onFollowChange: (isFollowing: boolean, followerCount: number) => void;
+  variant?: string;
+  className?: string;
+  iconClassName?: string;
+  showIcon?: boolean;
+  compact?: boolean;
 }
 
 function FollowButton({ creatorId, onFollowChange }: FollowButtonProps) {
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const { data: session } = useSession()
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { data: session } = useSession();
 
   useEffect(() => {
     async function checkFollowStatus() {
-      if (!creatorId || !session?.user) return
+      if (!creatorId || !session?.user) return;
 
       try {
-        const response = await fetch(`/api/users/${creatorId}/follow`)
-        const data = await response.json()
-        setIsFollowing(data.isFollowing)
+        const response = await fetch(`/api/users/${creatorId}/follow`);
+        const data = await response.json();
+        setIsFollowing(data.isFollowing);
         if (data.followerCount !== undefined) {
-          onFollowChange(data.isFollowing, data.followerCount)
+          onFollowChange(data.isFollowing, data.followerCount);
         }
       } catch (error) {
-        console.error("Error checking follow status:", error)
+        console.error("Error checking follow status:", error);
       }
     }
 
-    checkFollowStatus()
-  }, [creatorId, session?.user, onFollowChange])
+    checkFollowStatus();
+  }, [creatorId, session?.user, onFollowChange]);
 
   const handleFollow = async () => {
     if (!creatorId || !session?.user) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to follow this instructor",
-      })
-      return
+      });
+      return;
     }
 
     try {
-      setIsLoading(true)
+      setIsLoading(true);
       const response = await fetch(`/api/users/${creatorId}/follow`, {
         method: "POST",
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to update follow status")
+        throw new Error(data.message || "Failed to update follow status");
       }
 
-      setIsFollowing(data.isFollowing)
+      setIsFollowing(data.isFollowing);
       if (data.followerCount !== undefined) {
-        onFollowChange(data.isFollowing, data.followerCount)
+        onFollowChange(data.isFollowing, data.followerCount);
       }
 
       toast({
         title: data.isFollowing ? "Following" : "Unfollowed",
-        description: data.isFollowing ? "You are now following this instructor" : "You have unfollowed this instructor",
-      })
+        description: data.isFollowing
+          ? "You are now following this instructor"
+          : "You have unfollowed this instructor",
+      });
     } catch (error) {
-      console.error("Error toggling follow:", error)
+      console.error("Error toggling follow:", error);
       toast({
         title: "Action Failed",
-        description: error instanceof Error ? error.message : "Failed to update follow status",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update follow status",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Button
@@ -1692,18 +1979,19 @@ function FollowButton({ creatorId, onFollowChange }: FollowButtonProps) {
       size="sm"
       onClick={handleFollow}
       disabled={isLoading}
-      className={cn("gap-2", isFollowing && "bg-primary/10 text-primary hover:bg-primary/20")}
+      className={cn(
+        "gap-2",
+        isFollowing && "bg-primary/10 text-primary hover:bg-primary/20"
+      )}
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
+      ) : isFollowing ? (
+        <UserCheck className="h-4 w-4" />
       ) : (
-        isFollowing ? (
-          <UserCheck className="h-4 w-4" />
-        ) : (
-          <UserPlus className="h-4 w-4" />
-        )
+        <UserPlus className="h-4 w-4" />
       )}
       {isFollowing ? "Following" : "Follow"}
     </Button>
-  )
+  );
 }
