@@ -1209,7 +1209,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
             {/* Right content - course card */}
             <div className="w-full lg:w-5/12">
               <div className="sticky top-4">
-                <Card className="premium-card-luxe overflow-hidden">
+                <Card className="premium-card-content overflow-hidden">
                   {/* Course thumbnail with overlay */}
                   <div className="aspect-video overflow-hidden relative">
                     <Image
@@ -1611,7 +1611,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
                 </TabsList>
 
                 <TabsContent value="curriculum" className="space-y-6">
-                  <Card className="premium-card-luxe">
+                  <Card className="premium-card-content">
                     <CardHeader className="bg-muted/30">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-gradient-luxe flex items-center">

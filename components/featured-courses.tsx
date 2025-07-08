@@ -165,7 +165,7 @@ export function FeaturedCourses() {
             : courses.map((course) => (
                 <Card
                   key={course.id}
-                  className="premium-card-luxe overflow-hidden flex flex-col"
+                  className="premium-card-content overflow-hidden flex flex-col"
                 >
                   <div className="relative h-48 overflow-hidden">
                     <img

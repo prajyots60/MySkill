@@ -265,7 +265,7 @@ const RecentActivity = memo(function RecentActivity() {
 // Quick actions component
 const QuickActions = memo(function QuickActions() {
   return (
-    <Card className="premium-card-luxe">
+    <Card className="premium-card-content">
       <CardHeader>
         <CardTitle className="text-gradient-luxe">Quick Actions</CardTitle>
         <CardDescription>Common tasks and shortcuts</CardDescription>
