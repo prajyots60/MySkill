@@ -1,30 +1,37 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Clock, Users, BookOpen, Star, TrendingUp, Play } from "lucide-react"
-import Link from "next/link"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Clock, Users, BookOpen, Star, TrendingUp, Play } from "lucide-react";
+import Link from "next/link";
 
 interface OptimizedCourseCardProps {
-  id: string
-  title: string
-  description?: string
-  thumbnailUrl: string
-  authorName?: string
-  authorImage?: string
-  authorId?: string // Added authorId parameter
-  enrollmentCount?: number
-  updatedAt: Date
-  lectureCount?: number
-  duration?: string
-  isPublished?: boolean
-  isTrending?: boolean
-  tags?: string[]
-  price?: number
-  isEnrolled?: boolean
-  creator?: { id: string } // Add this to handle the nested creator object
-  rating?: number // Add rating to the props
-  reviewCount?: number // Add reviewCount to the props
+  id: string;
+  title: string;
+  description?: string;
+  thumbnailUrl: string;
+  authorName?: string;
+  authorImage?: string;
+  authorId?: string; // Added authorId parameter
+  enrollmentCount?: number;
+  updatedAt: Date;
+  lectureCount?: number;
+  duration?: string;
+  isPublished?: boolean;
+  isTrending?: boolean;
+  tags?: string[];
+  price?: number;
+  isEnrolled?: boolean;
+  creator?: { id: string }; // Add this to handle the nested creator object
+  rating?: number; // Add rating to the props
+  reviewCount?: number; // Add reviewCount to the props
 }
 
 export function OptimizedCourseCard({
@@ -48,13 +55,13 @@ export function OptimizedCourseCard({
   rating = 0, // Add rating to the props
   reviewCount = 0, // Add reviewCount to the props with default value
 }: OptimizedCourseCardProps) {
-  const formattedDate = new Date(updatedAt).toLocaleDateString()
-  
+  const formattedDate = new Date(updatedAt).toLocaleDateString();
+
   // Determine the actual creator ID to use (may come from authorId or creator.id)
   const creatorId = authorId || (creator && creator.id) || null;
 
   return (
-    <Card className="overflow-hidden flex flex-col group hover:shadow-lg transition-all duration-200 border-none shadow-md">
+    <Card className="premium-card-luxe overflow-hidden flex flex-col group">
       <div className="relative h-48 overflow-hidden">
         <img
           src={thumbnailUrl || "/placeholder.svg?height=192&width=384"}
@@ -64,9 +71,11 @@ export function OptimizedCourseCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
         <div className="absolute top-3 right-3 flex gap-2">
-          {price === 0 && <Badge className="bg-green-500/90 text-white border-none">Free</Badge>}
+          {price === 0 && (
+            <Badge className="status-success border-none">Free</Badge>
+          )}
           {isTrending && (
-            <Badge className="bg-amber-500/90 text-white border-none">
+            <Badge className="status-warning border-none">
               <TrendingUp className="h-3 w-3 mr-1" />
               Trending
             </Badge>
@@ -76,11 +85,13 @@ export function OptimizedCourseCard({
 
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">{title}</CardTitle>
+          <CardTitle className="text-gradient-luxe line-clamp-1 group-hover:text-primary transition-colors">
+            {title}
+          </CardTitle>
           <div className="flex items-center gap-1 text-amber-500">
             <Star className="h-4 w-4 fill-current" />
             <span className="text-sm font-medium">
-              {typeof rating === 'number' ? rating.toFixed(1) : "0.0"}
+              {typeof rating === "number" ? rating.toFixed(1) : "0.0"}
             </span>
             <span className="text-xs text-muted-foreground">
               ({reviewCount || 0})
@@ -90,20 +101,34 @@ export function OptimizedCourseCard({
         <CardDescription className="flex items-center gap-2">
           {creatorId ? (
             <div className="flex items-center gap-2">
-              <Link href={`/creators/${creatorId}`} className="hover:opacity-80 transition-opacity">
+              <Link
+                href={`/creators/${creatorId}`}
+                className="hover:opacity-80 transition-opacity"
+              >
                 <Avatar className="h-5 w-5">
-                  <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
-                  <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
+                  <AvatarImage
+                    src={authorImage || "/placeholder.svg"}
+                    alt={authorName || "Instructor"}
+                  />
+                  <AvatarFallback>
+                    {authorName?.charAt(0) || "I"}
+                  </AvatarFallback>
                 </Avatar>
               </Link>
-              <Link href={`/creators/${creatorId}`} className="hover:text-primary transition-colors">
+              <Link
+                href={`/creators/${creatorId}`}
+                className="hover:text-primary transition-colors"
+              >
                 <span>{authorName || "Instructor"}</span>
               </Link>
             </div>
           ) : (
             <>
               <Avatar className="h-5 w-5">
-                <AvatarImage src={authorImage || "/placeholder.svg"} alt={authorName || "Instructor"} />
+                <AvatarImage
+                  src={authorImage || "/placeholder.svg"}
+                  alt={authorName || "Instructor"}
+                />
                 <AvatarFallback>{authorName?.charAt(0) || "I"}</AvatarFallback>
               </Avatar>
               <span>{authorName || "Instructor"}</span>
@@ -113,7 +138,9 @@ export function OptimizedCourseCard({
       </CardHeader>
 
       <CardContent className="flex-grow pb-2">
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{description || "No description available"}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+          {description || "No description available"}
+        </p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {tags.slice(0, 3).map((tag) => (
@@ -144,7 +171,9 @@ export function OptimizedCourseCard({
       <CardFooter className="pt-2 flex justify-between items-center border-t">
         <div className="flex items-center gap-2">
           {price === undefined || price === null ? (
-            <div className="text-sm font-medium text-muted-foreground">Contact for price</div>
+            <div className="text-sm font-medium text-muted-foreground">
+              Contact for price
+            </div>
           ) : price === 0 ? (
             <div className="text-sm font-medium text-green-600">Free</div>
           ) : (
@@ -157,7 +186,7 @@ export function OptimizedCourseCard({
           )}
         </div>
 
-        <Button asChild size="sm" className="gap-2" variant="default">
+        <Button asChild size="sm" className="btn-luxe-primary gap-2">
           <Link href={`/content/${id}`}>
             <Play className="h-4 w-4" />
             View Course
@@ -165,5 +194,5 @@ export function OptimizedCourseCard({
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }
