@@ -144,7 +144,12 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       // Add timestamp to force fresh data after cache invalidation
       const timestamp = new Date().getTime()
       const courseResponse = await fetch(`/api/courses/${contentId}?_=${timestamp}`, { 
-        cache: 'no-store' // Don't cache this request
+        cache: 'no-store', // Don't cache this request
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
       })
 
       if (!courseResponse.ok) {
@@ -222,8 +227,31 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       setEnrollmentChecked(true)
       setLoading(false)
     }
-  }, [contentId, session])
+  }, [contentId, session, status])
 
+  // Listen for review update events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleReviewUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ courseId: string, stats: any }>;
+      
+      // Only update if it's for the current course
+      if (customEvent.detail.courseId === contentId && customEvent.detail.stats) {
+        setStats(customEvent.detail.stats);
+        
+        // Optionally force refetch course data to update other places that show ratings
+        fetchCourseData();
+      }
+    };
+    
+    window.addEventListener('course-review-updated', handleReviewUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('course-review-updated', handleReviewUpdate as EventListener);
+    };
+  }, [contentId, fetchCourseData])
+  
   // Handle CTA button click
   const handleCTAClick = async () => {
     if (!session) {

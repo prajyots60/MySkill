@@ -186,7 +186,7 @@ function VideoPlayer({
     )
   }
 
-  // Use plyr for external content (YouTube, Vimeo, etc.)
+  // Use plyr for external content (YouTube, Dailymotion, etc.)
   if (videoId) {
     return (
       <div ref={playerContainerRef} className="relative video-container w-full">

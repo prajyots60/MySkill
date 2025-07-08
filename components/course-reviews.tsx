@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -50,33 +50,43 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
   const [newRating, setNewRating] = useState(5)
   const [comment, setComment] = useState("")
   const [isEditing, setIsEditing] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   // Fetch reviews
-  useEffect(() => {
-    async function fetchReviews() {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/courses/${courseId}/reviews`)
-        
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setReviews(data.reviews || [])
-            setStats(data.stats || null)
-            setUserReview(data.userReview || null)
-          }
+  const fetchReviews = useCallback(async () => {
+    try {
+      setLoading(true)
+      // Add timestamp to force fresh data
+      const timestamp = new Date().getTime()
+      const response = await fetch(`/api/courses/${courseId}/reviews?_=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         }
-      } catch (error) {
-        console.error("Error fetching reviews:", error)
-      } finally {
-        setLoading(false)
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setReviews(data.reviews || [])
+          setStats(data.stats || null)
+          setUserReview(data.userReview || null)
+        }
       }
+    } catch (error) {
+      console.error("Error fetching reviews:", error)
+    } finally {
+      setLoading(false)
     }
+  }, [courseId])
 
+  useEffect(() => {
     if (courseId) {
       fetchReviews()
     }
-  }, [courseId])
+  }, [courseId, fetchReviews])
 
   const handleSubmitReview = async () => {
     if (!session?.user) {
@@ -100,13 +110,11 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
     try {
       setSubmitLoading(true)
       
-      const method = isEditing ? "PUT" : "POST"
-      const endpoint = isEditing 
-        ? `/api/courses/${courseId}/reviews/${userReview?.id}` 
-        : `/api/courses/${courseId}/reviews`
+      // Always use POST for both new and updated reviews
+      const endpoint = `/api/courses/${courseId}/reviews`
       
       const response = await fetch(endpoint, {
-        method,
+        method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
@@ -122,8 +130,10 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
         throw new Error(data.message || "Failed to submit review")
       }
 
-      // Update stats and reviews
-      setStats(data.stats)
+      // Update stats with the fresh data from the API
+      if (data.stats) {
+        setStats(data.stats)
+      }
       
       if (isEditing) {
         // Update the existing review in the list
@@ -135,6 +145,16 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
         // Add the new review to the list
         setReviews([data.review, ...reviews])
         setUserReview(data.review)
+      }
+      
+      // Force refresh of parent components by triggering window custom event
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("course-review-updated", {
+          detail: { 
+            courseId,
+            stats: data.stats
+          }
+        }))
       }
 
       setDialogOpen(false)
@@ -149,6 +169,60 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
       toast({
         title: "Action failed",
         description: error instanceof Error ? error.message : "Failed to submit review",
+        variant: "destructive"
+      })
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
+
+  const handleDeleteReview = async () => {
+    if (!session?.user || !userReview) {
+      return
+    }
+
+    try {
+      setSubmitLoading(true)
+      
+      const response = await fetch(`/api/courses/${courseId}/reviews`, {
+        method: "DELETE",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete review")
+      }
+
+      // Update stats with the fresh data from the API
+      if (data.stats) {
+        setStats(data.stats)
+      }
+
+      // Remove the review and update UI
+      setReviews(reviews.filter(review => review.id !== userReview.id))
+      setUserReview(null)
+      setDeleteConfirmOpen(false)
+      
+      // Force refresh of parent components by triggering window custom event
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("course-review-updated", {
+          detail: { 
+            courseId,
+            stats: data.stats
+          }
+        }))
+      }
+      
+      toast({
+        title: "Review deleted",
+        description: "Your review has been removed successfully"
+      })
+    } catch (error) {
+      console.error("Error deleting review:", error)
+      toast({
+        title: "Action failed",
+        description: error instanceof Error ? error.message : "Failed to delete review",
         variant: "destructive"
       })
     } finally {
@@ -225,79 +299,6 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-medium text-lg">Student Feedback</h3>
-          <p className="text-sm text-muted-foreground">
-            {stats?.totalReviews || 0} reviews • {stats?.averageRating.toFixed(1) || "0.0"} average rating
-          </p>
-        </div>
-        
-        {session?.user && isEnrolled && (
-          userReview ? (
-            <Button 
-              variant="outline" 
-              onClick={handleEditReview}
-              className="gap-2"
-            >
-              <Edit size={16} />
-              Edit Your Review
-            </Button>
-          ) : (
-            <Button onClick={handleAddReview} className="gap-2">
-              <Star size={16} />
-              Write a Review
-            </Button>
-          )
-        )}
-      </div>
-      
-      {/* Rating distribution */}
-      {stats && (
-        <div className="bg-muted/20 rounded-lg p-5 border">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-5xl font-bold mb-2">{stats.averageRating.toFixed(1)}</div>
-              <div className="flex mb-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star 
-                    key={star} 
-                    size={20} 
-                    className={star <= Math.round(stats.averageRating) 
-                      ? "text-amber-500 fill-amber-500" 
-                      : "text-muted"} 
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground">{stats.totalReviews} ratings</p>
-            </div>
-            
-            <div className="space-y-2">
-              {[5, 4, 3, 2, 1].map((rating) => {
-                const count = stats.distribution[rating] || 0
-                const percentage = stats.totalReviews ? Math.round((count / stats.totalReviews) * 100) : 0
-                
-                return (
-                  <div key={rating} className="flex items-center gap-3">
-                    <div className="w-12 text-sm flex items-center gap-1">
-                      {rating} <Star size={12} className="fill-amber-500 text-amber-500" />
-                    </div>
-                    <div className="h-2 bg-muted rounded-full flex-1 overflow-hidden">
-                      <div 
-                        className="h-full bg-amber-500 rounded-full" 
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="w-12 text-xs text-right text-muted-foreground">
-                      {percentage}%
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* User's review */}
       {userReview && (
@@ -342,6 +343,30 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
                   >
                     <Edit size={12} />
                     Edit
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="h-8 text-xs gap-1 text-destructive hover:bg-destructive/10"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      viewBox="0 0 24 24"
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      className="h-3 w-3 mr-1"
+                    >
+                      <path d="M3 6h18"></path>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    Delete
                   </Button>
                 </div>
               </div>
@@ -466,6 +491,37 @@ export default function CourseReviews({ courseId, isEnrolled }: CourseReviewsPro
                 </>
               ) : (
                 isEditing ? "Update Review" : "Submit Review"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Review</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete your review? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteReview}
+              disabled={submitLoading}
+            >
+              {submitLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Review"
               )}
             </Button>
           </DialogFooter>

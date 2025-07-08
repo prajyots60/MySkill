@@ -19,7 +19,7 @@ export async function GET(
     }
     
     // Follow Next.js guidance for dynamic route params
-    const lectureId = params.lectureId
+    const {lectureId} = await params
     const userId = session.user.id
     
     // Verify that the lecture exists
