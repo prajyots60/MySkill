@@ -1,27 +1,55 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { useToast } from "@/hooks/use-toast"
-import { Loader2, Save, Upload } from "lucide-react"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { ContentType, CourseStatus, DeliveryMode } from "@/lib/types"
-import { Badge } from "@/components/ui/badge"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, ChevronsUpDown, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { AlertCircle, Loader2, Save, Upload } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { ContentType, CourseStatus, DeliveryMode } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Define a constant array of available languages
 const LANGUAGES = [
@@ -39,12 +67,12 @@ const LANGUAGES = [
   { value: "Odia", label: "Odia" },
   { value: "Assamese", label: "Assamese" },
   { value: "Sanskrit", label: "Sanskrit" },
-]
+];
 
 export default function CreateCourse() {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const { toast } = useToast()
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -52,155 +80,168 @@ export default function CreateCourse() {
     type: "COURSE" as ContentType,
     price: "0",
     isPublished: false,
+    visibility: "PUBLIC" as "PUBLIC" | "HIDDEN",
     tags: "",
     courseStatus: "UPCOMING" as CourseStatus,
     deliveryMode: "VIDEO" as DeliveryMode,
     accessDuration: "12", // Default 12 months
     languages: ["English"], // Changed from single language to multiple languages array
-  })
+  });
 
-  const [thumbnail, setThumbnail] = useState<File | null>(null)
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [customDuration, setCustomDuration] = useState(false)
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customDuration, setCustomDuration] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSelectChange = (name: string, value: string) => {
     if (name === "accessDuration" && value === "custom") {
-      setCustomDuration(true)
-      return
+      setCustomDuration(true);
+      return;
     }
-    
+
     if (name === "accessDuration") {
-      setCustomDuration(false)
+      setCustomDuration(false);
     }
-    
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({ ...prev, [name]: checked }))
-  }
+    setFormData((prev) => ({ ...prev, [name]: checked }));
+  };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setThumbnail(file)
+      const file = e.target.files[0];
+      setThumbnail(file);
 
       // Create preview
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (event) => {
-        setThumbnailPreview(event.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+        setThumbnailPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   // Function to handle adding and removing languages
   const toggleLanguage = (value: string) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const { languages } = prev;
-      
+
       if (languages.includes(value)) {
         // Remove the language if it already exists
-        return { ...prev, languages: languages.filter(lang => lang !== value) };
+        return {
+          ...prev,
+          languages: languages.filter((lang) => lang !== value),
+        };
       } else {
         // Add the language if it doesn't exist
         return { ...prev, languages: [...languages, value] };
       }
     });
-  }
-  
+  };
+
   // Function to remove a language from the selection
   const removeLanguage = (value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      languages: prev.languages.filter(lang => lang !== value)
+      languages: prev.languages.filter((lang) => lang !== value),
     }));
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!formData.title || !formData.description || !formData.accessDuration) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       // Create FormData for file upload
-      const formDataToSend = new FormData()
-      formDataToSend.append("title", formData.title)
-      formDataToSend.append("description", formData.description)
-      formDataToSend.append("type", formData.type)
-      formDataToSend.append("price", formData.price)
-      formDataToSend.append("isPublished", formData.isPublished.toString())
-      formDataToSend.append("tags", formData.tags)
-      formDataToSend.append("courseStatus", formData.courseStatus)
-      formDataToSend.append("deliveryMode", formData.deliveryMode)
-      formDataToSend.append("accessDuration", formData.accessDuration)
-      
+      const formDataToSend = new FormData();
+      formDataToSend.append("title", formData.title);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("type", formData.type);
+      formDataToSend.append("price", formData.price);
+      formDataToSend.append("isPublished", formData.isPublished.toString());
+      formDataToSend.append("visibility", formData.visibility);
+      formDataToSend.append("tags", formData.tags);
+      formDataToSend.append("courseStatus", formData.courseStatus);
+      formDataToSend.append("deliveryMode", formData.deliveryMode);
+      formDataToSend.append("accessDuration", formData.accessDuration);
+
       // Handle multiple languages
-      formData.languages.forEach(lang => {
-        formDataToSend.append("languages", lang)
-      })
+      formData.languages.forEach((lang) => {
+        formDataToSend.append("languages", lang);
+      });
 
       if (thumbnail) {
-        formDataToSend.append("thumbnail", thumbnail)
+        formDataToSend.append("thumbnail", thumbnail);
       }
 
       // Send the request to create course
       const response = await fetch("/api/creator/courses", {
         method: "POST",
         body: formDataToSend,
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to create course")
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create course");
       }
 
-      const result = await response.json()
+      const result = await response.json();
 
       toast({
         title: "Success",
         description: "Course created successfully",
-      })
+      });
 
       // Redirect to the course edit page
-      router.push(`/dashboard/creator/content/${result.courseId}`)
+      router.push(`/dashboard/creator/content/${result.courseId}`);
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create course. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to create course. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (status === "loading") {
     return (
       <div className="container mx-auto py-10 px-4 md:px-6 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
-    )
+    );
   }
 
-  if (status === "unauthenticated" || (session?.user?.role !== "CREATOR" && session?.user?.role !== "ADMIN")) {
-    router.push("/auth/signin")
-    return null
+  if (
+    status === "unauthenticated" ||
+    (session?.user?.role !== "CREATOR" && session?.user?.role !== "ADMIN")
+  ) {
+    router.push("/auth/signin");
+    return null;
   }
 
   return (
@@ -213,7 +254,9 @@ export default function CreateCourse() {
             <Card>
               <CardHeader>
                 <CardTitle>Course Details</CardTitle>
-                <CardDescription>Provide the basic information about your course</CardDescription>
+                <CardDescription>
+                  Provide the basic information about your course
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -259,7 +302,12 @@ export default function CreateCourse() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="type">Content Type</Label>
-                    <Select value={formData.type} onValueChange={(value) => handleSelectChange("type", value)}>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        handleSelectChange("type", value)
+                      }
+                    >
                       <SelectTrigger id="type">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -285,16 +333,20 @@ export default function CreateCourse() {
                       value={formData.price}
                       onChange={handleInputChange}
                     />
-                    <p className="text-xs text-muted-foreground">Set to 0 for free content</p>
+                    <p className="text-xs text-muted-foreground">
+                      Set to 0 for free content
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="courseStatus">Course Status</Label>
-                    <Select 
-                      value={formData.courseStatus} 
-                      onValueChange={(value) => handleSelectChange("courseStatus", value)}
+                    <Select
+                      value={formData.courseStatus}
+                      onValueChange={(value) =>
+                        handleSelectChange("courseStatus", value)
+                      }
                     >
                       <SelectTrigger id="courseStatus">
                         <SelectValue placeholder="Select status" />
@@ -306,12 +358,14 @@ export default function CreateCourse() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="deliveryMode">Mode of Delivery</Label>
-                    <Select 
-                      value={formData.deliveryMode} 
-                      onValueChange={(value) => handleSelectChange("deliveryMode", value)}
+                    <Select
+                      value={formData.deliveryMode}
+                      onValueChange={(value) =>
+                        handleSelectChange("deliveryMode", value)
+                      }
                     >
                       <SelectTrigger id="deliveryMode">
                         <SelectValue placeholder="Select delivery mode" />
@@ -324,15 +378,19 @@ export default function CreateCourse() {
                     </Select>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="languages">Course Languages</Label>
                     <div className="w-full">
                       {/* Display selected languages as badges */}
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {formData.languages.map(language => (
-                          <Badge key={language} variant="secondary" className="px-2 py-1">
+                        {formData.languages.map((language) => (
+                          <Badge
+                            key={language}
+                            variant="secondary"
+                            className="px-2 py-1"
+                          >
                             {language}
                             <button
                               type="button"
@@ -345,7 +403,7 @@ export default function CreateCourse() {
                           </Badge>
                         ))}
                       </div>
-                      
+
                       {/* Language selector dropdown */}
                       <Popover>
                         <PopoverTrigger asChild>
@@ -363,16 +421,22 @@ export default function CreateCourse() {
                             <CommandInput placeholder="Search language..." />
                             <CommandEmpty>No language found.</CommandEmpty>
                             <CommandGroup className="max-h-64 overflow-auto">
-                              {LANGUAGES.map(language => (
+                              {LANGUAGES.map((language) => (
                                 <CommandItem
                                   key={language.value}
                                   value={language.value}
-                                  onSelect={() => toggleLanguage(language.value)}
+                                  onSelect={() =>
+                                    toggleLanguage(language.value)
+                                  }
                                 >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      formData.languages.includes(language.value) ? "opacity-100" : "opacity-0"
+                                      formData.languages.includes(
+                                        language.value
+                                      )
+                                        ? "opacity-100"
+                                        : "opacity-0"
                                     )}
                                   />
                                   {language.label}
@@ -382,18 +446,25 @@ export default function CreateCourse() {
                           </Command>
                         </PopoverContent>
                       </Popover>
-                      <p className="text-xs text-muted-foreground mt-1">Select all languages available for this course</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select all languages available for this course
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="accessDuration">
-                      Access Duration <span className="text-destructive">*</span>
+                      Access Duration{" "}
+                      <span className="text-destructive">*</span>
                     </Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <Select 
-                        value={customDuration ? "custom" : formData.accessDuration} 
-                        onValueChange={(value) => handleSelectChange("accessDuration", value)}
+                      <Select
+                        value={
+                          customDuration ? "custom" : formData.accessDuration
+                        }
+                        onValueChange={(value) =>
+                          handleSelectChange("accessDuration", value)
+                        }
                       >
                         <SelectTrigger id="accessDuration">
                           <SelectValue placeholder="Select duration" />
@@ -405,7 +476,7 @@ export default function CreateCourse() {
                           <SelectItem value="custom">Custom</SelectItem>
                         </SelectContent>
                       </Select>
-                      
+
                       {customDuration && (
                         <div className="flex items-center">
                           <Input
@@ -423,17 +494,64 @@ export default function CreateCourse() {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">How long students can access this course after enrollment</p>
+                    <p className="text-xs text-muted-foreground">
+                      How long students can access this course after enrollment
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="isPublished"
-                    checked={formData.isPublished}
-                    onCheckedChange={(checked) => handleSwitchChange("isPublished", checked)}
-                  />
-                  <Label htmlFor="isPublished">Publish immediately</Label>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="isPublished"
+                      checked={formData.isPublished}
+                      onCheckedChange={(checked) =>
+                        handleSwitchChange("isPublished", checked)
+                      }
+                    />
+                    <Label htmlFor="isPublished">Publish immediately</Label>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="visibility">Course Visibility</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>
+                              Hidden courses are only accessible via special
+                              invite links
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Select
+                      value={formData.visibility}
+                      onValueChange={(value) =>
+                        handleSelectChange("visibility", value)
+                      }
+                    >
+                      <SelectTrigger id="visibility" className="w-full">
+                        <SelectValue placeholder="Select visibility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PUBLIC">
+                          Public (Visible to everyone)
+                        </SelectItem>
+                        <SelectItem value="HIDDEN">
+                          Hidden (Access via invite links only)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Hidden courses are not shown in public listings and are
+                      only accessible through invite links you create
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -443,7 +561,9 @@ export default function CreateCourse() {
             <Card>
               <CardHeader>
                 <CardTitle>Thumbnail</CardTitle>
-                <CardDescription>Upload a thumbnail image for your course</CardDescription>
+                <CardDescription>
+                  Upload a thumbnail image for your course
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="border rounded-lg aspect-video overflow-hidden bg-muted/50 flex items-center justify-center">
@@ -456,15 +576,24 @@ export default function CreateCourse() {
                   ) : (
                     <div className="text-center p-4">
                       <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No thumbnail uploaded</p>
+                      <p className="text-sm text-muted-foreground">
+                        No thumbnail uploaded
+                      </p>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="thumbnail">Upload Thumbnail</Label>
-                  <Input id="thumbnail" type="file" accept="image/*" onChange={handleThumbnailChange} />
-                  <p className="text-xs text-muted-foreground">Recommended size: 1280x720px (16:9)</p>
+                  <Input
+                    id="thumbnail"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Recommended size: 1280x720px (16:9)
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -474,7 +603,11 @@ export default function CreateCourse() {
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
               <CardFooter className="flex flex-col gap-2">
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -502,5 +635,5 @@ export default function CreateCourse() {
         </div>
       </form>
     </div>
-  )
+  );
 }

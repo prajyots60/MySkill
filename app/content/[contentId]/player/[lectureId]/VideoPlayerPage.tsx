@@ -116,6 +116,18 @@ export default function VideoPlayerPage({
   const [error, setError] = useState<string | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
 
+  // Get invite token from URL if present
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+
+  // Extract inviteToken from URL on initial load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get("inviteToken");
+      setInviteToken(token);
+    }
+  }, []);
+
   // Progress tracking state
   const [completedLectures, setCompletedLectures] = useState<
     Record<string, boolean>
@@ -212,10 +224,16 @@ export default function VideoPlayerPage({
   // Define navigation function
   const navigateToLecture = useCallback(
     (lectureId: string) => {
-      router.push(`/content/${contentId}/player/${lectureId}`);
+      // Only include invite token if present AND user is not enrolled
+      // This ensures enrolled users don't need the token for subsequent navigation
+      const inviteTokenParam =
+        inviteToken && !isEnrolled ? `?inviteToken=${inviteToken}` : "";
+      router.push(
+        `/content/${contentId}/player/${lectureId}${inviteTokenParam}`
+      );
       setShowMobileNav(false);
     },
-    [router, contentId, setShowMobileNav]
+    [router, contentId, setShowMobileNav, inviteToken, isEnrolled]
   );
 
   // Define video handling functions with useCallback
@@ -677,9 +695,14 @@ export default function VideoPlayerPage({
   // Effect to update access states when relevant data changes
   useEffect(() => {
     if (enrollmentData) {
-      setIsEnrolled(
-        enrollmentData.isEnrolled || enrollmentData.isPreviewLecture
-      );
+      const newEnrolledState =
+        enrollmentData.isEnrolled || enrollmentData.isPreviewLecture;
+      setIsEnrolled(newEnrolledState);
+
+      // If user is enrolled, clear the invite token to avoid unnecessary propagation
+      if (newEnrolledState && inviteToken) {
+        setInviteToken(null);
+      }
     }
 
     // Update hasAccess whenever relevant states change
@@ -698,6 +721,7 @@ export default function VideoPlayerPage({
     isAdmin,
     isFreeCourse,
     isPreviewLecture,
+    inviteToken,
   ]);
 
   // Add event listeners to prevent right-click and F12 developer tools
