@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   FileVideo,
   Play,
@@ -17,12 +17,12 @@ import {
   Trash2,
   Pencil,
   Calendar,
-} from "lucide-react"
-import type { Lecture } from "@/lib/types"
-import Image from "next/image"
-import Link from "next/link"
-import { useState, useEffect } from "react"
-import { useToast } from "@/components/ui/use-toast"
+} from "lucide-react";
+import type { Lecture } from "@/lib/types";
+import Image from "next/image";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -30,23 +30,28 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useRouter } from "next/navigation"
-import { useCourseStore } from "@/lib/store/course-store"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { useCourseStore } from "@/lib/store/course-store";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface LectureCardProps {
-  lecture: Lecture
-  isCreator: boolean
-  courseId: string
-  isEnrolled?: boolean
-  isFreeCourse?: boolean
-  onEdit?: () => void
-  onPreview?: () => void
-  onDelete?: () => void
+  lecture: Lecture;
+  isCreator: boolean;
+  courseId: string;
+  isEnrolled?: boolean;
+  isFreeCourse?: boolean;
+  onEdit?: () => void;
+  onPreview?: () => void;
+  onDelete?: () => void;
 }
 
 export function LectureCard({
@@ -59,22 +64,23 @@ export function LectureCard({
   onPreview,
   onDelete,
 }: LectureCardProps) {
-  const { toast } = useToast()
-  const router = useRouter()
-  const { handleDeleteLecture } = useCourseStore()
-  const [streamDataDialogOpen, setStreamDataDialogOpen] = useState(false)
+  const { toast } = useToast();
+  const router = useRouter();
+  const { handleDeleteLecture } = useCourseStore();
+  const [streamDataDialogOpen, setStreamDataDialogOpen] = useState(false);
   const [streamData, setStreamData] = useState<{
-    streamId: string
-    streamKey: string
-    streamUrl: string
-    broadcastId: string
-  } | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+    streamId: string;
+    streamKey: string;
+    streamUrl: string;
+    broadcastId: string;
+  } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Determine if the lecture is accessible - lecture.isPreview should grant access regardless of enrollment status
-  const isAccessible = isCreator || lecture.isPreview || isEnrolled || isFreeCourse
+  const isAccessible =
+    isCreator || lecture.isPreview || isEnrolled || isFreeCourse;
 
   // Handle preview click
   const handlePreview = () => {
@@ -83,86 +89,102 @@ export function LectureCard({
         title: "Access Denied",
         description: "Please enroll in the course to access this lecture.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
+
+    // Check for invite token in the current URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const inviteToken = searchParams.get("inviteToken");
+    const inviteTokenParam = inviteToken ? `?inviteToken=${inviteToken}` : "";
 
     if (lecture.type === "LIVE") {
       // Always redirect to player for live lectures, regardless of status
-      router.push(`/content/${courseId}/player/${lecture.id}`)
+      router.push(
+        `/content/${courseId}/player/${lecture.id}${inviteTokenParam}`
+      );
 
       // Show informational toast based on status
       if (lecture.liveStatus === "SCHEDULED" && lecture.scheduledAt) {
-        const scheduledTime = new Date(lecture.scheduledAt)
+        const scheduledTime = new Date(lecture.scheduledAt);
         if (scheduledTime > new Date()) {
           toast({
             title: "Scheduled Live",
             description: `This live lecture is scheduled for ${scheduledTime.toLocaleString()}`,
-          })
+          });
         }
       }
     } else {
-      router.push(`/content/${courseId}/player/${lecture.id}`)
+      router.push(
+        `/content/${courseId}/player/${lecture.id}${inviteTokenParam}`
+      );
     }
-  }
+  };
 
   // Check if lecture is completed from localStorage
   const isCompleted = () => {
     try {
-      const progressData = localStorage.getItem("course-progress")
-      if (!progressData) return false
+      const progressData = localStorage.getItem("course-progress");
+      if (!progressData) return false;
 
-      const courseProgress = JSON.parse(progressData)
-      const courseLectures = courseProgress[courseId] || []
-      const lectureProgress = courseLectures.find((item: any) => item.lectureId === lecture.id)
+      const courseProgress = JSON.parse(progressData);
+      const courseLectures = courseProgress[courseId] || [];
+      const lectureProgress = courseLectures.find(
+        (item: any) => item.lectureId === lecture.id
+      );
 
-      return lectureProgress?.completed || false
+      return lectureProgress?.completed || false;
     } catch (error) {
-      console.error("Error checking completion status:", error)
-      return false
+      console.error("Error checking completion status:", error);
+      return false;
     }
-  }
+  };
 
   // Get thumbnail URL based on video source
   const getThumbnailUrl = () => {
     // For YouTube videos, use the standard YouTube thumbnail URL
-    if (lecture.videoSource === 'YOUTUBE' && lecture.videoId) {
+    if (lecture.videoSource === "YOUTUBE" && lecture.videoId) {
       return `https://img.youtube.com/vi/${lecture.videoId}/mqdefault.jpg`;
     }
-    
+
     // For Odysee videos
-    if (lecture.videoSource === 'ODYSEE' && lecture.claimId) {
+    if (lecture.videoSource === "ODYSEE" && lecture.claimId) {
       // Try to get thumbnail from streamData if available
-      if (lecture.streamData && typeof lecture.streamData === 'object') {
-        if ('thumbnailUrl' in lecture.streamData && lecture.streamData.thumbnailUrl) {
+      if (lecture.streamData && typeof lecture.streamData === "object") {
+        if (
+          "thumbnailUrl" in lecture.streamData &&
+          lecture.streamData.thumbnailUrl
+        ) {
           return lecture.streamData.thumbnailUrl as string;
         }
       }
-      
+
       // Fallback to a generic thumbnail for Odysee videos
       return "/images/odysee-thumbnail-placeholder.svg";
     }
-    
+
     // Default case: no thumbnail available
     return null;
-  }
+  };
 
-  const thumbnailUrl = getThumbnailUrl()
-  const completed = isCompleted()
+  const thumbnailUrl = getThumbnailUrl();
+  const completed = isCompleted();
 
   // Function to fetch stream data
   const fetchStreamData = async () => {
-    if (!lecture.id) return
+    if (!lecture.id) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const response = await fetch(`/api/creator/lectures/${lecture.id}/stream-data`)
+      const response = await fetch(
+        `/api/creator/lectures/${lecture.id}/stream-data`
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch stream data")
+        throw new Error("Failed to fetch stream data");
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (data.success) {
         setStreamData({
@@ -170,118 +192,127 @@ export function LectureCard({
           streamKey: data.streamKey,
           streamUrl: data.streamUrl,
           broadcastId: data.broadcastId,
-        })
-        setStreamDataDialogOpen(true)
+        });
+        setStreamDataDialogOpen(true);
       } else {
-        throw new Error(data.error || "Failed to fetch stream data")
+        throw new Error(data.error || "Failed to fetch stream data");
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fetch stream data",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch stream data",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Function to copy text to clipboard
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+    navigator.clipboard.writeText(text);
     toast({
       title: "Copied",
       description: "Copied to clipboard",
-    })
-  }
+    });
+  };
 
   // Format date for display
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString()
-  }
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
 
   const handleDelete = async () => {
     try {
-      setIsDeleting(true)
+      setIsDeleting(true);
 
       // Use the handleDeleteLecture function from the course store
-      const success = await handleDeleteLecture(lecture.id)
+      const success = await handleDeleteLecture(lecture.id);
 
       if (success) {
         toast({
           title: "Success",
           description: "Lecture deleted successfully",
-        })
+        });
 
         // Call the onDelete callback to update parent state
         if (onDelete) {
-          onDelete()
+          onDelete();
         }
 
         // Refresh the current route
-        router.refresh()
+        router.refresh();
       } else {
-        throw new Error("Failed to delete lecture")
+        throw new Error("Failed to delete lecture");
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete lecture",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
-  }
+  };
 
   // Add periodic status check for live lectures
   useEffect(() => {
     if (lecture.type === "LIVE" && lecture.liveStatus !== "ENDED") {
-      let checkCount = 0
-      const maxChecks = 120 // Maximum 1 hour of checks (30s * 120 = 3600s)
+      let checkCount = 0;
+      const maxChecks = 120; // Maximum 1 hour of checks (30s * 120 = 3600s)
 
       const interval = setInterval(async () => {
         try {
           // Stop checking if we've reached the maximum number of checks
           if (checkCount >= maxChecks) {
-            clearInterval(interval)
-            return
+            clearInterval(interval);
+            return;
           }
 
-          const response = await fetch(`/api/creator/lectures/${lecture.id}/status`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          })
+          const response = await fetch(
+            `/api/creator/lectures/${lecture.id}/status`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
           if (response.ok) {
-            const data = await response.json()
+            const data = await response.json();
             // Stop checking if the stream has ended
             if (data.lecture.liveStatus === "ENDED") {
-              clearInterval(interval)
+              clearInterval(interval);
             }
-            router.refresh()
+            router.refresh();
           }
 
-          checkCount++
+          checkCount++;
         } catch (error) {
-          console.error("Error checking stream status:", error)
+          console.error("Error checking stream status:", error);
           // Stop checking if we encounter errors
-          clearInterval(interval)
+          clearInterval(interval);
         }
-      }, 90000) // Check every 90 seconds
+      }, 90000); // Check every 90 seconds
 
-      return () => clearInterval(interval)
+      return () => clearInterval(interval);
     }
-  }, [lecture.id, lecture.type, lecture.liveStatus, router])
+  }, [lecture.id, lecture.type, lecture.liveStatus, router]);
 
   return (
     <>
       <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 group h-full flex flex-col">
-        <div className="relative aspect-video bg-muted/50" onClick={handlePreview}>
+        <div
+          className="relative aspect-video bg-muted/50"
+          onClick={handlePreview}
+        >
           {/* Thumbnail */}
           {thumbnailUrl ? (
             <div className="relative w-full h-full">
@@ -301,8 +332,17 @@ export function LectureCard({
 
           {/* Play button overlay */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="secondary" size="icon" className="rounded-full h-12 w-12" disabled={!isAccessible}>
-              {isAccessible ? <Play className="h-6 w-6" /> : <Lock className="h-5 w-5" />}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full h-12 w-12"
+              disabled={!isAccessible}
+            >
+              {isAccessible ? (
+                <Play className="h-6 w-6" />
+              ) : (
+                <Lock className="h-5 w-5" />
+              )}
             </Button>
           </div>
 
@@ -313,13 +353,21 @@ export function LectureCard({
                 variant="outline"
                 className={cn(
                   "flex items-center gap-1.5 text-white px-2.5 py-1 text-xs font-medium shadow-sm",
-                  lecture.liveStatus === "LIVE" && "bg-red-500/90 border-red-500",
-                  lecture.liveStatus === "SCHEDULED" && "bg-yellow-500/90 border-yellow-500",
-                  lecture.liveStatus === "ENDED" && "bg-gray-500/90 border-gray-500",
-                  !lecture.liveStatus && "bg-blue-500/90 border-blue-500",
+                  lecture.liveStatus === "LIVE" &&
+                    "bg-red-500/90 border-red-500",
+                  lecture.liveStatus === "SCHEDULED" &&
+                    "bg-yellow-500/90 border-yellow-500",
+                  lecture.liveStatus === "ENDED" &&
+                    "bg-gray-500/90 border-gray-500",
+                  !lecture.liveStatus && "bg-blue-500/90 border-blue-500"
                 )}
               >
-                <Radio className={cn("h-2.5 w-2.5", lecture.liveStatus === "LIVE" && "animate-pulse")} />
+                <Radio
+                  className={cn(
+                    "h-2.5 w-2.5",
+                    lecture.liveStatus === "LIVE" && "animate-pulse"
+                  )}
+                />
                 <span>
                   {lecture.liveStatus === "LIVE" && "Live Now"}
                   {lecture.liveStatus === "SCHEDULED" &&
@@ -343,7 +391,10 @@ export function LectureCard({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge variant="default" className="flex items-center bg-primary/90 text-white p-1.5 shadow-sm">
+                    <Badge
+                      variant="default"
+                      className="flex items-center bg-primary/90 text-white p-1.5 shadow-sm"
+                    >
                       <Eye className="h-3 w-3" />
                     </Badge>
                   </TooltipTrigger>
@@ -380,27 +431,46 @@ export function LectureCard({
         <CardContent className="p-4 flex-grow flex flex-col">
           <div className="flex flex-col gap-1 flex-grow">
             <h3 className="font-medium line-clamp-1">{lecture.title}</h3>
-            {lecture.description && <p className="text-sm text-muted-foreground line-clamp-2">{lecture.description}</p>}
+            {lecture.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {lecture.description}
+              </p>
+            )}
           </div>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-2 py-2 px-4 border-t">
           <div className="flex items-start justify-between w-full">
             <div className="flex flex-col gap-1">
-              {lecture.type === "LIVE" && lecture.liveStatus === "SCHEDULED" && lecture.scheduledAt && (
-                <>
-                  <Badge variant="outline" className="flex items-center gap-1 text-xs w-fit">
-                    <Calendar className="h-3 w-3" />
-                    <span>{new Date(lecture.scheduledAt).toLocaleDateString()}</span>
-                  </Badge>
-                  <Badge variant="outline" className="flex items-center gap-1 text-xs w-fit">
-                    <Clock className="h-3 w-3" />
-                    <span>{new Date(lecture.scheduledAt).toLocaleTimeString()}</span>
-                  </Badge>
-                </>
-              )}
+              {lecture.type === "LIVE" &&
+                lecture.liveStatus === "SCHEDULED" &&
+                lecture.scheduledAt && (
+                  <>
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 text-xs w-fit"
+                    >
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {new Date(lecture.scheduledAt).toLocaleDateString()}
+                      </span>
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 text-xs w-fit"
+                    >
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {new Date(lecture.scheduledAt).toLocaleTimeString()}
+                      </span>
+                    </Badge>
+                  </>
+                )}
               {lecture.documents && lecture.documents.length > 0 && (
-                <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                <Badge
+                  variant="outline"
+                  className="flex items-center gap-1 w-fit"
+                >
                   <FileText className="h-3 w-3" />
                   {lecture.documents.length}
                 </Badge>
@@ -413,8 +483,8 @@ export function LectureCard({
                 size="icon"
                 className="h-8 w-8"
                 onClick={(e) => {
-                  e.stopPropagation()
-                  fetchStreamData()
+                  e.stopPropagation();
+                  fetchStreamData();
                 }}
                 title="View Stream Data"
               >
@@ -428,7 +498,12 @@ export function LectureCard({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      asChild
+                    >
                       <Link href={`/content/${courseId}/player/${lecture.id}`}>
                         <ExternalLink className="h-4 w-4" />
                       </Link>
@@ -449,8 +524,8 @@ export function LectureCard({
                         size="icon"
                         className="h-7 w-7"
                         onClick={(e) => {
-                          e.stopPropagation()
-                          onEdit()
+                          e.stopPropagation();
+                          onEdit();
                         }}
                       >
                         <Pencil className="h-4 w-4" />
@@ -471,8 +546,8 @@ export function LectureCard({
                       size="icon"
                       className="h-7 w-7"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteDialogOpen(true)
+                        e.stopPropagation();
+                        setDeleteDialogOpen(true);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -489,7 +564,10 @@ export function LectureCard({
       </Card>
 
       {/* Stream Data Dialog */}
-      <Dialog open={streamDataDialogOpen} onOpenChange={setStreamDataDialogOpen}>
+      <Dialog
+        open={streamDataDialogOpen}
+        onOpenChange={setStreamDataDialogOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Live Stream Information</DialogTitle>
@@ -520,7 +598,11 @@ export function LectureCard({
               <div className="space-y-2">
                 <Label>Stream Key</Label>
                 <div className="flex items-center gap-2">
-                  <Input value={streamData.streamKey} readOnly type="password" />
+                  <Input
+                    value={streamData.streamKey}
+                    readOnly
+                    type="password"
+                  />
                   <Button
                     variant="outline"
                     size="icon"
@@ -531,7 +613,8 @@ export function LectureCard({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Keep this key secret. Anyone with this key can stream to your channel.
+                  Keep this key secret. Anyone with this key can stream to your
+                  channel.
                 </p>
               </div>
 
@@ -569,8 +652,10 @@ export function LectureCard({
                 <div className="mt-4 p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Scheduled Stream</h4>
                   <p className="text-sm text-muted-foreground">
-                    This stream is scheduled for {formatDate(lecture.scheduledAt!.toString())}. You can access these
-                    stream details anytime before the scheduled time.
+                    This stream is scheduled for{" "}
+                    {formatDate(lecture.scheduledAt!.toString())}. You can
+                    access these stream details anytime before the scheduled
+                    time.
                   </p>
                 </div>
               )}
@@ -578,7 +663,9 @@ export function LectureCard({
           )}
 
           <DialogFooter>
-            <Button onClick={() => setStreamDataDialogOpen(false)}>Close</Button>
+            <Button onClick={() => setStreamDataDialogOpen(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -589,19 +676,27 @@ export function LectureCard({
           <DialogHeader>
             <DialogTitle>Delete Lecture</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this lecture? This action cannot be undone.
+              Are you sure you want to delete this lecture? This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
               {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }

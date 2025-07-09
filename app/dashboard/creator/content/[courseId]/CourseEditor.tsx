@@ -1,16 +1,35 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback, memo, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect, useState, useCallback, memo, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -18,34 +37,46 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/hooks/use-toast"
-import { 
-  AlertCircle, 
-  ArrowLeft, 
-  Edit, 
-  Loader2, 
-  Plus, 
-  Save, 
-  Trash, 
-  Upload, 
-  X, 
-  Check, 
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Copy,
+  Edit,
+  Link,
+  Loader2,
+  Plus,
+  Save,
+  Trash,
+  Upload,
+  X,
+  Check,
   ChevronsUpDown,
   BookOpen,
   VideoIcon,
   Clock,
   Eye,
-  Share
-} from "lucide-react"
-import { SectionLectures } from "@/components/section-lectures"
-import { useCourseStore } from "@/lib/store/course-store"
-import { Badge } from "@/components/ui/badge"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import type { Lecture } from "@/lib/types"
+  Share,
+} from "lucide-react";
+import { SectionLectures } from "@/components/section-lectures";
+import { useCourseStore } from "@/lib/store/course-store";
+import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import type { Lecture } from "@/lib/types";
 
 // Define a constant array of available languages
 const LANGUAGES = [
@@ -63,18 +94,18 @@ const LANGUAGES = [
   { value: "Odia", label: "Odia" },
   { value: "Assamese", label: "Assamese" },
   { value: "Sanskrit", label: "Sanskrit" },
-]
+];
 
 interface CourseEditorProps {
-  courseId: string
+  courseId: string;
 }
 
 // Memoized components
-const CoursePreview = memo(function CoursePreview({ 
-  course, 
-  courseForm 
-}: { 
-  course: any; 
+const CoursePreview = memo(function CoursePreview({
+  course,
+  courseForm,
+}: {
+  course: any;
   courseForm?: any;
 }) {
   // Merge course data with form data for real-time preview
@@ -83,13 +114,26 @@ const CoursePreview = memo(function CoursePreview({
     // Override with form data when available
     title: courseForm?.title || course.title,
     description: courseForm?.description || course.description,
-    price: courseForm?.price !== undefined ? parseFloat(courseForm.price) : course.price,
-    isPublished: courseForm?.isPublished !== undefined ? courseForm.isPublished : course.isPublished,
-    tags: courseForm?.tags ? courseForm.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean) : course.tags,
+    price:
+      courseForm?.price !== undefined
+        ? parseFloat(courseForm.price)
+        : course.price,
+    isPublished:
+      courseForm?.isPublished !== undefined
+        ? courseForm.isPublished
+        : course.isPublished,
+    tags: courseForm?.tags
+      ? courseForm.tags
+          .split(",")
+          .map((tag: string) => tag.trim())
+          .filter(Boolean)
+      : course.tags,
     type: courseForm?.type || course.type,
     courseStatus: courseForm?.courseStatus || course.courseStatus,
     deliveryMode: courseForm?.deliveryMode || course.deliveryMode,
-    accessDuration: courseForm?.accessDuration ? parseInt(courseForm.accessDuration) : course.accessDuration,
+    accessDuration: courseForm?.accessDuration
+      ? parseInt(courseForm.accessDuration)
+      : course.accessDuration,
     languages: courseForm?.languages || course.languages,
   };
 
@@ -105,8 +149,11 @@ const CoursePreview = memo(function CoursePreview({
               className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               loading="lazy"
               onError={(e) => {
-                console.error("Failed to load thumbnail:", previewData.thumbnail)
-                e.currentTarget.src = "/placeholder.svg?height=400&width=600"
+                console.error(
+                  "Failed to load thumbnail:",
+                  previewData.thumbnail
+                );
+                e.currentTarget.src = "/placeholder.svg?height=400&width=600";
               }}
             />
           ) : (
@@ -119,22 +166,29 @@ const CoursePreview = memo(function CoursePreview({
             </div>
           )}
         </div>
-        
+
         {/* Status badge */}
         {previewData.courseStatus && (
           <div className="absolute right-3 top-3">
             <Badge className="bg-primary/90 text-xs font-medium uppercase tracking-wider text-primary-foreground">
-              {previewData.courseStatus === "UPCOMING" ? "Upcoming" : 
-               previewData.courseStatus === "ONGOING" ? "Ongoing" : "Completed"}
+              {previewData.courseStatus === "UPCOMING"
+                ? "Upcoming"
+                : previewData.courseStatus === "ONGOING"
+                ? "Ongoing"
+                : "Completed"}
             </Badge>
           </div>
         )}
-        
+
         {/* Published status badge */}
         <div className="absolute left-3 top-3">
-          <Badge 
-            variant={previewData.isPublished ? "default" : "outline"} 
-            className={`text-xs font-medium ${previewData.isPublished ? "bg-green-500/90 text-white" : "border-yellow-500 text-yellow-500"}`}
+          <Badge
+            variant={previewData.isPublished ? "default" : "outline"}
+            className={`text-xs font-medium ${
+              previewData.isPublished
+                ? "bg-green-500/90 text-white"
+                : "border-yellow-500 text-yellow-500"
+            }`}
           >
             {previewData.isPublished ? "Published" : "Draft"}
           </Badge>
@@ -142,7 +196,9 @@ const CoursePreview = memo(function CoursePreview({
       </div>
 
       <CardHeader className="pb-2 pt-4">
-        <CardTitle className="line-clamp-1 text-xl">{previewData.title}</CardTitle>
+        <CardTitle className="line-clamp-1 text-xl">
+          {previewData.title}
+        </CardTitle>
         <CardDescription className="line-clamp-2 mt-1 text-sm text-muted-foreground">
           {previewData.description}
         </CardDescription>
@@ -153,45 +209,65 @@ const CoursePreview = memo(function CoursePreview({
         {previewData.tags && previewData.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {previewData.tags.map((tag: string) => (
-              <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              <span
+                key={tag}
+                className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              >
                 {tag}
               </span>
             ))}
           </div>
         )}
-        
+
         {/* Course details grid */}
         <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/50 p-3 text-sm">
           <div className="space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Price</p>
             <p className="font-semibold">
-              {previewData.price && previewData.price > 0 ? `₹${previewData.price.toFixed(2)}` : "Free"}
+              {previewData.price && previewData.price > 0
+                ? `₹${previewData.price.toFixed(2)}`
+                : "Free"}
             </p>
           </div>
-          
+
           <div className="space-y-0.5">
-            <p className="text-xs font-medium text-muted-foreground">Delivery Mode</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Delivery Mode
+            </p>
             <p className="font-semibold">
-              {previewData.deliveryMode === "VIDEO" ? "Video" : 
-               previewData.deliveryMode === "LIVE" ? "Live" : "Hybrid"}
+              {previewData.deliveryMode === "VIDEO"
+                ? "Video"
+                : previewData.deliveryMode === "LIVE"
+                ? "Live"
+                : "Hybrid"}
             </p>
           </div>
-          
+
           <div className="space-y-0.5">
-            <p className="text-xs font-medium text-muted-foreground">Access Period</p>
-            <p className="font-semibold">{previewData.accessDuration || 12} Months</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Access Period
+            </p>
+            <p className="font-semibold">
+              {previewData.accessDuration || 12} Months
+            </p>
           </div>
-          
+
           <div className="space-y-0.5">
-            <p className="text-xs font-medium text-muted-foreground">Content Type</p>
-            <p className="capitalize font-semibold">{previewData.type?.toLowerCase()}</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Content Type
+            </p>
+            <p className="capitalize font-semibold">
+              {previewData.type?.toLowerCase()}
+            </p>
           </div>
         </div>
-        
+
         {/* Languages */}
         {previewData.languages && previewData.languages.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Available in</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Available in
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {previewData.languages.map((language: string) => (
                 <Badge key={language} variant="secondary" className="text-xs">
@@ -201,7 +277,7 @@ const CoursePreview = memo(function CoursePreview({
             </div>
           </div>
         )}
-        
+
         {/* Stats summary */}
         <div className="flex items-center justify-between border-t py-3 text-sm">
           <div className="flex items-center gap-1.5">
@@ -211,7 +287,12 @@ const CoursePreview = memo(function CoursePreview({
           <div className="flex items-center gap-1.5">
             <VideoIcon className="h-4 w-4 text-muted-foreground" />
             <span>
-              {course.sections?.reduce((acc: number, section: any) => acc + (section.lectures?.length || 0), 0) || 0} Lectures
+              {course.sections?.reduce(
+                (acc: number, section: any) =>
+                  acc + (section.lectures?.length || 0),
+                0
+              ) || 0}{" "}
+              Lectures
             </span>
           </div>
         </div>
@@ -219,7 +300,11 @@ const CoursePreview = memo(function CoursePreview({
 
       <CardFooter className="grid grid-cols-2 gap-2 pt-4">
         <Button variant="outline" className="w-full" asChild>
-          <a href={`/content/${course.id}`} target="_blank" rel="noopener noreferrer">
+          <a
+            href={`/content/${course.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Eye className="mr-2 h-4 w-4" /> Preview
           </a>
         </Button>
@@ -228,19 +313,19 @@ const CoursePreview = memo(function CoursePreview({
         </Button>
       </CardFooter>
     </Card>
-  )
-})
+  );
+});
 
 const QuickActions = memo(function QuickActions({
   courseId,
   onAddSection,
   onUploadDocument,
 }: {
-  courseId: string
-  onAddSection: () => void
-  onUploadDocument: () => void
+  courseId: string;
+  onAddSection: () => void;
+  onUploadDocument: () => void;
 }) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <Card>
@@ -250,7 +335,11 @@ const QuickActions = memo(function QuickActions({
       <CardContent className="space-y-2">
         <Button
           className="w-full"
-          onClick={() => router.push(`/dashboard/creator/content/upload?courseId=${courseId}`)}
+          onClick={() =>
+            router.push(
+              `/dashboard/creator/content/upload?courseId=${courseId}`
+            )
+          }
         >
           <Upload className="mr-2 h-4 w-4" /> Upload Content
         </Button>
@@ -262,13 +351,13 @@ const QuickActions = memo(function QuickActions({
         </Button>
       </CardContent>
     </Card>
-  )
-})
+  );
+});
 
 export default function CourseEditor({ courseId }: CourseEditorProps) {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const { toast } = useToast()
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
 
   // Use Zustand store
   const {
@@ -321,201 +410,226 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
     handleUploadDocument,
     handleDeleteDocument,
     handleEditLecture,
-  } = useCourseStore()
+  } = useCourseStore();
 
   // Local state for editing lectures
-  const [editingLecture, setEditingLecture] = useState<Lecture | null>(null)
-  const [editLectureTitle, setEditLectureTitle] = useState("")
-  const [editLectureDescription, setEditLectureDescription] = useState("")
-  const [editLectureIsPreview, setEditLectureIsPreview] = useState(false)
+  const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
+  const [editLectureTitle, setEditLectureTitle] = useState("");
+  const [editLectureDescription, setEditLectureDescription] = useState("");
+  const [editLectureIsPreview, setEditLectureIsPreview] = useState(false);
+
+  // State for invite links
+  const [inviteLinks, setInviteLinks] = useState<any[]>([]);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+  const [showCreateLinkDialog, setShowCreateLinkDialog] = useState(false);
+  const [newLinkExpiry, setNewLinkExpiry] = useState<string | undefined>(
+    undefined
+  );
+  const [newLinkMaxUsages, setNewLinkMaxUsages] = useState<string | undefined>(
+    undefined
+  );
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [copyLinkSuccess, setCopyLinkSuccess] = useState<string | null>(null);
 
   // State for custom duration selection
-  const [customDuration, setCustomDuration] = useState(false)
+  const [customDuration, setCustomDuration] = useState(false);
 
   useEffect(() => {
     // Check if the accessDuration is one of the predefined options or custom
-    if (courseForm.accessDuration && !["3", "6", "12"].includes(courseForm.accessDuration)) {
-      setCustomDuration(true)
+    if (
+      courseForm.accessDuration &&
+      !["3", "6", "12"].includes(courseForm.accessDuration)
+    ) {
+      setCustomDuration(true);
     }
-  }, [courseForm.accessDuration])
+  }, [courseForm.accessDuration]);
 
   // Handler for select changes
   const handleSelectChange = (name: string, value: string) => {
     if (name === "accessDuration" && value === "custom") {
-      setCustomDuration(true)
-      return
+      setCustomDuration(true);
+      return;
     }
-    
+
     if (name === "accessDuration") {
-      setCustomDuration(false)
+      setCustomDuration(false);
     }
-    
-    setCourseForm({ ...courseForm, [name]: value })
-  }
-  
+
+    setCourseForm({ ...courseForm, [name]: value });
+  };
+
   // Function to toggle language selection
   const toggleLanguage = (value: string) => {
     if (!courseForm.languages) {
-      setCourseForm({ ...courseForm, languages: [value] })
-      return
+      setCourseForm({ ...courseForm, languages: [value] });
+      return;
     }
-    
+
     if (courseForm.languages.includes(value)) {
-      setCourseForm({ 
-        ...courseForm, 
-        languages: courseForm.languages.filter(lang => lang !== value)
-      })
+      setCourseForm({
+        ...courseForm,
+        languages: courseForm.languages.filter((lang) => lang !== value),
+      });
     } else {
-      setCourseForm({ 
-        ...courseForm, 
-        languages: [...courseForm.languages, value]
-      })
+      setCourseForm({
+        ...courseForm,
+        languages: [...courseForm.languages, value],
+      });
     }
-  }
-  
+  };
+
   // Function to remove a language
   const removeLanguage = (value: string) => {
-    if (!courseForm.languages) return
-    
+    if (!courseForm.languages) return;
+
     setCourseForm({
       ...courseForm,
-      languages: courseForm.languages.filter(lang => lang !== value)
-    })
-  }
+      languages: courseForm.languages.filter((lang) => lang !== value),
+    });
+  };
 
-  // Fetch course data on mount
-  useEffect(() => {
-    if (courseId) {
-      fetchCourse(courseId)
-    }
-  }, [courseId, fetchCourse])
+  // We'll move the useEffect hooks to after all function definitions
 
   // Prefetch related pages on mount for faster navigation
   useEffect(() => {
     const prefetchPages = async () => {
       // Prefetch upload page
-      const uploadUrl = `/dashboard/creator/content/upload?courseId=${courseId}`
-      await fetch(uploadUrl, { method: "HEAD" })
+      const uploadUrl = `/dashboard/creator/content/upload?courseId=${courseId}`;
+      await fetch(uploadUrl, { method: "HEAD" });
 
       // Prefetch dashboard
-      await fetch("/dashboard/creator", { method: "HEAD" })
-    }
+      await fetch("/dashboard/creator", { method: "HEAD" });
+    };
 
-    prefetchPages()
-  }, [courseId])
+    prefetchPages();
+  }, [courseId]);
 
   // Edit lecture
   const onEditLecture = useCallback(
     (lectureId: string) => {
-      if (!course) return
+      if (!course) return;
 
-      const lecture = course.sections?.flatMap((s) => s.lectures).find((l) => l.id === lectureId)
+      const lecture = course.sections
+        ?.flatMap((s) => s.lectures)
+        .find((l) => l.id === lectureId);
 
       if (lecture) {
-        setEditingLecture(lecture)
-        setEditLectureTitle(lecture.title)
-        setEditLectureDescription(lecture.description || "")
-        setEditLectureIsPreview(lecture.isPreview)
+        setEditingLecture(lecture);
+        setEditLectureTitle(lecture.title);
+        setEditLectureDescription(lecture.description || "");
+        setEditLectureIsPreview(lecture.isPreview);
       }
     },
-    [course],
-  )
+    [course]
+  );
 
   // Save lecture
   const onSaveLecture = useCallback(async () => {
-    if (!editingLecture) return
+    if (!editingLecture) return;
 
     try {
       const success = await handleEditLecture(
         editingLecture.id,
         editLectureTitle,
         editLectureDescription,
-        editLectureIsPreview,
-      )
+        editLectureIsPreview
+      );
 
       if (success) {
         toast({
           title: "Success",
           description: "Lecture updated successfully",
-        })
-        setEditingLecture(null)
+        });
+        setEditingLecture(null);
       } else {
         toast({
           title: "Error",
           description: "Failed to update lecture",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update lecture",
         variant: "destructive",
-      })
+      });
     }
-  }, [editingLecture, editLectureTitle, editLectureDescription, editLectureIsPreview, handleEditLecture, toast])
+  }, [
+    editingLecture,
+    editLectureTitle,
+    editLectureDescription,
+    editLectureIsPreview,
+    handleEditLecture,
+    toast,
+  ]);
 
   // Handle edit lecture click
   const handleEditLectureClick = useCallback(
     (lectureId: string) => {
-      const lecture = sections.flatMap((s) => s.lectures).find((l) => l.id === lectureId)
+      const lecture = sections
+        .flatMap((s) => s.lectures)
+        .find((l) => l.id === lectureId);
       if (lecture) {
-        setEditingLecture(lecture)
-        setEditLectureTitle(lecture.title)
-        setEditLectureDescription(lecture.description || "")
-        setEditLectureIsPreview(lecture.isPreview)
+        setEditingLecture(lecture);
+        setEditLectureTitle(lecture.title);
+        setEditLectureDescription(lecture.description || "");
+        setEditLectureIsPreview(lecture.isPreview);
       }
     },
-    [sections],
-  )
+    [sections]
+  );
 
   // Function to redirect to upload page with course and section info
   const redirectToUploadWithSection = useCallback(
     (sectionId: string) => {
-      router.push(`/dashboard/creator/content/upload?courseId=${courseId}&sectionId=${sectionId}`);
-      setAddingLectureToSectionId(null);  // Close the dialog when redirecting
+      router.push(
+        `/dashboard/creator/content/upload?courseId=${courseId}&sectionId=${sectionId}`
+      );
+      setAddingLectureToSectionId(null); // Close the dialog when redirecting
     },
     [courseId, router, setAddingLectureToSectionId]
   );
 
   // Memoize sections to prevent unnecessary re-renders
-  const memoizedSections = useMemo(() => sections, [sections])
+  const memoizedSections = useMemo(() => sections, [sections]);
 
   // Add these new handlers
   const handleAddSectionClick = async () => {
     try {
-      const success = await handleAddSection(courseId)
+      const success = await handleAddSection(courseId);
       if (success) {
         // Reset all section-related state
-        setAddingSectionId(null)
-        setNewSectionTitle("")
-        setNewSectionDescription("")
-        
+        setAddingSectionId(null);
+        setNewSectionTitle("");
+        setNewSectionDescription("");
+
         toast({
           title: "Section added",
           description: "New section has been added to your course",
           variant: "default",
-        })
+        });
       } else {
         toast({
           title: "Error",
           description: "Failed to add new section",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error("Error adding section:", error)
+      console.error("Error adding section:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add section",
+        description:
+          error instanceof Error ? error.message : "Failed to add section",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleDeleteSectionClick = async (sectionId: string, title: string) => {
-    setDeleteConfirmation({ type: "section", id: sectionId, title })
-  }
+    setDeleteConfirmation({ type: "section", id: sectionId, title });
+  };
 
   // Handle saving course with toast notifications
   const handleSaveWithToast = async () => {
@@ -523,106 +637,269 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
       const saveToastId = toast({
         title: "Saving changes",
         description: "Please wait while your course changes are being saved...",
-      })
-      
-      const success = await handleSaveCourse(courseId)
-      
+      });
+
+      const success = await handleSaveCourse(courseId);
+
       if (success) {
         toast({
           title: "Changes saved",
           description: "Your course changes have been saved successfully",
           variant: "default",
-        })
+        });
 
         // Force revalidation of course data everywhere
-        const timestamp = new Date().getTime()
+        const timestamp = new Date().getTime();
         await Promise.all([
           fetch(`/api/courses/${courseId}?t=${timestamp}`, {
-            method: 'HEAD',
+            method: "HEAD",
             headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
           }),
           fetch(`/api/creator/courses?t=${timestamp}`, {
-            method: 'HEAD',
+            method: "HEAD",
             headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          })
-        ])
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }),
+        ]);
 
         // Refresh the router to reflect changes
-        router.refresh()
+        router.refresh();
       } else {
         toast({
           title: "Save failed",
-          description: "We encountered an error while saving your course changes",
+          description:
+            "We encountered an error while saving your course changes",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error("Error saving course:", error)
+      console.error("Error saving course:", error);
       toast({
         title: "Save failed",
-        description: error instanceof Error ? error.message : "Failed to save course changes",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to save course changes",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleConfirmDelete = async () => {
-    if (!deleteConfirmation) return
+    if (!deleteConfirmation) return;
 
-    let success = false
-    let itemType = deleteConfirmation.type
-    let itemName = deleteConfirmation.title
-    
+    let success = false;
+    let itemType = deleteConfirmation.type;
+    let itemName = deleteConfirmation.title;
+
     try {
       switch (deleteConfirmation.type) {
         case "course":
-          success = await handleDeleteCourse(courseId)
+          success = await handleDeleteCourse(courseId);
           if (success) {
-            router.push('/dashboard/creator')
+            router.push("/dashboard/creator");
           }
-          break
+          break;
         case "section":
-          success = await handleDeleteSection(deleteConfirmation.id)
-          break
+          success = await handleDeleteSection(deleteConfirmation.id);
+          break;
         case "lecture":
-          success = await handleDeleteLecture(deleteConfirmation.id)
-          break
+          success = await handleDeleteLecture(deleteConfirmation.id);
+          break;
         case "document":
-          success = await handleDeleteDocument(deleteConfirmation.id)
-          break
+          success = await handleDeleteDocument(deleteConfirmation.id);
+          break;
       }
 
       if (success) {
-        setDeleteConfirmation(null)
+        setDeleteConfirmation(null);
         toast({
-          title: `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted`,
+          title: `${
+            itemType.charAt(0).toUpperCase() + itemType.slice(1)
+          } deleted`,
           description: `"${itemName}" has been deleted successfully`,
           variant: "default",
-        })
+        });
       } else {
         toast({
           title: "Delete failed",
           description: `Failed to delete ${itemType}. Please try again.`,
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error(`Error deleting ${itemType}:`, error)
+      console.error(`Error deleting ${itemType}:`, error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `An error occurred while deleting the ${itemType}`,
+        description:
+          error instanceof Error
+            ? error.message
+            : `An error occurred while deleting the ${itemType}`,
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
+
+  // Function to copy invite link to clipboard
+  const copyInviteLink = (linkToken: string) => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const inviteUrl = `${baseUrl}/invite/${linkToken}`;
+    navigator.clipboard
+      .writeText(inviteUrl)
+      .then(() => {
+        setCopyLinkSuccess(linkToken);
+        setTimeout(() => setCopyLinkSuccess(null), 3000);
+      })
+      .catch(() => {
+        toast({
+          title: "Failed to copy",
+          description: "Could not copy link to clipboard",
+          variant: "destructive",
+        });
+      });
+  };
+
+  // Function to fetch invite links
+  const fetchInviteLinks = useCallback(async () => {
+    if (!courseId) return;
+
+    setIsLoadingLinks(true);
+    try {
+      const response = await fetch(
+        `/api/creator/courses/${courseId}/invite-links`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch invite links");
+      }
+      const data = await response.json();
+      setInviteLinks(data.inviteLinks || []);
+    } catch (error) {
+      console.error("Error fetching invite links:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load invite links. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingLinks(false);
+    }
+  }, [courseId, toast]);
+
+  // Function to create a new invite link
+  const createInviteLink = useCallback(async () => {
+    if (!courseId) return;
+
+    setIsCreatingLink(true);
+    try {
+      const payload = {
+        expiresAt: newLinkExpiry
+          ? new Date(newLinkExpiry).toISOString()
+          : undefined,
+        maxUsages: newLinkMaxUsages ? parseInt(newLinkMaxUsages) : undefined,
+      };
+
+      const response = await fetch(
+        `/api/creator/courses/${courseId}/invite-links`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to create invite link");
+      }
+
+      toast({
+        title: "Success",
+        description: "Invite link created successfully",
+      });
+
+      // Refresh invite links
+      fetchInviteLinks();
+
+      // Reset form
+      setNewLinkExpiry(undefined);
+      setNewLinkMaxUsages(undefined);
+      setShowCreateLinkDialog(false);
+    } catch (error) {
+      console.error("Error creating invite link:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create invite link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingLink(false);
+    }
+  }, [courseId, newLinkExpiry, newLinkMaxUsages, fetchInviteLinks, toast]);
+
+  // Function to delete an invite link
+  const deleteInviteLink = useCallback(
+    async (linkId: string) => {
+      try {
+        const response = await fetch(
+          `/api/creator/courses/${courseId}/invite-links/${linkId}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to delete invite link");
+        }
+
+        toast({
+          title: "Success",
+          description: "Invite link deleted successfully",
+        });
+
+        // Refresh invite links
+        fetchInviteLinks();
+      } catch (error) {
+        console.error("Error deleting invite link:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete invite link. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [courseId, fetchInviteLinks, toast]
+  );
+
+  // Fetch course data on mount
+  useEffect(() => {
+    if (courseId) {
+      fetchCourse(courseId);
+    }
+  }, [courseId, fetchCourse]);
+
+  // Fetch invite links when component mounts
+  useEffect(() => {
+    if (courseId) {
+      console.log("Fetching invite links on mount for course:", courseId);
+      fetchInviteLinks();
+    }
+  }, [courseId, fetchInviteLinks]);
+
+  // Refetch invite links when tab changes to "access"
+  useEffect(() => {
+    if (courseId && activeTab === "access") {
+      console.log("Refetching invite links when switching to access tab");
+      fetchInviteLinks();
+    }
+  }, [activeTab, courseId, fetchInviteLinks]);
 
   if (status === "loading" || loading) {
     return (
@@ -642,31 +919,40 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  if (status === "unauthenticated" || (session?.user?.role !== "CREATOR" && session?.user?.role !== "ADMIN")) {
-    router.push("/auth/signin")
-    return null
+  if (
+    status === "unauthenticated" ||
+    (session?.user?.role !== "CREATOR" && session?.user?.role !== "ADMIN")
+  ) {
+    router.push("/auth/signin");
+    return null;
   }
 
   if (!course) {
     return (
       <div className="container mx-auto py-10 px-4 md:px-6 text-center">
         <h1 className="text-3xl font-bold mb-6">Course Not Found</h1>
-        <p className="mb-6">The course you are looking for does not exist or has been removed.</p>
+        <p className="mb-6">
+          The course you are looking for does not exist or has been removed.
+        </p>
         <Button asChild>
           <a href="/dashboard/creator">Back to Dashboard</a>
         </Button>
       </div>
-    )
+    );
   }
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/creator")}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/dashboard/creator")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-3xl font-bold">Edit Course</h1>
@@ -696,15 +982,22 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="access">Access & Sharing</TabsTrigger>
             </TabsList>
 
             <TabsContent value="content" className="space-y-6 mt-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Course Content</h2>
-                <Button onClick={() => router.push(`/dashboard/creator/content/upload?courseId=${courseId}`)}>
+                <Button
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/creator/content/upload?courseId=${courseId}`
+                    )
+                  }
+                >
                   <Upload className="mr-2 h-4 w-4" /> Upload Content
                 </Button>
               </div>
@@ -715,11 +1008,15 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                     <div className="rounded-full bg-muted p-3 mb-4">
                       <Plus className="h-6 w-6" />
                     </div>
-                    <h3 className="text-lg font-medium mb-2">No sections yet</h3>
+                    <h3 className="text-lg font-medium mb-2">
+                      No sections yet
+                    </h3>
                     <p className="text-muted-foreground text-center mb-4">
                       Start by adding a section to organize your course content
                     </p>
-                    <Button onClick={() => setAddingSectionId(courseId)}>Add Section</Button>
+                    <Button onClick={() => setAddingSectionId(courseId)}>
+                      Add Section
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -735,7 +1032,11 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                       onDeleteSection={handleDeleteSectionClick}
                       onEditSection={handleEditSection}
                       onDeleteLecture={(lectureId) =>
-                        setDeleteConfirmation({ type: "lecture", id: lectureId, title: "this lecture" })
+                        setDeleteConfirmation({
+                          type: "lecture",
+                          id: lectureId,
+                          title: "this lecture",
+                        })
                       }
                     />
                   ))}
@@ -743,7 +1044,10 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
               )}
 
               <div className="flex justify-center">
-                <Button variant="outline" onClick={() => setAddingSectionId(courseId)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setAddingSectionId(courseId)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Section
                 </Button>
@@ -754,7 +1058,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Course Details</CardTitle>
-                  <CardDescription>Update your course information</CardDescription>
+                  <CardDescription>
+                    Update your course information
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -798,7 +1104,10 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Content Type</Label>
-                      <Select value={courseForm.type} onValueChange={handleCourseTypeChange}>
+                      <Select
+                        value={courseForm.type}
+                        onValueChange={handleCourseTypeChange}
+                      >
                         <SelectTrigger id="type">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -807,7 +1116,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                           <SelectItem value="EVENT">Event</SelectItem>
                           <SelectItem value="SHOW">Show</SelectItem>
                           <SelectItem value="PODCAST">Podcast</SelectItem>
-                          <SelectItem value="PERFORMANCE">Performance</SelectItem>
+                          <SelectItem value="PERFORMANCE">
+                            Performance
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -824,16 +1135,20 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                         value={courseForm.price}
                         onChange={handleCourseFormChange}
                       />
-                      <p className="text-xs text-muted-foreground">Set to 0 for free content</p>
+                      <p className="text-xs text-muted-foreground">
+                        Set to 0 for free content
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="courseStatus">Course Status</Label>
-                      <Select 
-                        value={courseForm.courseStatus} 
-                        onValueChange={(value) => handleSelectChange("courseStatus", value)}
+                      <Select
+                        value={courseForm.courseStatus}
+                        onValueChange={(value) =>
+                          handleSelectChange("courseStatus", value)
+                        }
                       >
                         <SelectTrigger id="courseStatus">
                           <SelectValue placeholder="Select status" />
@@ -845,12 +1160,14 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="deliveryMode">Mode of Delivery</Label>
-                      <Select 
-                        value={courseForm.deliveryMode} 
-                        onValueChange={(value) => handleSelectChange("deliveryMode", value)}
+                      <Select
+                        value={courseForm.deliveryMode}
+                        onValueChange={(value) =>
+                          handleSelectChange("deliveryMode", value)
+                        }
                       >
                         <SelectTrigger id="deliveryMode">
                           <SelectValue placeholder="Select delivery mode" />
@@ -863,15 +1180,19 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="languages">Course Languages</Label>
                       <div className="w-full">
                         {/* Display selected languages as badges */}
                         <div className="flex flex-wrap gap-1 mb-2">
-                          {courseForm.languages?.map(language => (
-                            <Badge key={language} variant="secondary" className="px-2 py-1">
+                          {courseForm.languages?.map((language) => (
+                            <Badge
+                              key={language}
+                              variant="secondary"
+                              className="px-2 py-1"
+                            >
                               {language}
                               <button
                                 type="button"
@@ -879,12 +1200,14 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                                 onClick={() => removeLanguage(language)}
                               >
                                 <X className="h-3 w-3" />
-                                <span className="sr-only">Remove {language}</span>
+                                <span className="sr-only">
+                                  Remove {language}
+                                </span>
                               </button>
                             </Badge>
                           ))}
                         </div>
-                        
+
                         {/* Language selector dropdown */}
                         <Popover>
                           <PopoverTrigger asChild>
@@ -902,16 +1225,22 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                               <CommandInput placeholder="Search language..." />
                               <CommandEmpty>No language found.</CommandEmpty>
                               <CommandGroup className="max-h-64 overflow-auto">
-                                {LANGUAGES.map(language => (
+                                {LANGUAGES.map((language) => (
                                   <CommandItem
                                     key={language.value}
                                     value={language.value}
-                                    onSelect={() => toggleLanguage(language.value)}
+                                    onSelect={() =>
+                                      toggleLanguage(language.value)
+                                    }
                                   >
                                     <Check
                                       className={cn(
                                         "mr-2 h-4 w-4",
-                                        courseForm.languages?.includes(language.value) ? "opacity-100" : "opacity-0"
+                                        courseForm.languages?.includes(
+                                          language.value
+                                        )
+                                          ? "opacity-100"
+                                          : "opacity-0"
                                       )}
                                     />
                                     {language.label}
@@ -921,18 +1250,27 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <p className="text-xs text-muted-foreground mt-1">Select all languages available for this course</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Select all languages available for this course
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="accessDuration">
-                        Access Duration <span className="text-destructive">*</span>
+                        Access Duration{" "}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <div className="grid grid-cols-2 gap-2">
-                        <Select 
-                          value={customDuration ? "custom" : courseForm.accessDuration} 
-                          onValueChange={(value) => handleSelectChange("accessDuration", value)}
+                        <Select
+                          value={
+                            customDuration
+                              ? "custom"
+                              : courseForm.accessDuration
+                          }
+                          onValueChange={(value) =>
+                            handleSelectChange("accessDuration", value)
+                          }
                         >
                           <SelectTrigger id="accessDuration">
                             <SelectValue placeholder="Select duration" />
@@ -944,7 +1282,7 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                             <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
-                        
+
                         {customDuration && (
                           <div className="flex items-center">
                             <Input
@@ -962,17 +1300,63 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">How long students can access this course after enrollment</p>
+                      <p className="text-xs text-muted-foreground">
+                        How long students can access this course after
+                        enrollment
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="isPublished"
-                      checked={courseForm.isPublished}
-                      onCheckedChange={handleCoursePublishedToggle}
-                    />
-                    <Label htmlFor="isPublished">Publish immediately</Label>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="isPublished"
+                        checked={courseForm.isPublished}
+                        onCheckedChange={handleCoursePublishedToggle}
+                      />
+                      <Label htmlFor="isPublished">Publish immediately</Label>
+                    </div>
+
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Label htmlFor="visibility">Course Visibility</Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                Hidden courses are only accessible via special
+                                invite links
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Select
+                        value={courseForm.visibility || "PUBLIC"}
+                        onValueChange={(value) =>
+                          handleSelectChange("visibility", value)
+                        }
+                      >
+                        <SelectTrigger id="visibility" className="w-full">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PUBLIC">
+                            Public (Visible to everyone)
+                          </SelectItem>
+                          <SelectItem value="HIDDEN">
+                            Hidden (Access via invite links only)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Hidden courses are not shown in public listings and are
+                        only accessible through invite links you create
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter>
@@ -995,7 +1379,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Course Documents</CardTitle>
-                  <CardDescription>Manage documents attached to this course</CardDescription>
+                  <CardDescription>
+                    Manage documents attached to this course
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {course.documents && course.documents.length > 0 ? (
@@ -1007,9 +1393,13 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                         >
                           <div className="flex items-center gap-2">
                             <div>
-                              <p className="text-sm font-medium">{document.title}</p>
+                              <p className="text-sm font-medium">
+                                {document.title}
+                              </p>
                               {document.description && (
-                                <p className="text-xs text-muted-foreground">{document.description}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {document.description}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -1028,7 +1418,11 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                               <Trash className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="ghost" asChild>
-                              <a href={document.url} target="_blank" rel="noopener noreferrer">
+                              <a
+                                href={document.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
                                 <Edit className="h-4 w-4" />
                               </a>
                             </Button>
@@ -1038,7 +1432,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                     </div>
                   ) : (
                     <div className="text-center py-4 bg-muted/50 rounded-md">
-                      <p className="text-sm text-muted-foreground">No documents attached to this course</p>
+                      <p className="text-sm text-muted-foreground">
+                        No documents attached to this course
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -1056,6 +1452,179 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                   </Button>
                 </CardFooter>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="access" className="space-y-6 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Access Control</CardTitle>
+                  <CardDescription>
+                    Manage who can access this course and how
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Label htmlFor="visibility">Course Visibility</Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                Hidden courses are only accessible via special
+                                invite links
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Select
+                        value={courseForm.visibility || "PUBLIC"}
+                        onValueChange={(value) =>
+                          handleSelectChange("visibility", value)
+                        }
+                      >
+                        <SelectTrigger id="visibility" className="w-[240px]">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PUBLIC">
+                            Public (Visible to everyone)
+                          </SelectItem>
+                          <SelectItem value="HIDDEN">
+                            Hidden (Access via invite links only)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {courseForm.visibility === "HIDDEN"
+                        ? "This course is hidden and only accessible through invite links"
+                        : "This course is publicly visible to all users"}
+                    </p>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button onClick={handleSaveWithToast} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              {courseForm.visibility === "HIDDEN" && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Invite Links</CardTitle>
+                      <CardDescription>
+                        Create and manage invite links for this course
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setShowCreateLinkDialog(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Link
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingLinks ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : inviteLinks.length > 0 ? (
+                      <div className="space-y-4">
+                        {inviteLinks.map((link) => (
+                          <div
+                            key={link.id}
+                            className="flex flex-col space-y-2 rounded-md border p-4"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="font-medium">Invite Link</div>
+                                {link.expiresAt && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Expires:{" "}
+                                    {new Date(
+                                      link.expiresAt
+                                    ).toLocaleDateString()}
+                                  </Badge>
+                                )}
+                                {link.maxUsages && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Uses: {link.usageCount}/{link.maxUsages}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteInviteLink(link.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Input
+                                value={`${
+                                  typeof window !== "undefined"
+                                    ? window.location.origin
+                                    : ""
+                                }/invite/${link.token}`}
+                                readOnly
+                                className="font-mono text-xs"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyInviteLink(link.token)}
+                              >
+                                {copyLinkSuccess === link.token ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Created:{" "}
+                              {new Date(link.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="rounded-full bg-muted p-3 mb-4">
+                          <Link className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">
+                          No invite links yet
+                        </h3>
+                        <p className="text-muted-foreground text-center mb-4 max-w-sm">
+                          Create invite links to share this hidden course with
+                          specific people
+                        </p>
+                        <Button onClick={() => setShowCreateLinkDialog(true)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Invite Link
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -1081,16 +1650,18 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         open={addingSectionId !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setAddingSectionId(null)
-            setNewSectionTitle("")
-            setNewSectionDescription("")
+            setAddingSectionId(null);
+            setNewSectionTitle("");
+            setNewSectionDescription("");
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Section</DialogTitle>
-            <DialogDescription>Sections help you organize your course content into logical groups</DialogDescription>
+            <DialogDescription>
+              Sections help you organize your course content into logical groups
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1118,9 +1689,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
             <Button
               variant="outline"
               onClick={() => {
-                setAddingSectionId(null)
-                setNewSectionTitle("")
-                setNewSectionDescription("")
+                setAddingSectionId(null);
+                setNewSectionTitle("");
+                setNewSectionDescription("");
               }}
             >
               Cancel
@@ -1147,11 +1718,13 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Lecture</DialogTitle>
-            <DialogDescription>Upload content for this new lecture</DialogDescription>
+            <DialogDescription>
+              Upload content for this new lecture
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 gap-4">
-              <Button 
+              <Button
                 onClick={() => {
                   if (addingLectureToSectionId) {
                     redirectToUploadWithSection(addingLectureToSectionId);
@@ -1163,13 +1736,18 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                 <Upload className="h-5 w-5 mr-2" />
                 <div className="text-left">
                   <div className="font-medium">Upload Content</div>
-                  <div className="text-xs text-muted-foreground">Upload video or other content for this lecture</div>
+                  <div className="text-xs text-muted-foreground">
+                    Upload video or other content for this lecture
+                  </div>
                 </div>
               </Button>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddingLectureToSectionId(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setAddingLectureToSectionId(null)}
+            >
               Cancel
             </Button>
           </DialogFooter>
@@ -1177,7 +1755,10 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
       </Dialog>
 
       {/* Edit Lecture Dialog */}
-      <Dialog open={editingLecture !== null} onOpenChange={(open) => !open && setEditingLecture(null)}>
+      <Dialog
+        open={editingLecture !== null}
+        onOpenChange={(open) => !open && setEditingLecture(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Lecture</DialogTitle>
@@ -1196,7 +1777,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="editLectureDescription">Description (Optional)</Label>
+              <Label htmlFor="editLectureDescription">
+                Description (Optional)
+              </Label>
               <Textarea
                 id="editLectureDescription"
                 value={editLectureDescription}
@@ -1210,7 +1793,9 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
                 checked={editLectureIsPreview}
                 onCheckedChange={setEditLectureIsPreview}
               />
-              <Label htmlFor="editLectureIsPreview">Make this lecture available as a preview</Label>
+              <Label htmlFor="editLectureIsPreview">
+                Make this lecture available as a preview
+              </Label>
             </div>
           </div>
           <DialogFooter>
@@ -1231,6 +1816,119 @@ export default function CourseEditor({ courseId }: CourseEditorProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Invite Links Dialog */}
+      <Dialog
+        open={showCreateLinkDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateLinkDialog(false);
+            setNewLinkExpiry(undefined);
+            setNewLinkMaxUsages(undefined);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Links</DialogTitle>
+            <DialogDescription>
+              Manage access to your course with invite links
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Invite links list */}
+            <div className="space-y-2">
+              {isLoadingLinks ? (
+                <Skeleton className="h-10 w-full" />
+              ) : inviteLinks.length > 0 ? (
+                inviteLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {link.token}
+                        {copyLinkSuccess === link.token && (
+                          <span className="text-green-500 ml-2">Copied!</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {link.maxUsages === null
+                          ? "Unlimited usages"
+                          : `${link.maxUsages} usages`}
+                        {link.expiresAt && ` • Expires on ${link.expiresAt}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => copyInviteLink(link.token)}
+                      >
+                        Copy Link
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteInviteLink(link.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No invite links created yet
+                </p>
+              )}
+            </div>
+
+            {/* New invite link form */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newLinkExpiry">Expiry Date</Label>
+                  <Input
+                    id="newLinkExpiry"
+                    type="date"
+                    value={newLinkExpiry?.split("T")[0]}
+                    onChange={(e) => setNewLinkExpiry(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="newLinkMaxUsages">Max Usages</Label>
+                  <Input
+                    id="newLinkMaxUsages"
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 100"
+                    value={newLinkMaxUsages}
+                    onChange={(e) => setNewLinkMaxUsages(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={createInviteLink}
+                disabled={isCreatingLink}
+                className="w-full"
+              >
+                {isCreatingLink ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Invite Link"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }

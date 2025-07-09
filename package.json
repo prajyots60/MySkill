@@ -50,6 +50,7 @@
     "@socket.io/admin-ui": "latest",
     "@socket.io/redis-adapter": "latest",
     "@socket.io/sticky": "^1.0.4",
+    "@stripe/stripe-js": "^5.7.0",
     "@supabase/supabase-js": "latest",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-devtools": "latest",

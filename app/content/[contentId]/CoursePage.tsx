@@ -174,6 +174,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     null
   );
 
+  // Get invite token from URL if present
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+
   // Enhanced data fetching with strong cache busting
   const fetchCourseData = useCallback(async () => {
     if (!contentId) return;
@@ -182,10 +185,17 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       setLoading(true);
       setEnrollmentChecked(false);
 
-      // Add timestamp to force fresh data after cache invalidation
+      // Check for invite token in URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get("inviteToken");
+      setInviteToken(token);
+
+      // Add timestamp and token to force fresh data after cache invalidation
       const timestamp = new Date().getTime();
       const courseResponse = await fetch(
-        `/api/courses/${contentId}?_=${timestamp}`,
+        `/api/courses/${contentId}?_=${timestamp}${
+          token ? `&inviteToken=${token}` : ""
+        }`,
         {
           cache: "no-store", // Don't cache this request
           headers: {
@@ -224,7 +234,9 @@ export default function CoursePage({ contentId }: CoursePageProps) {
         const random = Math.random().toString(36).substring(7);
 
         const enrollmentResponse = await fetch(
-          `/api/courses/${contentId}/enrollment-status?t=${timestamp}&r=${random}`,
+          `/api/courses/${contentId}/enrollment-status?t=${timestamp}&r=${random}${
+            inviteToken ? `&inviteToken=${inviteToken}` : ""
+          }`,
           {
             cache: "no-store",
             headers: {
@@ -390,6 +402,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
     } else if (effectivelyEnrolled) {
       // If already enrolled or creator/admin, go to the first lecture
       if (sections.length > 0 && sections[0].lectures.length > 0) {
+        // No need to include invite token for enrolled users
         router.push(
           `/content/${contentId}/player/${sections[0].lectures[0].id}`
         );
@@ -451,6 +464,7 @@ export default function CoursePage({ contentId }: CoursePageProps) {
       });
 
       // After successful enrollment, redirect to first lecture
+      // No need to include invite token since user is now enrolled
       if (sections.length > 0 && sections[0].lectures.length > 0) {
         router.push(
           `/content/${contentId}/player/${sections[0].lectures[0].id}`
