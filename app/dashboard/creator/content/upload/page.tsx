@@ -732,7 +732,7 @@ export default function UploadContent() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 dark:from-primary dark:to-primary/80">Upload Content</h1>
+            <h1 className="text-3xl font-bold mb-6">Upload Content</h1>
             <p className="text-muted-foreground mt-2">Add videos or live streams to your courses</p>
           </div>
           <Button variant="ghost" onClick={() => router.push("/dashboard/creator")} className="flex items-center gap-2">

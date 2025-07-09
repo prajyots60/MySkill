@@ -49,11 +49,11 @@
     --popover-foreground: 60 9% 98%;
 
     /* Sophisticated Multi-Tonal Primary System */
-    --primary: 250 100% 75%; /* Luminous Periwinkle #7F6FFF */
+    --primary: 225 76% 75%; /* Blue Violet #8ca0f1 */
     --primary-foreground: 0 0% 100%;
-    --primary-accent: 260 100% 68%; /* Deep Lavender #6A4FFF */
-    --primary-light: 240 100% 85%; /* Soft Lilac #ADADFF */
-    --primary-dark: 270 100% 45%; /* Royal Indigo #4A2EBB */
+    --primary-accent: 230 70% 68%; /* Deep Blue Violet #7b8fe8 */
+    --primary-light: 220 82% 85%; /* Soft Blue Violet #b3c0f5 */
+    --primary-dark: 235 70% 50%; /* Royal Blue Violet #5a75e6 */
 
     /* Rich Secondary Palette */
     --secondary: 220 13% 8%; /* Charcoal Elegance #1A1B1F */
@@ -82,18 +82,18 @@
     /* PREMIUM GRADIENT SYSTEM */
     --gradient-primary: radial-gradient(
         circle at 30% 30%,
-        hsla(250, 100%, 75%, 0.8) 0%,
+        hsla(225, 76%, 75%, 0.8) 0%,
         transparent 60%
       ),
       radial-gradient(
         circle at 70% 70%,
-        hsla(260, 100%, 68%, 0.6) 0%,
+        hsla(230, 70%, 68%, 0.6) 0%,
         transparent 50%
       ),
       linear-gradient(
         135deg,
-        hsla(270, 100%, 45%, 0.3) 0%,
-        hsla(280, 100%, 15%, 0.8) 100%
+        hsla(235, 70%, 50%, 0.3) 0%,
+        hsla(240, 60%, 20%, 0.8) 100%
       );
 
     --gradient-card: linear-gradient(
@@ -105,25 +105,25 @@
 
     --gradient-hero: radial-gradient(
         ellipse at 50% 0%,
-        hsla(250, 100%, 75%, 0.15) 0%,
+        hsla(225, 76%, 75%, 0.15) 0%,
         transparent 70%
       ),
       radial-gradient(
         ellipse at 0% 100%,
-        hsla(260, 100%, 68%, 0.1) 0%,
+        hsla(230, 70%, 68%, 0.1) 0%,
         transparent 60%
       ),
       radial-gradient(
         ellipse at 100% 100%,
-        hsla(280, 100%, 15%, 0.2) 0%,
+        hsla(240, 60%, 20%, 0.2) 0%,
         transparent 50%
       );
 
     --gradient-button: linear-gradient(
       135deg,
-      hsl(250, 100%, 75%) 0%,
-      hsl(260, 100%, 68%) 50%,
-      hsl(270, 100%, 45%) 100%
+      hsl(225, 76%, 75%) 0%,
+      hsl(230, 70%, 68%) 50%,
+      hsl(235, 70%, 50%) 100%
     );
 
     --glass-effect: backdrop-blur(24px) saturate(200%) brightness(110%);
@@ -131,20 +131,20 @@
     /* Elite Sidebar Theme */
     --sidebar-background: 222 47% 2%; /* Ultra Deep #020304 */
     --sidebar-foreground: 60 9% 98%;
-    --sidebar-primary: 250 100% 75%;
+    --sidebar-primary: 225 76% 75%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 280 100% 15%;
-    --sidebar-accent-foreground: 280 100% 92%;
+    --sidebar-accent: 240 60% 20%;
+    --sidebar-accent-foreground: 225 76% 92%;
     --sidebar-border: 220 13% 8%;
-    --sidebar-ring: 250 100% 75%;
+    --sidebar-ring: 225 76% 75%;
 
     /* Luxury Chart Palette */
-    --chart-1: 250 100% 75%; /* Luminous Periwinkle */
+    --chart-1: 225 76% 75%; /* Blue Violet #8ca0f1 */
     --chart-2: 200 95% 58%; /* Ocean Teal */
     --chart-3: 158 64% 52%; /* Emerald Mint */
     --chart-4: 43 96% 56%; /* Golden Amber */
     --chart-5: 348 83% 58%; /* Crimson Rose */
-    --chart-6: 260 100% 68%; /* Deep Lavender */
+    --chart-6: 230 70% 68%; /* Deep Blue Violet */
   }
 
   .light {
@@ -157,19 +157,19 @@
     --popover-foreground: 222 47% 3%;
 
     /* Sophisticated Multi-Tonal Primary System */
-    --primary: 260 100% 68%; /* Deep Lavender #6A4FFF */
+    --primary: 230 70% 68%; /* Deep Blue Violet #7b8fe8 */
     --primary-foreground: 0 0% 100%;
-    --primary-accent: 250 100% 75%; /* Luminous Periwinkle */
-    --primary-light: 240 100% 92%; /* Whisper Lilac */
-    --primary-dark: 270 100% 35%; /* Royal Indigo */
+    --primary-accent: 225 76% 75%; /* Blue Violet #8ca0f1 */
+    --primary-light: 220 82% 92%; /* Whisper Blue Violet */
+    --primary-dark: 235 70% 40%; /* Royal Blue Violet */
 
     /* Refined Secondary Palette */
     --secondary: 220 13% 97%; /* Pearl Elegance #F7F8FA */
     --secondary-foreground: 222 47% 3%;
     --muted: 220 13% 95%; /* Soft Platinum #F2F3F5 */
     --muted-foreground: 220 13% 46%;
-    --accent: 250 100% 97%; /* Whisper Lavender #F7F5FF */
-    --accent-foreground: 260 100% 58%;
+    --accent: 225 76% 97%; /* Whisper Blue Violet #f5f7ff */
+    --accent-foreground: 230 70% 58%;
 
     /* Premium Status Colors */
     --destructive: 348 83% 58%; /* Crimson Rose #E6366B */
@@ -184,23 +184,23 @@
     /* Elegant Borders & Inputs */
     --border: 220 13% 91%; /* Soft Border #E6E7EA */
     --input: 220 13% 95%;
-    --ring: 260 100% 68%;
+    --ring: 230 70% 68%;
 
     /* PREMIUM GRADIENT SYSTEM - Light Mode */
     --gradient-primary: radial-gradient(
         circle at 30% 30%,
-        hsla(260, 100%, 68%, 0.08) 0%,
+        hsla(230, 70%, 68%, 0.08) 0%,
         transparent 60%
       ),
       radial-gradient(
         circle at 70% 70%,
-        hsla(250, 100%, 75%, 0.06) 0%,
+        hsla(225, 76%, 75%, 0.06) 0%,
         transparent 50%
       ),
       linear-gradient(
         135deg,
-        hsla(240, 100%, 92%, 0.4) 0%,
-        hsla(250, 100%, 97%, 0.8) 100%
+        hsla(220, 82%, 92%, 0.4) 0%,
+        hsla(225, 76%, 97%, 0.8) 100%
       );
 
     --gradient-card: linear-gradient(
@@ -212,25 +212,25 @@
 
     --gradient-hero: radial-gradient(
         ellipse at 50% 0%,
-        hsla(260, 100%, 68%, 0.08) 0%,
+        hsla(230, 70%, 68%, 0.08) 0%,
         transparent 70%
       ),
       radial-gradient(
         ellipse at 0% 100%,
-        hsla(250, 100%, 75%, 0.06) 0%,
+        hsla(225, 76%, 75%, 0.06) 0%,
         transparent 60%
       ),
       radial-gradient(
         ellipse at 100% 100%,
-        hsla(240, 100%, 92%, 0.1) 0%,
+        hsla(220, 82%, 92%, 0.1) 0%,
         transparent 50%
       );
 
     --gradient-button: linear-gradient(
       135deg,
-      hsl(260, 100%, 68%) 0%,
-      hsl(250, 100%, 75%) 50%,
-      hsl(240, 100%, 85%) 100%
+      hsl(230, 70%, 68%) 0%,
+      hsl(225, 76%, 75%) 50%,
+      hsl(220, 82%, 85%) 100%
     );
 
     --glass-effect: backdrop-blur(20px) saturate(180%) brightness(105%);
@@ -238,20 +238,20 @@
     /* Elite Sidebar Theme - Light */
     --sidebar-background: 60 30% 99%;
     --sidebar-foreground: 222 47% 3%;
-    --sidebar-primary: 260 100% 68%;
+    --sidebar-primary: 230 70% 68%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 250 100% 97%;
-    --sidebar-accent-foreground: 260 100% 58%;
+    --sidebar-accent: 225 76% 97%;
+    --sidebar-accent-foreground: 230 70% 58%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 260 100% 68%;
+    --sidebar-ring: 230 70% 68%;
 
     /* Luxury Chart Palette - Light */
-    --chart-1: 260 100% 68%; /* Deep Lavender */
+    --chart-1: 230 70% 68%; /* Deep Blue Violet */
     --chart-2: 200 95% 58%; /* Ocean Teal */
     --chart-3: 158 64% 52%; /* Emerald Mint */
     --chart-4: 43 96% 56%; /* Golden Amber */
     --chart-5: 348 83% 58%; /* Crimson Rose */
-    --chart-6: 250 100% 75%; /* Luminous Periwinkle */
+    --chart-6: 225 76% 75%; /* Blue Violet #8ca0f1 */
   }
 }
 

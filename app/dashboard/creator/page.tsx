@@ -547,9 +547,7 @@ export default function CreatorDashboardPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
-      <h1 className="text-gradient-luxe text-3xl font-bold mb-6">
-        Creator Dashboard
-      </h1>
+      <h1 className="text-3xl font-bold mb-6">Creator Dashboard</h1>
 
       {/* Public Creator Profile Section - With Profile Completion Status */}
       <div className="mb-6 rounded-md bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-950/30 overflow-hidden">
