@@ -152,6 +152,8 @@ model Content {
   type            ContentType      @default(COURSE)
   price           Float?           @default(0)
   isPublished     Boolean          @default(false)
+  visibility      ContentVisibility @default(PUBLIC)
+  inviteLinks     InviteLink[]
   tags            String[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -177,6 +179,22 @@ model Content {
   @@index([creatorId])
   @@index([type])
   @@index([isPublished])
+}
+
+model InviteLink {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  contentId     String
+  expiresAt     DateTime?
+  maxUsages     Int?
+  usageCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  content       Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+}
+
+enum ContentVisibility {
+  PUBLIC
+  HIDDEN
 }
 
 model Section {
