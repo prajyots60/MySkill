@@ -163,11 +163,6 @@ export default function VideoPlayerPage({
   const videoRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLDivElement>(null);
 
-  const [courseData, setCourseData] = useState<{
-    title: string;
-    price: number;
-  } | null>(null);
-
   // Toggle sidebar visibility - memoized to prevent unnecessary re-renders
   const toggleSidebar = useCallback(() => {
     setSidebarVisible((prev) => !prev);
@@ -414,15 +409,6 @@ export default function VideoPlayerPage({
 
           if (response.status === 403) {
             // User is not enrolled in a paid course
-            const courseResponse = await fetch(`/api/courses/${contentId}`);
-            if (!courseResponse.ok) {
-              throw new Error("Failed to fetch course details");
-            }
-            const courseData = await courseResponse.json();
-            setCourseData({
-              title: courseData.title,
-              price: courseData.price,
-            });
             setShowEnrollmentModal(true);
 
             // Start countdown for redirect
@@ -472,9 +458,9 @@ export default function VideoPlayerPage({
   const { data: fetchedCourseData, isLoading: courseLoading } =
     useOptimizedQuery(
       () =>
-        enrollmentData?.isEnrolled
+        enrollmentData
           ? `course-${contentId}-${session?.user?.id || "guest"}`
-          : null, // Only fetch if enrolled
+          : null, // Always fetch course data when enrollment data is available
       async () => {
         const response = await fetch(`/api/courses/${contentId}`, {
           headers: {
@@ -520,9 +506,9 @@ export default function VideoPlayerPage({
   // Use optimized query for lecture data with improved caching
   const { data: lectureData, isLoading: lectureLoading } = useOptimizedQuery(
     () =>
-      enrollmentData?.isEnrolled
+      enrollmentData
         ? `lecture-${lectureId}-${session?.user?.id || "guest"}`
-        : null, // Only fetch if enrolled
+        : null, // Always fetch lecture data when enrollment data is available
     async () => {
       const response = await fetch(`/api/lectures/${lectureId}`, {
         headers: {
@@ -574,9 +560,13 @@ export default function VideoPlayerPage({
   // Use optimized query for progress data with improved caching
   const { data: progressData } = useOptimizedQuery(
     () =>
-      enrollmentData?.isEnrolled
+      enrollmentData &&
+      (enrollmentData.isEnrolled ||
+        enrollmentData.isPreviewLecture ||
+        enrollmentData.hasValidInvite ||
+        enrollmentData.isFree)
         ? `progress-${contentId}-${session?.user?.id || "guest"}`
-        : null, // Only fetch if enrolled
+        : null, // Only fetch progress if user actually has access
     async () => {
       const response = await fetch(`/api/progress?courseId=${contentId}`, {
         headers: {
@@ -696,7 +686,10 @@ export default function VideoPlayerPage({
   useEffect(() => {
     if (enrollmentData) {
       const newEnrolledState =
-        enrollmentData.isEnrolled || enrollmentData.isPreviewLecture;
+        enrollmentData.isEnrolled ||
+        enrollmentData.isPreviewLecture ||
+        enrollmentData.hasValidInvite ||
+        enrollmentData.isFree;
       setIsEnrolled(newEnrolledState);
 
       // If user is enrolled, clear the invite token to avoid unnecessary propagation
@@ -712,7 +705,10 @@ export default function VideoPlayerPage({
       isAdmin ||
       isFreeCourse ||
       isPreviewLecture ||
-      (enrollmentData && enrollmentData.isPreviewLecture);
+      (enrollmentData &&
+        (enrollmentData.isPreviewLecture ||
+          enrollmentData.hasValidInvite ||
+          enrollmentData.isFree));
     setHasAccess(userHasAccess);
   }, [
     enrollmentData,
@@ -783,8 +779,7 @@ export default function VideoPlayerPage({
   // Update loading state based on query loading states
   useEffect(() => {
     setLoading(
-      enrollmentLoading ||
-        (enrollmentData?.isEnrolled && (courseLoading || lectureLoading))
+      enrollmentLoading || (enrollmentData && (courseLoading || lectureLoading))
     );
   }, [
     enrollmentLoading,
@@ -1005,22 +1000,22 @@ export default function VideoPlayerPage({
     );
   }
 
-  if (!isEnrolled && courseData) {
+  if (!hasAccess && course && !loading) {
     return (
       <>
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
           <div className="text-center max-w-md p-6 rounded-lg border bg-card shadow-sm">
             <h2 className="text-2xl font-bold mb-2">Enrollment Required</h2>
             <p className="text-muted-foreground mb-4">
-              {courseData.price > 0
+              {(course.price || 0) > 0
                 ? "You need to purchase and enroll in this course to access its content."
                 : "You need to enroll in this course to access its content."}
             </p>
             <div className="bg-muted p-4 rounded-md mb-4">
-              <p className="font-medium">{courseData.title}</p>
+              <p className="font-medium">{course.title}</p>
               <p className="text-primary font-bold">
-                {courseData.price > 0
-                  ? `$${courseData.price.toFixed(2)}`
+                {(course.price || 0) > 0
+                  ? `$${(course.price || 0).toFixed(2)}`
                   : "Free"}
               </p>
             </div>
@@ -1029,7 +1024,7 @@ export default function VideoPlayerPage({
             </p>
             <div className="flex flex-col gap-2">
               <Button onClick={() => setShowEnrollmentModal(true)}>
-                {courseData.price > 0 ? "Purchase Now" : "Enroll Now"}
+                {(course.price || 0) > 0 ? "Purchase Now" : "Enroll Now"}
               </Button>
               <Button
                 variant="outline"
@@ -1044,8 +1039,8 @@ export default function VideoPlayerPage({
           isOpen={showEnrollmentModal}
           onClose={() => setShowEnrollmentModal(false)}
           courseId={contentId}
-          courseTitle={courseData.title}
-          price={courseData.price}
+          courseTitle={course.title}
+          price={course.price || 0}
         />
       </>
     );

@@ -36,7 +36,6 @@ export default function AccessDeniedPage() {
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>A valid invite link from the course creator</li>
               <li>To be enrolled in the course</li>
-              <li>To be the course creator or an administrator</li>
             </ul>
           </div>
         </CardContent>

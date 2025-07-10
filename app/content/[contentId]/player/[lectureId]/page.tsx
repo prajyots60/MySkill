@@ -13,8 +13,8 @@ export default async function Page({
   params: { contentId: string; lectureId: string };
   searchParams: { inviteToken?: string };
 }) {
-  const { contentId, lectureId } = params;
-  const inviteToken = searchParams.inviteToken;
+  const { contentId, lectureId } = await params;
+  const { inviteToken } = await searchParams;
   const session = await getServerSession(authOptions);
 
   // Check lecture preview status first (preview lectures are always accessible)

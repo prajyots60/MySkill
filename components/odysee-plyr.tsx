@@ -209,8 +209,7 @@ export function OdyseePlyr({
         topAreaBlocker.style.zIndex = "5"; // Higher z-index to ensure it blocks clicks
         topAreaBlocker.style.pointerEvents = "auto"; // Block all interaction in this area
         topAreaBlocker.style.background = "transparent"; // Invisible overlay
-        topAreaBlocker.title =
-          "Click blocker to prevent Odysee embed redirects";
+        topAreaBlocker.title = "Play/Pause the video by clicking bottom area"; // Tooltip for user guidance
 
         // Add the top area blocker to the container
         containerRef.current.appendChild(topAreaBlocker);

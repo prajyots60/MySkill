@@ -142,8 +142,19 @@ export async function GET(
       return NextResponse.json(response);
     }
 
-    // Note: For free courses, we still need to check actual enrollment status
-    // Free courses require enrollment, but the enrollment process is just simplified
+    // For free courses, allow access regardless of enrollment status
+    if (course.price === 0 || course.price === null) {
+      const response = {
+        isEnrolled: false,
+        hasAccess: true,
+        isFree: true,
+      };
+      const cacheKey = `enrollment:${courseId}:${session.user.id}${
+        lectureId ? `:${lectureId}` : ""
+      }`;
+      await redis.set(cacheKey, response, { ex: 3600 }); // 1 hour cache
+      return NextResponse.json(response);
+    }
 
     // Check if user is enrolled and enrollment hasn't expired
     const now = new Date();
