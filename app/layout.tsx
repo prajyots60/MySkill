@@ -142,6 +142,13 @@ export default function RootLayout({
             } catch (e) {}
           `}
         </Script>
+
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3925803581025669"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )
