@@ -55,6 +55,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3925803581025669"
+          crossOrigin="anonymous"
+          strategy="beforeInteractive"
+        />
+        
         {/* Preconnect to critical domains */}
         <link rel="preconnect" href="https://www.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.youtube.com" crossOrigin="anonymous" />
@@ -143,12 +150,6 @@ export default function RootLayout({
           `}
         </Script>
 
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3925803581025669"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   )
