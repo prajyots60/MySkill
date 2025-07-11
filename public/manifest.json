@@ -1,6 +1,6 @@
 {
-  "name": "EduTube - YouTube-Powered Educational Platform",
-  "short_name": "EduTube",
+  "name": "xGuru - YouTube-Powered Educational Platform",
+  "short_name": "xGuru",
   "description": "Launch, manage, and monetize your video courses without paying for video hosting",
   "start_url": "/",
   "display": "standalone",
