@@ -19,11 +19,11 @@ import {
   DollarSign,
   Users,
   Calendar,
-  GraduationCap,
   FileQuestion,
   BarChart,
   X,
   UserCheck,
+  Zap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -117,27 +117,38 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="sidebar-modern">
-      <SidebarHeader className="flex flex-col gap-0.5 py-1.5">
-        <div className="flex items-center justify-between px-1.5">
+      <SidebarHeader className="flex flex-col gap-2 py-3">
+        <div className="flex items-center justify-center px-2">
           <PrefetchableLink
             href={isAuthenticated ? getDefaultDashboardPath(userRole) : "/"}
-            className="flex items-center gap-1"
+            className="group relative flex items-center gap-3 p-2 rounded-xl transition-all duration-300 ease-out hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/5 hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
             prefetchOnMount={true}
             instantHoverLoad={true}
           >
-            <Video className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-semibold text-[13px] text-primary group-data-[collapsible=icon]:hidden">
-              xGuru
-            </span>
+            {/* Logo with enhanced styling */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg blur-sm group-hover:blur-md transition-all duration-300" />
+              <div className="relative bg-gradient-to-br from-primary to-primary/80 p-2 rounded-lg shadow-lg group-hover:shadow-xl group-hover:shadow-primary/30 transition-all duration-300">
+                <Video className="h-5 w-5 text-white drop-shadow-sm group-hover:scale-110 transition-transform duration-300" />
+              </div>
+            </div>
+
+            {/* Brand name with enhanced typography */}
+            <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
+              <span className="font-bold text-lg bg-gradient-to-r from-primary via-primary/90 to-primary/80 bg-clip-text text-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/90 transition-all duration-300 tracking-tight">
+                xGuru
+              </span>
+              <div className="h-0.5 w-0 bg-gradient-to-r from-primary to-primary/60 group-hover:w-full transition-all duration-500 ease-out rounded-full" />
+            </div>
           </PrefetchableLink>
 
-          {/* Mobile close button - only visible on mobile */}
+          {/* Mobile close button - enhanced styling */}
           {isMounted && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setOpenMobile(false)}
-              className="md:hidden p-1 h-7 w-7"
+              className="md:hidden p-2 h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 hover:scale-105 active:scale-95"
               aria-label="Close sidebar"
             >
               <X className="h-4 w-4" />
@@ -145,12 +156,12 @@ export function AppSidebar() {
           )}
         </div>
 
-        <div className="flex items-center justify-center gap-0.5">
+        <div className="flex items-center justify-center gap-1 px-2">
           <div className="group-data-[collapsible=icon]:hidden">
             <ThemeSwitch />
           </div>
           {isMounted && (
-            <SidebarTrigger className="text-primary h-8 w-8 p-1">
+            <SidebarTrigger className="text-primary h-9 w-9 p-2 rounded-lg hover:bg-primary/10 hover:shadow-md transition-all duration-200 hover:scale-105 active:scale-95">
               {state === "expanded" ? (
                 <ChevronLeft className="h-4 w-4" />
               ) : (
@@ -440,7 +451,7 @@ export function AppSidebar() {
                           prefetch={true}
                           scroll={false}
                         >
-                          <Youtube className="h-4 w-4" />
+                          <Zap className="h-4 w-4" />
                           <span className="text-[13px]">
                             Connected Services{" "}
                           </span>
