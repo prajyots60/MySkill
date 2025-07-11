@@ -1,88 +1,97 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Loader2, Pencil, User, Video } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { completeUserOnboarding, updateUserSession } from "@/lib/actions/auth"
-import type { UserRole } from "@/lib/types"
-import { getRedirectPathForRole } from "@/lib/utils/roles"
-import { CountryCodeSelect } from "@/components/country-code-select"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Loader2, Pencil, User, Video } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { completeUserOnboarding, updateUserSession } from "@/lib/actions/auth";
+import type { UserRole } from "@/lib/types";
+import { getRedirectPathForRole } from "@/lib/utils/roles";
+import { CountryCodeSelect } from "@/components/country-code-select";
 
 export default function OnboardingPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { data: session, status, update } = useSession()
-  const { toast } = useToast()
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status, update } = useSession();
+  const { toast } = useToast();
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>("STUDENT")
-  const [bio, setBio] = useState("")
-  const [mobileNumber, setMobileNumber] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [selectedRole, setSelectedRole] = useState<UserRole>("STUDENT");
+  const [bio, setBio] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Get userId from query params if available
-  const userId = searchParams.get("userId") || session?.user?.id
-  const isNew = searchParams.get("isNew") === "true"
+  const userId = searchParams.get("userId") || session?.user?.id;
+  const isNew = searchParams.get("isNew") === "true";
 
   // Redirect if already onboarded
   useEffect(() => {
     if (status === "authenticated" && session.user.onboarded) {
-      const redirectPath = getRedirectPathForRole(session.user.role as UserRole)
-      router.push(redirectPath)
+      const redirectPath = getRedirectPathForRole(
+        session.user.role as UserRole
+      );
+      router.push(redirectPath);
     }
-  }, [status, session, router])
+  }, [status, session, router]);
 
   // Redirect if not authenticated and no userId in query
   useEffect(() => {
     if (status === "unauthenticated" && !userId) {
-      router.push("/auth/signin")
+      router.push("/auth/signin");
     }
-  }, [status, userId, router])
+  }, [status, userId, router]);
 
   // Update the handleSubmit function to properly update the session and redirect
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (!userId) {
-      setError("User ID not found. Please try signing in again.")
+      setError("User ID not found. Please try signing in again.");
       toast({
         title: "Error",
         description: "User ID not found. Please try signing in again.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
-      console.log("Completing onboarding for user:", userId)
+      console.log("Completing onboarding for user:", userId);
       const result = await completeUserOnboarding({
         userId,
         role: selectedRole,
         bio,
         mobileNumber,
-      })
+      });
 
       if (result.success) {
-        console.log("Onboarding successful, updating session")
+        console.log("Onboarding successful, updating session");
         // Update the session with the new role and onboarded status
         await update({
           user: {
             role: selectedRole,
             onboarded: true,
           },
-        })
+        });
 
         // Force a session revalidation
         if (session?.user?.id) {
@@ -90,7 +99,7 @@ export default function OnboardingPage() {
             userId: session.user.id,
             role: selectedRole,
             onboarded: true,
-          })
+          });
         }
 
         toast({
@@ -98,27 +107,30 @@ export default function OnboardingPage() {
           description: result.isNew
             ? "Your account has been created successfully!"
             : "Your profile has been updated successfully!",
-        })
+        });
 
         // Redirect based on role
-        const redirectPath = getRedirectPathForRole(selectedRole)
-        console.log("Redirecting to:", redirectPath)
-        router.push(redirectPath)
+        const redirectPath = getRedirectPathForRole(selectedRole);
+        console.log("Redirecting to:", redirectPath);
+        router.push(redirectPath);
       } else {
-        throw new Error(result.error || "Failed to update profile")
+        throw new Error(result.error || "Failed to update profile");
       }
     } catch (error) {
-      console.error("Onboarding error:", error)
-      setError(error instanceof Error ? error.message : "Failed to update profile")
+      console.error("Onboarding error:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to update profile"
+      );
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile",
+        description:
+          error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (status === "loading") {
     return (
@@ -128,7 +140,7 @@ export default function OnboardingPage() {
           <p className="text-white">Loading your profile...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -139,9 +151,11 @@ export default function OnboardingPage() {
             <Video className="h-8 w-8 text-indigo-400" />
           </div>
           <CardTitle className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-            Welcome to EduTube!
+            Welcome to xGuru!
           </CardTitle>
-          <CardDescription className="text-slate-300">Tell us a bit about yourself to get started</CardDescription>
+          <CardDescription className="text-slate-300">
+            Tell us a bit about yourself to get started
+          </CardDescription>
 
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-md text-sm mt-4">
@@ -152,32 +166,52 @@ export default function OnboardingPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-slate-200">I want to join as a:</h3>
+              <h3 className="text-lg font-medium text-slate-200">
+                I want to join as a:
+              </h3>
               <RadioGroup
                 value={selectedRole}
                 onValueChange={(value) => setSelectedRole(value as UserRole)}
                 className="space-y-3"
               >
                 <div className="flex items-center space-x-2 rounded-md border border-indigo-700/50 p-4 hover:bg-indigo-900/30 transition-colors">
-                  <RadioGroupItem value="STUDENT" id="student" className="text-indigo-400" />
-                  <Label htmlFor="student" className="flex-1 cursor-pointer text-slate-200">
+                  <RadioGroupItem
+                    value="STUDENT"
+                    id="student"
+                    className="text-indigo-400"
+                  />
+                  <Label
+                    htmlFor="student"
+                    className="flex-1 cursor-pointer text-slate-200"
+                  >
                     <div className="flex items-center gap-2">
                       <User className="h-5 w-5 text-indigo-400" />
                       <div>
                         <div className="font-medium">Student</div>
-                        <div className="text-sm text-slate-400">I want to learn and take courses</div>
+                        <div className="text-sm text-slate-400">
+                          I want to learn and take courses
+                        </div>
                       </div>
                     </div>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2 rounded-md border border-indigo-700/50 p-4 hover:bg-indigo-900/30 transition-colors">
-                  <RadioGroupItem value="CREATOR" id="creator" className="text-indigo-400" />
-                  <Label htmlFor="creator" className="flex-1 cursor-pointer text-slate-200">
+                  <RadioGroupItem
+                    value="CREATOR"
+                    id="creator"
+                    className="text-indigo-400"
+                  />
+                  <Label
+                    htmlFor="creator"
+                    className="flex-1 cursor-pointer text-slate-200"
+                  >
                     <div className="flex items-center gap-2">
                       <Pencil className="h-5 w-5 text-indigo-400" />
                       <div>
                         <div className="font-medium">Creator</div>
-                        <div className="text-sm text-slate-400">I want to create and sell courses</div>
+                        <div className="text-sm text-slate-400">
+                          I want to create and sell courses
+                        </div>
                       </div>
                     </div>
                   </Label>
@@ -208,7 +242,9 @@ export default function OnboardingPage() {
                 rows={3}
                 className="resize-none bg-slate-800/50 border-indigo-700/50 text-slate-200 placeholder:text-slate-500"
               />
-              <p className="text-xs text-slate-400">This will be displayed on your public profile</p>
+              <p className="text-xs text-slate-400">
+                This will be displayed on your public profile
+              </p>
             </div>
           </CardContent>
           <CardFooter>
@@ -230,5 +266,5 @@ export default function OnboardingPage() {
         </form>
       </Card>
     </div>
-  )
+  );
 }
