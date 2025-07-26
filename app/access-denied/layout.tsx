@@ -2,7 +2,7 @@ import { PerformanceOptimizedLayout } from "@/components/performance-optimized-l
 import type React from "react";
 
 export const metadata = {
-  title: "Access Denied | EduPlatform",
+  title: "Access Denied | xGuru",
   description: "You don't have permission to access this content",
 };
 
